@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>POPIT 记忆泡泡爆破</title>
+    <!-- Tailwind CSS for modern layouts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind custom setup for themed colors and animations -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        themeDark: '#090a21',
+                        themePurple: '#1e1145',
+                        themeNeonBlue: '#3b82f6',
+                        themeNeonPink: '#ec4899',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'spin-slow': 'spin 8s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #03040c;
+            color: #ffffff;
+            font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Responsive Simulated Phone Frame on Desktop */
+        .phone-container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 430px;
+            max-height: 932px;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0d0926 0%, #17113a 60%, #2b185d 100%);
+        }
+
+        /* Neon Perspective Grid Background matching ChatGPT_Image_2026年6月2日_09_55_17.png */
+        .neon-grid {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 30%;
+            background-image: 
+                linear-gradient(rgba(139, 92, 246, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.15) 1px, transparent 1px);
+            background-size: 30px 30px;
+            transform: perspective(120px) rotateX(60deg);
+            transform-origin: bottom;
+            opacity: 0.8;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star-particle {
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 50%;
+            animation: twinkle var(--duration, 3s) infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 3D Glassmorphic Bubbles styles */
+        .bubble-btn {
+            position: relative;
+            background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 60%, rgba(0, 0, 0, 0.4) 100%);
+            box-shadow: 
+                inset 0 4px 6px rgba(255, 255, 255, 0.2),
+                inset 0 -4px 6px rgba(0, 0, 0, 0.5),
+                0 6px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .bubble-btn::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 30%;
+            height: 20%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: rotate(-25deg);
+        }
+
+        /* Active Flashing state matching screenshot 2 */
+        .bubble-active-purple {
+            background: radial-gradient(circle at 35% 35%, #f472b6 0%, #a855f7 50%, #6b21a8 100%) !important;
+            box-shadow: 
+                0 0 30px #d946ef,
+                inset 0 4px 10px rgba(255, 255, 255, 0.5),
+                inset 0 -4px 10px rgba(0, 0, 0, 0.4);
+            border-color: #f472b6;
+            animation: bubble-glow 0.8s infinite alternate ease-in-out;
+        }
+
+        .bubble-active-blue {
+            background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #3b82f6 50%, #1d4ed8 100%) !important;
+            box-shadow: 
+                0 0 30px #3b82f6,
+                inset 0 4px 10px rgba(255, 255, 255, 0.5),
+                inset 0 -4px 10px rgba(0, 0, 0, 0.4);
+            border-color: #38bdf8;
+            animation: bubble-glow 0.8s infinite alternate ease-in-out;
+        }
+
+        @keyframes bubble-glow {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.05); filter: brightness(1.25); }
+        }
+
+        /* 3D Orange Jelly Button matching start button */
+        .btn-orange-3d {
+            background: linear-gradient(to bottom, #ffd13b 0%, #ff9e00 100%);
+            border: 4px solid #fffdf0;
+            box-shadow: 
+                0 8px 0 #c26a00,
+                0 15px 25px rgba(194, 106, 0, 0.4),
+                inset 0 4px 0 rgba(255, 255, 255, 0.6);
+            text-shadow: 0 3px 0 #ab5100;
+            transition: all 0.1s ease;
+        }
+
+        .btn-orange-3d:active {
+            transform: translateY(6px);
+            box-shadow: 
+                0 2px 0 #c26a00,
+                0 5px 10px rgba(194, 106, 0, 0.6),
+                inset 0 2px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        /* Green 3D Next Level Button */
+        .btn-green-3d {
+            background: linear-gradient(to bottom, #a3e635 0%, #4ade80 50%, #16a34a 100%);
+            border: 3px solid #f0fdf4;
+            box-shadow: 
+                0 6px 0 #15803d,
+                0 10px 15px rgba(21, 128, 61, 0.3),
+                inset 0 3px 0 rgba(255, 255, 255, 0.5);
+            text-shadow: 0 2px 0 #14532d;
+            transition: all 0.1s ease;
+        }
+
+        .btn-green-3d:active {
+            transform: translateY(4px);
+            box-shadow: 
+                0 2px 0 #15803d,
+                0 5px 8px rgba(21, 128, 61, 0.4);
+        }
+
+        /* Purple panel wrapper for Win screen */
+        .panel-win {
+            background: linear-gradient(135deg, #4c2299 0%, #290f63 100%);
+            border: 4px solid #a855f7;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        /* Grey panel wrapper for Fail screen */
+        .panel-fail {
+            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+            border: 4px solid #6b7280;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 0 15px rgba(255,255,255,0.05);
+        }
+
+        /* Custom Toast notification style */
+        .custom-toast {
+            animation: slide-up-down 2s forwards ease-in-out;
+        }
+
+        @keyframes slide-up-down {
+            0% { transform: translateY(50px) scale(0.9); opacity: 0; }
+            15% { transform: translateY(0) scale(1); opacity: 1; }
+            85% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+        }
+
+        /* Hide Scrollbar for Leaderboard */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center h-screen">
+
+    <!-- Primary simulated phone shell -->
+    <div class="phone-container flex flex-col justify-between">
+        
+        <!-- Background Grid Design and Space Star Particles -->
+        <div class="neon-grid"></div>
+        <div id="starfield" class="absolute inset-0 pointer-events-none z-0"></div>
+
+        <!-- WECHAT MINI-GAME CAPSULE HEADER (Matched style) -->
+        <div class="absolute top-0 left-0 w-full px-5 pt-11 pb-2 flex justify-between items-center z-50">
+            <!-- Top bar Left Info: Health & Gold (matching ChatGPT_Image_2026年6月1日_16_24_39.png) -->
+            <div class="flex gap-2 items-center">
+                <!-- Health display -->
+                <div class="flex items-center bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 text-xs">
+                    <span class="text-rose-500 mr-1">❤️</span>
+                    <span id="header-lives" class="font-bold mr-1">5</span>
+                    <span class="text-gray-400 text-[10px] mr-1">已满</span>
+                    <button onclick="triggerToast('生命值已满，无需购买！')" class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center font-bold text-white text-[10px] hover:brightness-110 active:scale-95">+</button>
+                </div>
+                <!-- Coins Display -->
+                <div class="flex items-center bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 text-xs">
+                    <span class="text-yellow-400 mr-1">🪙</span>
+                    <span id="header-coins" class="font-bold text-yellow-300 mr-1">12345</span>
+                    <button onclick="addMockCoins()" class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center font-bold text-white text-[10px] hover:brightness-110 active:scale-95">+</button>
+                </div>
+            </div>
+
+            <!-- WeChat standard capsule overlay buttons -->
+            <div class="flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-1 px-3">
+                <!-- Capsule triple dots -->
+                <button onclick="toggleWechatMenu()" class="text-white hover:opacity-80 active:scale-90 flex gap-1">
+                    <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                    <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                    <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                </button>
+                <div class="w-[1px] h-3 bg-white/20"></div>
+                <!-- Capsule target dot -->
+                <button onclick="exitGameMock()" class="text-white hover:opacity-80 active:scale-90 flex items-center justify-center">
+                    <div class="w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center">
+                        <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <script>
+            // Audio Effects Synthesizer using Web Audio API to bypass external dependencies
+            const AudioSynth = {
+                ctx: null,
+                init() {
+                    if (!this.ctx) {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                },
+                playPop() {
+                    this.init();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.12);
+                    
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.15);
+                },
+                playWrong() {
+                    this.init();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.4);
+                    
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.45);
+                },
+                playSuccess() {
+                    this.init();
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    const now = this.ctx.currentTime;
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        
+                        gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.25);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.3);
+                    });
+                },
+                playClick() {
+                    this.init();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                    osc.frequency.setValueAtTime(300, this.ctx.currentTime + 0.03);
+                    
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.06);
+                }
+            };
+        </script>
+
+        <!-- ==================== SCREEN 1: MAIN MENU (ChatGPT_Image_2026年6月1日_16_24_39.png) ==================== -->
+        <div id="screen-home" class="w-full h-full flex flex-col justify-between pt-24 pb-8 px-6 z-10">
+            <!-- Share Gift Box Floating Icon at top-right -->
+            <div class="absolute right-4 top-24 flex flex-col items-center z-20">
+                <button onclick="triggerShareGift()" class="relative animate-bounce-slow flex flex-col items-center hover:scale-105 transition-transform">
+                    <div class="w-14 h-14 flex items-center justify-center bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl border-2 border-yellow-200 shadow-lg">
+                        <!-- SVG Chest -->
+                        <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="9" width="18" height="12" rx="2" fill="#d946ef" stroke="#ffffff" stroke-width="1.5"/>
+                            <path d="M2 9V6C2 4.89543 2.89543 4 4 4H20C21.1046 4 22 4.89543 22 6V9H2Z" fill="#a21caf" stroke="#ffffff" stroke-width="1.5"/>
+                            <rect x="10" y="4" width="4" height="17" fill="#fbbf24"/>
+                            <circle cx="12" cy="11" r="2.5" fill="#fef08a" stroke="#d97706" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] font-bold text-white mt-1 bg-purple-900/90 border border-purple-400 px-1.5 py-0.5 rounded-full shadow">分享礼包</span>
+                </button>
+            </div>
+
+            <!-- Header Branding Logo Area -->
+            <div class="flex flex-col items-center mt-4">
+                <!-- Dynamic SVG POPIT Logo matching colorful puffy 3D logo -->
+                <div class="w-72 h-32 flex items-center justify-center drop-shadow-[0_8px_16px_rgba(236,72,153,0.5)]">
+                    <svg viewBox="0 0 320 150" class="w-full h-full font-extrabold">
+                        <defs>
+                            <!-- Shiny Gradient For Each Letter -->
+                            <linearGradient id="pGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ff4b5c"/><stop offset="100%" stop-color="#c70039"/>
+                            </linearGradient>
+                            <linearGradient id="oGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ffe600"/><stop offset="100%" stop-color="#ff9900"/>
+                            </linearGradient>
+                            <linearGradient id="pGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#69f0ae"/><stop offset="100%" stop-color="#00b0ff"/>
+                            </linearGradient>
+                            <linearGradient id="iGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#2979ff"/>
+                            </linearGradient>
+                            <linearGradient id="tGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#d500f9"/><stop offset="100%" stop-color="#651fff"/>
+                            </linearGradient>
+                            <!-- Filter for Bubble Outer Gloss -->
+                            <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="3" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        <!-- Sprinkles top left -->
+                        <circle cx="80" cy="20" r="6" fill="#ff4b5c" />
+                        <circle cx="95" cy="14" r="4" fill="#00e5ff" />
+                        <circle cx="110" cy="22" r="5" fill="#ffe600" />
+                        <!-- Letters Group with Outline/Shadow style -->
+                        <g stroke="#ffffff" stroke-width="8" stroke-linejoin="round">
+                            <!-- P -->
+                            <path d="M40,50 L40,110 M40,50 C60,50 75,60 75,75 C75,90 60,95 40,95" fill="url(#pGrad1)" />
+                            <!-- O -->
+                            <circle cx="115" cy="78" r="26" fill="url(#oGrad)" />
+                            <!-- P -->
+                            <path d="M165,50 L165,110 M165,50 C185,50 200,60 200,75 C200,90 185,95 165,95" fill="url(#pGrad2)" />
+                            <!-- I -->
+                            <rect x="220" y="50" width="16" height="50" rx="6" fill="url(#iGrad)" />
+                            <circle cx="228" cy="35" r="8" fill="url(#iGrad)" />
+                            <!-- T -->
+                            <path d="M255,50 L295,50 M275,50 L275,110" fill="url(#tGrad)" stroke-linecap="round" />
+                        </g>
+                        <!-- Secondary Inner Text Layers for 3D Puffy Highlight -->
+                        <g stroke="none">
+                            <path d="M40,50 L40,110 M40,50 C60,50 75,60 75,75 C75,90 60,95 40,95" fill="url(#pGrad1)" />
+                            <circle cx="115" cy="78" r="26" fill="url(#oGrad)" />
+                            <path d="M165,50 L165,110 M165,50 C185,50 200,60 200,75 C200,90 185,95 165,95" fill="url(#pGrad2)" />
+                            <rect x="220" y="50" width="16" height="50" rx="6" fill="url(#iGrad)" />
+                            <circle cx="228" cy="35" r="8" fill="url(#iGrad)" />
+                            <path d="M255,50 L295,50 M275,50 L275,110" fill="none" stroke="url(#tGrad)" stroke-width="12" stroke-linecap="round" />
+                        </g>
+                        <!-- Bubble gloss highlights -->
+                        <ellipse cx="50" cy="60" rx="4" ry="2" fill="#fff" opacity="0.6"/>
+                        <ellipse cx="103" cy="63" rx="5" ry="3" fill="#fff" opacity="0.6"/>
+                        <ellipse cx="175" cy="60" rx="4" ry="2" fill="#fff" opacity="0.6"/>
+                        <!-- Sprinkles Bottom Right -->
+                        <circle cx="285" cy="110" r="5" fill="#ffe600" />
+                        <circle cx="298" cy="106" r="3" fill="#69f0ae" />
+                        <circle cx="292" cy="118" r="4" fill="#00e5ff" />
+                    </svg>
+                </div>
+
+                <!-- Record Level & Hearts (matching ChatGPT_Image_2026年6月1日_16_24_39.png) -->
+                <p class="text-yellow-400 font-semibold tracking-wider text-sm mt-3">最高关卡: <span class="text-white font-black" id="best-wave-display">28</span> | 最高分: <span class="text-white font-black">2450</span></p>
+                
+                <div class="flex gap-2 mt-3">
+                    <span class="text-rose-500 text-xl animate-pulse">❤️</span>
+                    <span class="text-rose-500 text-xl animate-pulse">❤️</span>
+                    <span class="text-rose-500 text-xl animate-pulse">❤️</span>
+                </div>
+            </div>
+
+            <!-- Big Start Play Button -->
+            <div class="flex flex-col items-center my-auto">
+                <button onclick="startGame()" class="btn-orange-3d w-64 py-4 rounded-full text-white font-extrabold text-2xl tracking-widest uppercase relative flex justify-center items-center">
+                    开始游戏
+                    <!-- Soft Play arrow overlay -->
+                    <span class="absolute right-6 opacity-40 text-xl">▶</span>
+                </button>
+            </div>
+
+            <!-- Bottom Row Navigation Buttons (matching ChatGPT_Image_2026年6月1日_16_24_39.png) -->
+            <div class="flex flex-col gap-5 w-full mt-auto">
+                <div class="grid grid-cols-4 gap-4 px-2">
+                    <!-- Leaderboard Button -->
+                    <button onclick="openLeaderboard()" class="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                        <div class="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg border border-indigo-300">
+                            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 20V10M12 20V4M6 20V14" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <span class="text-xs text-indigo-200 font-medium">排行榜</span>
+                    </button>
+                    <!-- Sound Button -->
+                    <button onclick="toggleSound()" class="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                        <div id="btn-sound-bg" class="w-14 h-14 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg border border-sky-300">
+                            <svg id="icon-sound" class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                            </svg>
+                        </div>
+                        <span class="text-xs text-sky-200 font-medium">声音</span>
+                    </button>
+                    <!-- Check-in Button -->
+                    <button onclick="openCheckin()" class="relative flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                        <!-- Notification Badge dot -->
+                        <span class="absolute top-0 right-3 w-3.5 h-3.5 bg-rose-500 border border-white rounded-full"></span>
+                        <div class="w-14 h-14 bg-gradient-to-tr from-emerald-400 to-green-600 rounded-full flex items-center justify-center shadow-lg border border-emerald-300">
+                            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                                <path d="M9 16l2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <span class="text-xs text-emerald-200 font-medium">签到</span>
+                    </button>
+                    <!-- Share Button -->
+                    <button onclick="triggerShareGift()" class="relative flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                        <!-- Notification Badge dot -->
+                        <span class="absolute top-0 right-3 w-3.5 h-3.5 bg-rose-500 border border-white rounded-full"></span>
+                        <div class="w-14 h-14 bg-gradient-to-tr from-pink-400 to-rose-600 rounded-full flex items-center justify-center shadow-lg border border-pink-300">
+                            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"/>
+                                <circle cx="6" cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </div>
+                        <span class="text-xs text-pink-200 font-medium">分享</span>
+                    </button>
+                </div>
+
+                <!-- Footer Campaign banner matching "新赛季开启 每周五24:00结算排行榜" -->
+                <div class="w-full bg-slate-900/60 backdrop-blur border border-purple-500/30 rounded-2xl p-3 flex justify-between items-center shadow-lg">
+                    <div class="flex items-center gap-2">
+                        <!-- Crown Cup Badge icon -->
+                        <div class="w-10 h-10 bg-gradient-to-tr from-yellow-400 to-amber-600 rounded-xl flex items-center justify-center shadow">
+                            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="text-left">
+                            <h4 class="text-xs font-extrabold text-yellow-300">新赛季开启</h4>
+                            <p class="text-[10px] text-gray-300">每周五24:00结算排行榜</p>
+                        </div>
+                    </div>
+                    <button onclick="openLeaderboard()" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-[11px] font-bold text-white px-3 py-1.5 rounded-full hover:opacity-90 active:scale-95 shadow">
+                        查看详情 >
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN 2: GAMEPLAY (ChatGPT_Image_2026年6月1日_16_36_17.png) ==================== -->
+        <div id="screen-game" class="hidden w-full h-full flex flex-col justify-between pt-24 pb-8 px-5 z-10">
+            <!-- Top HUD metrics -->
+            <div class="flex flex-col gap-3 w-full">
+                <!-- Row 1: Wave progress tracker -->
+                <div class="flex items-center justify-between px-1">
+                    <!-- Pause Button -->
+                    <button onclick="pauseGame()" class="w-10 h-10 bg-black/40 backdrop-blur border border-white/10 rounded-full flex items-center justify-center text-white text-base hover:bg-white/20 active:scale-90">
+                        ⏸
+                    </button>
+                    <!-- Wave Number Indicator -->
+                    <div class="flex flex-col items-center">
+                        <span class="text-lg font-black tracking-widest text-white">第 <span id="current-wave-label" class="text-yellow-300">12</span> 波</span>
+                        <!-- Custom dot progress line -->
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <div class="w-3 h-3 rounded-full bg-green-500 border border-green-300"></div>
+                            <div class="w-8 h-1 bg-green-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500 border border-green-300"></div>
+                            <div class="w-8 h-1 bg-gray-600"></div>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                            <div class="w-8 h-1 bg-gray-600"></div>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                        </div>
+                    </div>
+                    <div class="w-10"></div> <!-- Spacer matching Pause for center alignment -->
+                </div>
+
+                <!-- Row 2: Score card grid -->
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Current Score -->
+                    <div class="bg-slate-900/50 backdrop-blur border border-white/5 rounded-2xl p-2 text-center">
+                        <span class="text-[10px] text-gray-400 block mb-0.5">得分</span>
+                        <span id="current-score" class="text-lg font-black text-white">0</span>
+                    </div>
+                    <!-- High Score -->
+                    <div class="bg-slate-900/50 backdrop-blur border border-white/5 rounded-2xl p-2 text-center">
+                        <span class="text-[10px] text-gray-400 block mb-0.5">历史最高</span>
+                        <span class="text-lg font-black text-yellow-300">2450</span>
+                    </div>
+                    <!-- Hearts remaining -->
+                    <div class="bg-slate-900/50 backdrop-blur border border-white/5 rounded-2xl p-2 text-center flex flex-col items-center justify-center">
+                        <span class="text-[10px] text-gray-400 block mb-0.5">生命</span>
+                        <div id="game-hearts-container" class="flex gap-0.5">
+                            <span class="text-rose-500 text-sm">❤️</span>
+                            <span class="text-rose-500 text-sm">❤️</span>
+                            <span class="text-rose-500 text-sm">❤️</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Prompt Indicator Text -->
+            <div class="text-center my-3 min-h-[70px] flex flex-col justify-center items-center">
+                <h2 id="phase-title" class="text-2xl font-black text-purple-400 tracking-wider animate-pulse-fast drop-shadow-[0_4px_10px_rgba(168,85,247,0.5)]">
+                    请观察！
+                </h2>
+                <p id="phase-desc" class="text-xs text-gray-300 mt-1">
+                    记住闪烁的气泡
+                </p>
+            </div>
+
+            <!-- 4x4 Grid of Memory Bubbles (matches ChatGPT_Image_2026年6月1日_16_36_17.png) -->
+            <div class="w-full flex justify-center items-center my-auto">
+                <div class="grid grid-cols-4 gap-3 bg-purple-950/20 border border-purple-500/20 p-4 rounded-3xl w-full max-w-[360px] aspect-square shadow-2xl relative">
+                    <!-- Render grid 0 to 15 using JS -->
+                    <div id="grid-inner-container" class="contents"></div>
+                </div>
+            </div>
+
+            <!-- Countdown Progress Bar (Matches bottom bar of screenshot 2) -->
+            <div class="w-full flex flex-col items-center mt-auto gap-2">
+                <!-- Clock timer details -->
+                <div class="flex items-center gap-1 text-sm font-semibold text-yellow-300">
+                    <span>⏱️</span>
+                    <span id="countdown-banner-label">观察中 1.2 秒</span>
+                </div>
+                <!-- Pink Progress bar slider -->
+                <div class="w-full flex items-center gap-3">
+                    <!-- Round Pink Watch icon -->
+                    <div class="w-10 h-10 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center text-xs font-black text-white shadow-lg">
+                        <span id="timer-badge-text">1.2s</span>
+                    </div>
+                    <!-- Real progress background and fill -->
+                    <div class="flex-1 h-5 bg-purple-950/80 rounded-full p-1 border border-purple-500/30 overflow-hidden shadow-inner">
+                        <div id="countdown-progress-fill" class="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Master game configuration & state tracker
+            const GameState = {
+                score: 0,
+                highScore: 2450,
+                wave: 1,
+                lives: 3,
+                maxLives: 3,
+                targets: [],       // Indices of bubble lights to memorize
+                playerClicks: [],  // User clicked indices
+                phase: 'OBSERVE',  // 'OBSERVE' or 'PLAY'
+                soundEnabled: true,
+                observeDuration: 1500, // milliseconds
+                playDuration: 4000,    // milliseconds for time-limit per level
+                timerInterval: null,
+                timerRemaining: 0,
+                activeWaveCompleted: false,
+
+                reset() {
+                    this.score = 0;
+                    this.wave = 1;
+                    this.lives = 3;
+                    this.targets = [];
+                    this.playerClicks = [];
+                    this.phase = 'OBSERVE';
+                    this.activeWaveCompleted = false;
+                }
+            };
+        </script>
+
+        <!-- ==================== POPUP OVERLAYS & MODALS ==================== -->
+
+        <!-- 1. VICTORY WIN PANEL (ChatGPT_Image_2026年6月2日_09_55_17.png) -->
+        <div id="modal-win" class="hidden absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="panel-win w-full max-w-[340px] rounded-3xl p-6 flex flex-col items-center relative overflow-hidden animate-bounce-slow">
+                <!-- Festive Confetti Background Pattern -->
+                <div class="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-300 via-purple-900 to-black"></div>
+                
+                <!-- "胜利！" header ribbon block -->
+                <div class="relative -mt-10 mb-4 bg-gradient-to-b from-rose-500 to-red-600 border-2 border-yellow-300 px-8 py-2 rounded-2xl shadow-xl transform -rotate-1">
+                    <h2 class="text-3xl font-extrabold text-white tracking-widest text-center" style="text-shadow: 0 4px 6px rgba(0,0,0,0.5);">胜利！</h2>
+                </div>
+
+                <!-- Stars Drop-in (3 golden stars) -->
+                <div class="flex gap-2 my-2 justify-center">
+                    <span class="text-3xl text-yellow-400 drop-shadow-[0_4px_10px_rgba(234,179,8,0.8)]">★</span>
+                    <span class="text-4xl text-yellow-400 drop-shadow-[0_4px_10px_rgba(234,179,8,0.8)] -translate-y-2">★</span>
+                    <span class="text-3xl text-yellow-400 drop-shadow-[0_4px_10px_rgba(234,179,8,0.8)]">★</span>
+                </div>
+
+                <p class="text-yellow-300 text-sm font-bold mt-1">第 <span id="win-level-label">28</span> 关</p>
+                <div class="w-full h-[1px] bg-white/10 my-3"></div>
+
+                <!-- Reward items list -->
+                <p class="text-xs text-gray-300 mb-2">获得奖励</p>
+                <div class="flex gap-4 justify-center items-center bg-black/30 backdrop-blur rounded-2xl p-3 border border-white/5 w-full">
+                    <!-- Coin item -->
+                    <div class="flex flex-col items-center">
+                        <span class="text-2xl">🪙</span>
+                        <span class="text-sm font-bold text-white mt-1">+1250</span>
+                    </div>
+                    <!-- Gem item -->
+                    <div class="flex flex-col items-center">
+                        <span class="text-2xl">💎</span>
+                        <span class="text-sm font-bold text-purple-300 mt-1">+10</span>
+                    </div>
+                    <!-- Health item -->
+                    <div class="flex flex-col items-center">
+                        <span class="text-2xl">❤️</span>
+                        <span class="text-sm font-bold text-rose-400 mt-1">+5</span>
+                    </div>
+                </div>
+
+                <!-- Highest Score Record Banner -->
+                <div class="bg-black/50 rounded-full px-4 py-1 mt-4 border border-rose-500/30">
+                    <p class="text-[11px] text-gray-300">最高分: <span class="text-rose-400 font-bold" id="win-score-label">2450</span> <span class="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full ml-1">新纪录!</span></p>
+                </div>
+
+                <!-- Footer button controls -->
+                <div class="grid grid-cols-2 gap-3 w-full mt-6">
+                    <button onclick="navigateHome()" class="bg-sky-600 border border-sky-400 hover:brightness-115 active:scale-95 text-white font-black py-2.5 rounded-xl text-sm shadow">
+                        返回首页
+                    </button>
+                    <button onclick="nextLevel()" class="btn-green-3d py-2.5 rounded-xl text-white font-black text-sm">
+                        下一关
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. DEFEAT FAIL PANEL (ChatGPT_Image_2026年6月2日_09_55_17.png) -->
+        <div id="modal-fail" class="hidden absolute inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="panel-fail w-full max-w-[340px] rounded-3xl p-6 flex flex-col items-center relative overflow-hidden">
+                <!-- "失败！" gothic header banner -->
+                <div class="relative -mt-10 mb-4 bg-gradient-to-b from-slate-700 to-slate-900 border-2 border-slate-500 px-8 py-2 rounded-2xl shadow-xl">
+                    <h2 class="text-3xl font-extrabold text-white tracking-widest text-center" style="text-shadow: 0 4px 6px rgba(0,0,0,0.8);">失败！</h2>
+                </div>
+
+                <!-- Sad Icon matching -->
+                <span class="text-5xl my-2 filter drop-shadow">💀</span>
+
+                <p class="text-gray-400 text-sm font-bold mt-1">第 <span id="fail-level-label">28</span> 关</p>
+                <div class="w-full h-[1px] bg-white/10 my-3"></div>
+
+                <!-- Lesser Reward items list -->
+                <p class="text-xs text-gray-400 mb-2">获得奖励</p>
+                <div class="flex gap-4 justify-center items-center bg-black/55 backdrop-blur rounded-2xl p-3 border border-white/5 w-full">
+                    <!-- Coin item -->
+                    <div class="flex flex-col items-center opacity-60">
+                        <span class="text-2xl">🪙</span>
+                        <span class="text-sm font-bold text-white mt-1">+350</span>
+                    </div>
+                    <!-- Gem item -->
+                    <div class="flex flex-col items-center opacity-60">
+                        <span class="text-2xl">💎</span>
+                        <span class="text-sm font-bold text-purple-300 mt-1">+5</span>
+                    </div>
+                    <!-- Health item -->
+                    <div class="flex flex-col items-center opacity-40">
+                        <span class="text-2xl">❤️</span>
+                        <span class="text-sm font-bold text-gray-500 mt-1">0</span>
+                    </div>
+                </div>
+
+                <!-- Highest Score Record Banner -->
+                <div class="bg-black/50 rounded-full px-4 py-1 mt-4 border border-gray-700">
+                    <p class="text-[11px] text-gray-400">最高分: <span class="text-gray-300 font-bold" id="fail-score-label">1240</span></p>
+                </div>
+
+                <!-- Footer button controls -->
+                <div class="grid grid-cols-2 gap-3 w-full mt-6">
+                    <button onclick="navigateHome()" class="bg-slate-700 border border-slate-500 hover:bg-slate-600 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm shadow">
+                        返回首页
+                    </button>
+                    <button onclick="retryLevel()" class="btn-orange-3d py-2.5 rounded-xl text-white font-bold text-sm">
+                        再试一次
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. WECHAT LEADERBOARD POPUP (High fidelity WeChat style) -->
+        <div id="modal-leaderboard" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="bg-gradient-to-b from-indigo-950 to-purple-950 w-full max-w-[360px] rounded-3xl border-2 border-indigo-400 p-5 flex flex-col items-center relative max-h-[80%] shadow-2xl">
+                <!-- Close Button -->
+                <button onclick="closeModal('modal-leaderboard')" class="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center font-bold">✕</button>
+                
+                <h3 class="text-xl font-black text-indigo-300 mb-4 flex items-center gap-2">🏆 好友排行榜</h3>
+
+                <!-- Top 3 showcase container -->
+                <div class="grid grid-cols-3 gap-3 w-full mb-4 text-center">
+                    <!-- #2 -->
+                    <div class="bg-indigo-900/40 p-2.5 rounded-2xl border border-indigo-500/20 flex flex-col items-center">
+                        <span class="text-xs font-bold text-gray-300">第 2 名</span>
+                        <div class="w-10 h-10 rounded-full border-2 border-gray-400 bg-slate-600 my-1 overflow-hidden">
+                            <img src="https://placehold.co/100x100/312e81/ffffff?text=User2" alt="Avatar">
+                        </div>
+                        <span class="text-[10px] text-white font-semibold truncate w-16">元气少女</span>
+                        <span class="text-xs font-black text-indigo-300">2320</span>
+                    </div>
+                    <!-- #1 -->
+                    <div class="bg-indigo-900/60 p-2.5 rounded-2xl border-2 border-yellow-400 flex flex-col items-center transform -translate-y-2">
+                        <span class="text-xs font-bold text-yellow-400">🏆 第 1 名</span>
+                        <div class="w-12 h-12 rounded-full border-2 border-yellow-400 bg-slate-600 my-1 overflow-hidden relative">
+                            <img src="https://placehold.co/100x100/1e1b4b/ffffff?text=King" alt="Avatar">
+                        </div>
+                        <span class="text-[10px] text-yellow-300 font-extrabold truncate w-16">无敌泡泡王</span>
+                        <span class="text-sm font-black text-yellow-300">2450</span>
+                    </div>
+                    <!-- #3 -->
+                    <div class="bg-indigo-900/40 p-2.5 rounded-2xl border border-indigo-500/20 flex flex-col items-center">
+                        <span class="text-xs font-bold text-amber-600">第 3 名</span>
+                        <div class="w-10 h-10 rounded-full border-2 border-amber-700 bg-slate-600 my-1 overflow-hidden">
+                            <img src="https://placehold.co/100x100/4c1d95/ffffff?text=User3" alt="Avatar">
+                        </div>
+                        <span class="text-[10px] text-white font-semibold truncate w-16">快乐星球</span>
+                        <span class="text-xs font-black text-indigo-300">1980</span>
+                    </div>
+                </div>
+
+                <!-- Scrollable list of ranks -->
+                <div class="w-full overflow-y-auto no-scrollbar flex-1 flex flex-col gap-2 bg-black/30 p-2 rounded-2xl">
+                    <!-- Item 4 -->
+                    <div class="flex justify-between items-center bg-indigo-900/20 p-2.5 rounded-xl border border-indigo-500/10">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-indigo-300 w-4">4</span>
+                            <div class="w-8 h-8 rounded-full bg-slate-600 overflow-hidden">
+                                <img src="https://placehold.co/80x80/065f46/ffffff?text=A4" alt="Avatar">
+                            </div>
+                            <span class="text-xs text-white font-medium">摸鱼达人</span>
+                        </div>
+                        <span class="text-xs font-black text-indigo-300">1540</span>
+                    </div>
+                    <!-- Item 5 (User self) -->
+                    <div class="flex justify-between items-center bg-indigo-500/20 p-2.5 rounded-xl border border-indigo-400">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-yellow-300 w-4">5</span>
+                            <div class="w-8 h-8 rounded-full bg-slate-500 overflow-hidden">
+                                <img src="https://placehold.co/80x80/1e293b/ffffff?text=You" alt="Avatar">
+                            </div>
+                            <span class="text-xs text-yellow-300 font-extrabold">我 (Popit新手)</span>
+                        </div>
+                        <span class="text-xs font-black text-yellow-300" id="leaderboard-user-score">1240</span>
+                    </div>
+                    <!-- Item 6 -->
+                    <div class="flex justify-between items-center bg-indigo-900/20 p-2.5 rounded-xl border border-indigo-500/10">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-indigo-300 w-4">6</span>
+                            <div class="w-8 h-8 rounded-full bg-slate-600 overflow-hidden">
+                                <img src="https://placehold.co/80x80/991b1b/ffffff?text=A6" alt="Avatar">
+                            </div>
+                            <span class="text-xs text-white font-medium">气泡狙击手</span>
+                        </div>
+                        <span class="text-xs font-black text-indigo-300">1120</span>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-indigo-300/60 mt-2">新赛季将于每周五 24:00 结束自动结算并派发宝石奖励</p>
+            </div>
+        </div>
+
+        <!-- 4. CHECK-IN SIGN-IN MODAL (ChatGPT_Image_2026年6月1日_16_24_39.png - 签到) -->
+        <div id="modal-checkin" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="bg-gradient-to-b from-slate-900 to-indigo-950 w-full max-w-[340px] rounded-3xl border-2 border-emerald-400 p-5 flex flex-col items-center relative shadow-2xl">
+                <!-- Close Button -->
+                <button onclick="closeModal('modal-checkin')" class="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center font-bold">✕</button>
+
+                <h3 class="text-xl font-black text-emerald-400 mb-2 flex items-center gap-2">🗓️ 每日签到</h3>
+                <p class="text-xs text-gray-400 mb-4">每日上线签到即可领金币和宝石奖励！</p>
+
+                <!-- 7 days matrix layout -->
+                <div class="grid grid-cols-4 gap-2 w-full mb-4 text-center">
+                    <!-- Day 1 -->
+                    <div class="bg-emerald-950/40 p-2 rounded-xl border border-emerald-500/40 flex flex-col items-center">
+                        <span class="text-[10px] text-emerald-300">第1天</span>
+                        <span class="text-lg my-1">🪙</span>
+                        <span class="text-[10px] text-white font-bold">+100</span>
+                    </div>
+                    <!-- Day 2 -->
+                    <div class="bg-emerald-950/40 p-2 rounded-xl border border-emerald-500/40 flex flex-col items-center">
+                        <span class="text-[10px] text-emerald-300">第2天</span>
+                        <span class="text-lg my-1">🪙</span>
+                        <span class="text-[10px] text-white font-bold">+200</span>
+                    </div>
+                    <!-- Day 3 -->
+                    <div class="bg-emerald-950/40 p-2 rounded-xl border border-emerald-500/40 flex flex-col items-center">
+                        <span class="text-[10px] text-emerald-300">第3天</span>
+                        <span class="text-lg my-1">💎</span>
+                        <span class="text-[10px] text-white font-bold">+5</span>
+                    </div>
+                    <!-- Day 4 (Today highlight) -->
+                    <div class="bg-emerald-500/20 p-2 rounded-xl border-2 border-yellow-300 flex flex-col items-center animate-pulse">
+                        <span class="text-[10px] text-yellow-300 font-extrabold">今天</span>
+                        <span class="text-lg my-1">🪙</span>
+                        <span class="text-[10px] text-white font-bold">+500</span>
+                    </div>
+                </div>
+
+                <button onclick="claimCheckin()" class="btn-green-3d w-full py-3 rounded-xl text-white font-black text-sm tracking-wider">
+                    立即签到领奖
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. SHARE DIALOG MODAL (Classic WeChat Share Frame) -->
+        <div id="modal-share" class="hidden absolute inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="bg-slate-900 w-full max-w-[320px] rounded-3xl border border-white/10 p-5 flex flex-col items-center relative text-center">
+                <button onclick="closeModal('modal-share')" class="absolute top-4 right-4 text-white bg-white/10 rounded-full w-8 h-8 flex items-center justify-center font-bold">✕</button>
+
+                <div class="w-16 h-16 bg-gradient-to-tr from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-3xl my-2 shadow-lg animate-bounce-slow">
+                    🎁
+                </div>
+
+                <h3 class="text-lg font-bold text-white mt-1">专属分享礼包已备好</h3>
+                <p class="text-xs text-gray-400 my-2 px-2">分享本游戏至群聊或好友，立即免费获得 <span class="text-yellow-400 font-bold">1000 金币</span> + <span class="text-pink-400 font-bold">3 满状态体力</span>！</p>
+
+                <!-- Mock card of popit -->
+                <div class="w-full bg-slate-950 p-3 rounded-2xl border border-purple-500/20 text-left my-2">
+                    <p class="text-[10px] text-gray-500">微信小游戏消息预览</p>
+                    <div class="flex gap-2 items-center mt-1">
+                        <div class="w-10 h-10 bg-purple-900 rounded-xl flex items-center justify-center text-xl font-bold">🎈</div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">来挑战 POPIT 记忆大师！</h4>
+                            <p class="text-[10px] text-gray-400">我轻松闯过第12关，你敢来比一比吗？</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="mockWechatShareAction()" class="bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl w-full text-sm mt-3 flex justify-center items-center gap-1.5 active:scale-95 transition-all">
+                    <!-- Standard Wechat Icon -->
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M8.2 11.2c.4 0 .7-.3.7-.7 0-.4-.3-.7-.7-.7-.4 0-.8.3-.8.7 0 .4.4.7.8.7zm5.1 0c.4 0 .7-.3.7-.7 0-.4-.3-.7-.7-.7-.4 0-.7.3-.7.7 0 .4.3.7.7.7zm2-3.4c.2-.2.3-.5.3-.8 0-1.8-1.9-3.3-4.3-3.3-2.4 0-4.3 1.5-4.3 3.3 0 1.8 1.9 3.3 4.3 3.3.4 0 .8 0 1.2-.1l2.1 1.1s-.1-.6-.1-1.1c.5-.3.8-.7.8-1.4zM22 14c0-2.4-2.5-4.3-5.5-4.3-3 0-5.5 1.9-5.5 4.3s2.5 4.3 5.5 4.3c.5 0 1 0 1.5-.1l2.7 1.4s-.1-.8-.1-1.4c1-.3 1.4-.7 1.4-1.4zm-7.6-1.5c-.3 0-.5-.2-.5-.5 0-.3.2-.5.5-.5.3 0 .5.2.5.5 0 .3-.2.5-.5.5zm4.2 0c-.3 0-.5-.2-.5-.5 0-.3.2-.5.5-.5.3 0 .5.2.5.5 0 .3-.2.5-.5.5z"/>
+                    </svg>
+                    发送到微信好友
+                </button>
+            </div>
+        </div>
+
+        <!-- Notification Toast Wrapper -->
+        <div id="toast-container" class="absolute bottom-28 left-0 right-0 px-6 flex justify-center pointer-events-none z-50"></div>
+    </div>
+
+    <!-- ==================== CORE SCRIPT LOGIC ==================== -->
+    <script>
+        // Set up custom ambient stars
+        function makeStars() {
+            const container = document.getElementById('starfield');
+            container.innerHTML = '';
+            for (let i = 0; i < 30; i++) {
+                const star = document.createElement('div');
+                star.className = 'star-particle';
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.setProperty('--duration', `${2 + Math.random() * 4}s`);
+                container.appendChild(star);
+            }
+        }
+
+        // Render standard bubble Grid matching index.html
+        function renderBubbleGrid() {
+            const container = document.getElementById('grid-inner-container');
+            container.innerHTML = '';
+            
+            // Build 16 bubbles representing 4x4 matrix
+            for (let i = 0; i < 16; i++) {
+                const btn = document.createElement('button');
+                btn.id = `bubble-${i}`;
+                btn.className = 'bubble-btn w-full aspect-square rounded-full flex items-center justify-center focus:outline-none';
+                
+                // Clicking bubble handler
+                btn.addEventListener('click', () => handleBubbleClick(i));
+                container.appendChild(btn);
+            }
+        }
+
+        // Show toast notification mock
+        function triggerToast(text) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast bg-black/85 border border-purple-500 text-white text-xs px-4 py-2.5 rounded-full font-bold shadow-2xl tracking-wider';
+            toast.textContent = text;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 2000);
+        }
+
+        // Add Mock coins to display
+        function addMockCoins() {
+            AudioSynth.playClick();
+            GameState.score += 200;
+            const currentCoins = parseInt(document.getElementById('header-coins').textContent);
+            document.getElementById('header-coins').textContent = currentCoins + 500;
+            triggerToast("金币 +500！继续收集！");
+        }
+
+        // Open specific Modals
+        function openLeaderboard() {
+            AudioSynth.playClick();
+            document.getElementById('leaderboard-user-score').textContent = GameState.score || "1240";
+            document.getElementById('modal-leaderboard').classList.remove('hidden');
+        }
+
+        function openCheckin() {
+            AudioSynth.playClick();
+            document.getElementById('modal-checkin').classList.remove('hidden');
+        }
+
+        function triggerShareGift() {
+            AudioSynth.playClick();
+            document.getElementById('modal-share').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            AudioSynth.playClick();
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function toggleSound() {
+            GameState.soundEnabled = !GameState.soundEnabled;
+            const bg = document.getElementById('btn-sound-bg');
+            const icon = document.getElementById('icon-sound');
+            AudioSynth.playClick();
+
+            if (GameState.soundEnabled) {
+                bg.className = "w-14 h-14 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg border border-sky-300";
+                icon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
+                triggerToast("声音：开启");
+            } else {
+                bg.className = "w-14 h-14 bg-gradient-to-tr from-slate-600 to-slate-700 rounded-full flex items-center justify-center shadow-lg border border-slate-500";
+                icon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`;
+                triggerToast("声音：静音");
+            }
+        }
+
+        // Reward claiming action simulated
+        function claimCheckin() {
+            AudioSynth.playSuccess();
+            document.getElementById('modal-checkin').classList.add('hidden');
+            const currentCoins = parseInt(document.getElementById('header-coins').textContent);
+            document.getElementById('header-coins').textContent = currentCoins + 500;
+            triggerToast("签到成功！领取 500金币 🪙");
+        }
+
+        function mockWechatShareAction() {
+            AudioSynth.playSuccess();
+            document.getElementById('modal-share').classList.add('hidden');
+            const currentCoins = parseInt(document.getElementById('header-coins').textContent);
+            document.getElementById('header-coins').textContent = currentCoins + 1000;
+            document.getElementById('header-lives').textContent = "5";
+            triggerToast("分享成功！金币 +1000 🪙 体力已满 ❤️");
+        }
+
+        // Pause Action Mock
+        function pauseGame() {
+            AudioSynth.playClick();
+            clearInterval(GameState.timerInterval);
+            triggerToast("游戏已暂停，点击顶部胶囊即可退出");
+            setTimeout(() => {
+                // Resume timer after a brief message pause
+                startPlayCountdown();
+            }, 1500);
+        }
+
+        // Exit Game Mock
+        function exitGameMock() {
+            AudioSynth.playClick();
+            navigateHome();
+            triggerToast("退出至微信主页或小游戏盒子");
+        }
+
+        // Toggle WeChat Capsule Options dropdown mock
+        function toggleWechatMenu() {
+            AudioSynth.playClick();
+            triggerToast("微信菜单: [添加到我的小程序] [关于] [反馈]");
+        }
+
+        // GAMEPLAY ROUTINES
+        function startGame() {
+            AudioSynth.playClick();
+            GameState.reset();
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            renderBubbleGrid();
+            startNewWave();
+        }
+
+        function navigateHome() {
+            AudioSynth.playClick();
+            clearInterval(GameState.timerInterval);
+            document.getElementById('modal-win').classList.add('hidden');
+            document.getElementById('modal-fail').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-home').classList.remove('hidden');
+        }
+
+        // Generates randomized level patterns representing classic Simon Says logic
+        function startNewWave() {
+            GameState.activeWaveCompleted = false;
+            GameState.playerClicks = [];
+            GameState.phase = 'OBSERVE';
+            
+            // Render Wave details
+            document.getElementById('current-wave-label').textContent = GameState.wave;
+            document.getElementById('current-score').textContent = GameState.score;
+            updateHeartsUI();
+
+            // Setup difficulty (Target count increments as Wave increases)
+            // Cap max active patterns to 6 for 4x4 matrix logic
+            const totalTargetsCount = Math.min(2 + Math.floor(GameState.wave / 3), 7);
+            
+            // Build unique target array
+            GameState.targets = [];
+            while (GameState.targets.length < totalTargetsCount) {
+                const randIndex = Math.floor(Math.random() * 16);
+                if (!GameState.targets.includes(randIndex)) {
+                    GameState.targets.push(randIndex);
+                }
+            }
+
+            // Adjust Observe timers according to waves (faster on higher levels)
+            GameState.observeDuration = Math.max(1000, 2000 - (GameState.wave * 100));
+            GameState.playDuration = Math.max(2500, 4500 - (GameState.wave * 150));
+
+            triggerObservePhase();
+        }
+
+        // Phase 1: OBSERVE 
+        function triggerObservePhase() {
+            document.getElementById('phase-title').textContent = "请观察！";
+            document.getElementById('phase-title').className = "text-2xl font-black text-purple-400 tracking-wider animate-pulse-fast drop-shadow-[0_4px_10px_rgba(168,85,247,0.5)]";
+            document.getElementById('phase-desc').textContent = "记住闪烁的气泡";
+            
+            // Set Timer labels
+            const secondsText = (GameState.observeDuration / 1000).toFixed(1);
+            document.getElementById('countdown-banner-label').textContent = `观察中 ${secondsText} 秒`;
+            document.getElementById('timer-badge-text').textContent = `${secondsText}s`;
+
+            // Dim grid bubbles first
+            for (let i = 0; i < 16; i++) {
+                const el = document.getElementById(`bubble-${i}`);
+                if (el) el.className = "bubble-btn w-full aspect-square rounded-full flex items-center justify-center focus:outline-none";
+            }
+
+            // Illuminate target bubbles immediately (purple / blue colors as shown in ChatGPT_Image_2026年6月1日_16_36_17.png)
+            GameState.targets.forEach((targetIdx, arrIndex) => {
+                const el = document.getElementById(`bubble-${targetIdx}`);
+                if (el) {
+                    const colorClass = (arrIndex % 2 === 0) ? 'bubble-active-purple' : 'bubble-active-blue';
+                    el.classList.add(colorClass);
+                }
+            });
+
+            // Start observe countdown fill animation
+            let startTime = Date.now();
+            clearInterval(GameState.timerInterval);
+            
+            GameState.timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.max(0, 100 - (elapsed / GameState.observeDuration) * 100);
+                document.getElementById('countdown-progress-fill').style.width = `${progress}%`;
+
+                if (elapsed >= GameState.observeDuration) {
+                    clearInterval(GameState.timerInterval);
+                    triggerPlayPhase();
+                }
+            }, 30);
+        }
+
+        // Phase 2: PLAY (Popping Action)
+        function triggerPlayPhase() {
+            GameState.phase = 'PLAY';
+            document.getElementById('phase-title').textContent = "点它！";
+            document.getElementById('phase-title').className = "text-2xl font-black text-yellow-300 tracking-wider animate-pulse-fast drop-shadow-[0_4px_10px_rgba(234,179,8,0.5)]";
+            document.getElementById('phase-desc').textContent = "在倒计时结束前点破所有闪烁的气泡";
+
+            // Dim bubble highlights so user has to rely on memory
+            for (let i = 0; i < 16; i++) {
+                const el = document.getElementById(`bubble-${i}`);
+                if (el) el.className = "bubble-btn w-full aspect-square rounded-full flex items-center justify-center focus:outline-none";
+            }
+
+            // Trigger countdown timer for tap execution
+            GameState.timerRemaining = GameState.playDuration;
+            startPlayCountdown();
+        }
+
+        // Starts linear decay countdown progress bar matching game screen
+        function startPlayCountdown() {
+            clearInterval(GameState.timerInterval);
+            let lastTick = Date.now();
+
+            GameState.timerInterval = setInterval(() => {
+                const now = Date.now();
+                const delta = now - lastTick;
+                lastTick = now;
+
+                GameState.timerRemaining -= delta;
+                const progress = Math.max(0, (GameState.timerRemaining / GameState.playDuration) * 100);
+                document.getElementById('countdown-progress-fill').style.width = `${progress}%`;
+
+                const displaySecs = Math.max(0, GameState.timerRemaining / 1000).toFixed(1);
+                document.getElementById('countdown-banner-label').textContent = `剩余时间: ${displaySecs} 秒`;
+                document.getElementById('timer-badge-text').textContent = `${displaySecs}s`;
+
+                if (GameState.timerRemaining <= 0) {
+                    clearInterval(GameState.timerInterval);
+                    handleTimeOut();
+                }
+            }, 30);
+        }
+
+        // Handle bubble tap operations
+        function handleBubbleClick(index) {
+            if (GameState.phase !== 'PLAY' || GameState.activeWaveCompleted) return;
+
+            // Prevent tapping same bubble multiple times
+            if (GameState.playerClicks.includes(index)) return;
+
+            const el = document.getElementById(`bubble-${index}`);
+
+            // Verify if bubble tapped is a correct target
+            if (GameState.targets.includes(index)) {
+                // Correct tap!
+                if (GameState.soundEnabled) AudioSynth.playPop();
+                
+                // Keep bubble glowing permanently once discovered
+                const isEven = GameState.targets.indexOf(index) % 2 === 0;
+                el.classList.add(isEven ? 'bubble-active-purple' : 'bubble-active-blue');
+                
+                // Add mini pop wave visual impact
+                el.classList.add('scale-90');
+                setTimeout(() => el.classList.remove('scale-90'), 100);
+
+                GameState.playerClicks.push(index);
+                GameState.score += 10;
+                document.getElementById('current-score').textContent = GameState.score;
+
+                // Win Wave Condition Met
+                if (GameState.playerClicks.length === GameState.targets.length) {
+                    clearInterval(GameState.timerInterval);
+                    GameState.activeWaveCompleted = true;
+                    setTimeout(() => handleWaveSuccess(), 500);
+                }
+            } else {
+                // Incorrect tap!
+                if (GameState.soundEnabled) AudioSynth.playWrong();
+                
+                // Wobble red warning visual feedback
+                el.classList.add('bg-red-600', 'border-red-400', 'animate-pulse');
+                setTimeout(() => {
+                    el.classList.remove('bg-red-600', 'border-red-400', 'animate-pulse');
+                }, 400);
+
+                deductLife();
+            }
+        }
+
+        // Deduct remaining live hearts
+        function deductLife() {
+            GameState.lives--;
+            updateHeartsUI();
+            triggerToast("点错了！失去 1 点生命 ❤️");
+
+            if (GameState.lives <= 0) {
+                clearInterval(GameState.timerInterval);
+                setTimeout(() => handleGameOver(), 500);
+            }
+        }
+
+        // Triggered when countdown runs dry
+        function handleTimeOut() {
+            if (GameState.soundEnabled) AudioSynth.playWrong();
+            deductLife();
+            if (GameState.lives > 0) {
+                // Reset level targets for retry state automatically
+                startNewWave();
+            }
+        }
+
+        // Refresh heart count indicators matching design
+        function updateHeartsUI() {
+            const container = document.getElementById('game-hearts-container');
+            container.innerHTML = '';
+            for (let i = 0; i < GameState.maxLives; i++) {
+                const heart = document.createElement('span');
+                heart.className = i < GameState.lives ? "text-rose-500 text-sm" : "text-gray-600 text-sm";
+                heart.textContent = "❤️";
+                container.appendChild(heart);
+            }
+            // Update Top Mini Header Hearts as well
+            document.getElementById('header-lives').textContent = GameState.lives;
+        }
+
+        // Wave successfully completed
+        function handleWaveSuccess() {
+            if (GameState.soundEnabled) AudioSynth.playSuccess();
+            triggerToast(`第 ${GameState.wave} 波过关！`);
+            
+            // Launch Win modal popup when wave 12 completed (matches screenshot progression)
+            if (GameState.wave === 12 || GameState.wave % 5 === 0) {
+                document.getElementById('win-level-label').textContent = GameState.wave;
+                document.getElementById('win-score-label').textContent = GameState.score;
+                document.getElementById('modal-win').classList.remove('hidden');
+                
+                // Auto sync highscore logic
+                if (GameState.wave > 28) {
+                    document.getElementById('best-wave-display').textContent = GameState.wave;
+                }
+            } else {
+                GameState.wave++;
+                startNewWave();
+            }
+        }
+
+        // Action when pressing "下一关" Next Level on Win popup
+        function nextLevel() {
+            AudioSynth.playClick();
+            document.getElementById('modal-win').classList.add('hidden');
+            GameState.wave++;
+            startNewWave();
+        }
+
+        // Action when game is over
+        function handleGameOver() {
+            document.getElementById('fail-level-label').textContent = GameState.wave;
+            document.getElementById('fail-score-label').textContent = GameState.score;
+            document.getElementById('modal-fail').classList.remove('hidden');
+        }
+
+        // Action when pressing "再试一次" Retry on Lose popup
+        function retryLevel() {
+            AudioSynth.playClick();
+            document.getElementById('modal-fail').classList.add('hidden');
+            GameState.reset();
+            startNewWave();
+        }
+
+        // INITIALIZE ALL EVENTS ON LAUNCH
+        window.onload = function() {
+            makeStars();
+            // Automatically regenerate stars upon resizing
+            window.addEventListener('resize', makeStars);
+        };
+    </script>
+</body>
+</html>
