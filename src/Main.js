@@ -80,6 +80,80 @@ export class Main {
     this.start()
   }
 
+  // 首次点击时触发用户信息授权（符合微信规范）
+  async tryInitUserInfo() {
+    // 如果已经授权过，不再弹出
+    if (this.gameState.userInfo.authorized) {
+      return
+    }
+    
+    // 标记已尝试，避免重复弹出
+    if (this.hasTriedInitUserInfo) {
+      return
+    }
+    this.hasTriedInitUserInfo = true
+    
+    try {
+      // 尝试获取用户信息
+      const userInfo = await this.gameState.getUserProfile()
+      console.log('获取用户信息成功:', userInfo)
+      
+      // 保存到云端
+      const result = await this.gameState.saveUserProfileToCloud(
+        userInfo.nickName,
+        userInfo.avatarUrl
+      )
+      
+      if (result.success) {
+        console.log('用户资料保存成功')
+      } else {
+        console.error('用户资料保存失败:', result.message)
+      }
+    } catch (err) {
+      // 用户拒绝授权，使用默认头像
+      console.log('用户拒绝授权，使用默认头像')
+      // 生成默认昵称
+      const defaultNickname = `玩家${wx.getSystemInfoSync().SDKVersion || 'default'}`
+      await this.gameState.saveUserProfileToCloud(defaultNickname, '')
+    }
+  }
+
+  // 初始化用户信息（在用户确认授权后调用）
+  async initUserInfo() {
+    // 如果已经授权过，直接使用本地数据
+    if (this.gameState.userInfo.authorized) {
+      console.log('用户已授权，使用本地数据')
+      return true
+    }
+    
+    try {
+      // 尝试获取用户信息
+      const userInfo = await this.gameState.getUserProfile()
+      console.log('获取用户信息成功:', userInfo)
+      
+      // 保存到云端
+      const result = await this.gameState.saveUserProfileToCloud(
+        userInfo.nickName,
+        userInfo.avatarUrl
+      )
+      
+      if (result.success) {
+        console.log('用户资料保存成功')
+        return true
+      } else {
+        console.error('用户资料保存失败:', result.message)
+        return false
+      }
+    } catch (err) {
+      // 用户拒绝授权，使用默认头像
+      console.log('用户拒绝授权，使用默认头像')
+      // 生成默认昵称
+      const defaultNickname = `玩家${wx.getSystemInfoSync().SDKVersion || 'default'}`
+      await this.gameState.saveUserProfileToCloud(defaultNickname, '')
+      return false
+    }
+  }
+
   // 设置分享
   setupShare() {
     wx.showShareMenu({
@@ -98,24 +172,14 @@ export class Main {
 
   // 绑定事件
   bindEvents() {
-    // 触摸开始（支持多点触控）
+    // 触摸开始（单点触控）
     wx.onTouchStart((e) => {
-      // 只在游戏阶段处理多点触控
-      if (this.gameState.phase === 'PLAY') {
-        // 限制最多处理 3 个触摸点
-        const maxTouches = Math.min(e.touches.length, 3)
-        for (let i = 0; i < maxTouches; i++) {
-          const touch = e.touches[i]
-          const x = touch.clientX || touch.x || 0
-          const y = touch.clientY || touch.y || 0
-          this.handleTouchStart(x, y, i) // 传入触摸点索引
-        }
-      } else if (e.touches.length > 0) {
-        // 非游戏阶段，只处理第一个触摸点
+      // 只处理第一个触摸点
+      if (e.touches.length > 0) {
         const touch = e.touches[0]
         const x = touch.clientX || touch.x || 0
         const y = touch.clientY || touch.y || 0
-        this.handleTouchStart(x, y, 0)
+        this.handleTouchStart(x, y)
       }
     })
     
@@ -126,10 +190,19 @@ export class Main {
   }
 
   // 处理触摸开始
-  handleTouchStart(x, y, touchIndex = 0) {
+  handleTouchStart(x, y) {
+    // 首次点击时触发用户信息授权（符合微信规范）
+    this.tryInitUserInfo()
+    
     // 暂停状态优先处理
     if (this.gameState.isPaused) {
       this.handlePauseTouch(x, y)
+      return
+    }
+    
+    // 检查是否在排行榜界面
+    if (this.uiManager.currentScreen === 'leaderboard') {
+      this.handleLeaderboardTouch(x, y)
       return
     }
     
@@ -141,7 +214,7 @@ export class Main {
         // 观察阶段不允许点击
         break
       case 'PLAY':
-        this.handleGameTouch(x, y, touchIndex)
+        this.handleGameTouch(x, y)
         break
       case 'WIN':
         this.handleWinTouch(x, y)
@@ -149,6 +222,25 @@ export class Main {
       case 'FAIL':
         this.handleFailTouch(x, y)
         break
+    }
+  }
+
+  // 处理排行榜触摸
+  async handleLeaderboardTouch(x, y) {
+    const buttonId = this.uiManager.handleTouch(x, y)
+    
+    if (buttonId) {
+      switch (buttonId) {
+        case 'close':
+          this.closeLeaderboard()
+          break
+        case 'leaderboard_score':
+          await this.switchLeaderboardType('score')
+          break
+        case 'leaderboard_wave':
+          await this.switchLeaderboardType('wave')
+          break
+      }
     }
   }
 
@@ -182,17 +274,15 @@ export class Main {
     }
   }
 
-  // 处理游戏触摸（支持多点触控）
-  handleGameTouch(x, y, touchIndex = 0) {
-    // 检查是否点击暂停按钮（只有第一个触摸点有效）
-    if (touchIndex === 0) {
-      const buttonId = this.uiManager.handleTouch(x, y)
-      if (buttonId === 'pause') {
-        this.audioManager.play('click')
-        this.vibrate()
-        this.pauseGame()
-        return
-      }
+  // 处理游戏触摸（单点触控）
+  handleGameTouch(x, y) {
+    // 检查是否点击暂停按钮
+    const buttonId = this.uiManager.handleTouch(x, y)
+    if (buttonId === 'pause') {
+      this.audioManager.play('click')
+      this.vibrate()
+      this.pauseGame()
+      return
     }
     
     // 暂停期间不允许点击泡泡
@@ -206,8 +296,8 @@ export class Main {
         if (this.gameState.playerClicks.includes(bubbleIndex)) {
           return
         }
-        // 处理气泡点击（传入是否第一个触摸点，控制音效和震动）
-        this.handleBubbleClick(bubbleIndex, touchIndex === 0)
+        // 处理气泡点击
+        this.handleBubbleClick(bubbleIndex)
       }
     }
   }
@@ -413,8 +503,8 @@ export class Main {
     }, 30)
   }
 
-  // 处理泡泡点击（支持多点触控）
-  handleBubbleClick(index, playSoundAndVibrate = true) {
+  // 处理泡泡点击（单点触控）
+  handleBubbleClick(index) {
     if (this.gameState.phase !== 'PLAY' || this.gameState.activeWaveCompleted) return
     
     // 防止重复点击
@@ -423,10 +513,8 @@ export class Main {
     // 检查是否正确
     if (this.gameState.targets.includes(index)) {
       // 正确！
-      if (playSoundAndVibrate) {
-        this.audioManager.play('pop')
-        this.vibrate('light')
-      }
+      this.audioManager.play('pop')
+      this.vibrate('light')
       
       // 设置泡泡状态（根据索引分配颜色，匹配 index_v1.0.1.html）
       let colorClass = 'purple'
@@ -455,10 +543,8 @@ export class Main {
       }
     } else {
       // 错误！
-      if (playSoundAndVibrate) {
-        this.audioManager.play('wrong')
-        this.vibrate('heavy')
-      }
+      this.audioManager.play('wrong')
+      this.vibrate('heavy')
       
       // 显示红色闪烁
       this.bubbleGrid.setBubbleState(index, 'red', 'red')
@@ -667,9 +753,46 @@ export class Main {
   }
 
   // 显示排行榜
-  showLeaderboard() {
-    this.uiManager.showToast('排行榜功能开发中...')
-    // TODO: 实现排行榜功能
+  async showLeaderboard() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 切换到排行榜界面
+    this.uiManager.currentScreen = 'leaderboard'
+    
+    // 获取排行榜数据（默认最高分）
+    this.uiManager.leaderboardType = 'score'
+    await this.refreshLeaderboard()
+  }
+
+  // 刷新排行榜数据
+  async refreshLeaderboard() {
+    const result = await this.gameState.getLeaderboard(this.uiManager.leaderboardType)
+    
+    if (result.success) {
+      this.uiManager.leaderboardData = result.data
+    } else {
+      this.uiManager.showToast(result.message || '获取排行榜失败')
+      this.uiManager.leaderboardData = null
+    }
+  }
+
+  // 切换排行榜类型
+  async switchLeaderboardType(type) {
+    if (this.uiManager.leaderboardType === type) return
+    
+    this.uiManager.leaderboardType = type
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    await this.refreshLeaderboard()
+  }
+
+  // 关闭排行榜
+  closeLeaderboard() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    this.uiManager.currentScreen = 'menu'
   }
 
   // 切换声音

@@ -46,6 +46,13 @@ export class GameState {
     // 云端数据同步标志
     this.cloudSynced = false
     this.cloudAvailable = true
+    
+    // 用户信息
+    this.userInfo = {
+      nickname: getStorage('nickname', ''),
+      avatarUrl: getStorage('avatarUrl', ''),
+      authorized: getStorage('userInfoAuthorized', false)
+    }
   }
 
   // 同步云端数据
@@ -215,10 +222,16 @@ export class GameState {
     setStorage('coins', this.coins)
   }
 
-  // 检查是否可以签到
+  // 检查是否可以签到（用于 UI 显示红点）
   canCheckin() {
     const today = new Date().toDateString()
-    return this.lastCheckinDate !== today
+    // 如果云端已同步，使用云端数据；否则使用本地数据
+    if (this.cloudSynced) {
+      return this.lastCheckinDate !== today
+    } else {
+      // 云端未同步时，保守处理：不显示红点，避免误导
+      return false
+    }
   }
 
   // 获取云端签到状态
@@ -435,5 +448,126 @@ export class GameState {
   resetWave() {
     this.waveScore = 0
     // 注意：purchaseCount 不在这里重置，它在整个游戏会话中累计
+  }
+
+  // 获取排行榜数据
+  async getLeaderboard(type = 'score') {
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'getLeaderboard',
+        data: { type }
+      })
+      
+      if (result.result.success) {
+        return {
+          success: true,
+          data: result.result.data
+        }
+      } else {
+        throw new Error(result.result.message)
+      }
+    } catch (err) {
+      console.error('获取排行榜失败:', err)
+      return {
+        success: false,
+        message: '获取排行榜失败，请稍后重试'
+      }
+    }
+  }
+
+  // 获取用户信息授权
+  async getUserProfile() {
+    return new Promise((resolve, reject) => {
+      wx.getUserProfile({
+        desc: '用于完善用户资料，在排行榜中展示',
+        success: (res) => {
+          resolve(res.userInfo)
+        },
+        fail: (err) => {
+          reject(err)
+        }
+      })
+    })
+  }
+
+  // 保存用户信息到云端
+  async saveUserProfileToCloud(nickname, avatarUrl) {
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'saveUserProfile',
+        data: {
+          nickname,
+          avatarUrl
+        }
+      })
+      
+      if (result.result.success) {
+        // 保存到本地
+        this.userInfo.nickname = nickname
+        this.userInfo.avatarUrl = avatarUrl
+        this.userInfo.authorized = true
+        
+        setStorage('nickname', nickname)
+        setStorage('avatarUrl', avatarUrl)
+        setStorage('userInfoAuthorized', true)
+        
+        return {
+          success: true,
+          message: '用户资料保存成功'
+        }
+      } else {
+        throw new Error(result.result.message)
+      }
+    } catch (err) {
+      console.error('保存用户资料失败:', err)
+      return {
+        success: false,
+        message: '保存失败，请稍后重试'
+      }
+    }
+  }
+
+  // 更新云端用户游戏数据（添加昵称和头像）
+  async updateCloudGameData(updateData) {
+    try {
+      // 添加用户信息到更新数据中
+      const dataWithUserInfo = {
+        ...updateData,
+        nickname: this.userInfo.nickname,
+        avatarUrl: this.userInfo.avatarUrl
+      }
+      
+      const result = await wx.cloud.callFunction({
+        name: 'updateGameData',
+        data: dataWithUserInfo
+      })
+      
+      if (result.result.success) {
+        const cloudData = result.result.data
+        
+        // 更新本地数据
+        if (cloudData.highestWave !== undefined) {
+          this.bestWave = cloudData.highestWave
+          setStorage('bestWave', this.bestWave)
+        }
+        if (cloudData.highestScore !== undefined) {
+          this.highScore = cloudData.highestScore
+          setStorage('highScore', this.highScore)
+        }
+        if (cloudData.coins !== undefined) {
+          this.coins = cloudData.coins
+          setStorage('coins', this.coins)
+        }
+        
+        this.cloudAvailable = true
+        return true
+      } else {
+        throw new Error(result.result.message)
+      }
+    } catch (err) {
+      console.error('更新云端游戏数据失败:', err)
+      this.cloudAvailable = false
+      return false
+    }
   }
 }

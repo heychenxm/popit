@@ -32,7 +32,11 @@ export class UIManager {
     this.toastTimer = 0
     
     // 当前屏幕
-    this.currentScreen = 'menu' // 'menu' | 'game' | 'win' | 'fail' | 'leaderboard' | 'checkin' | 'share'
+    this.currentScreen = 'menu' // 'menu' | 'game' | 'win' | 'fail' | 'pause' | 'leaderboard'
+    
+    // 排行榜状态
+    this.leaderboardType = 'score' // 'score' | 'wave'
+    this.leaderboardData = null
     
     // 动画状态
     this.animationFrame = 0
@@ -105,6 +109,510 @@ export class UIManager {
     ctx.fillText(value, x + 28, y + 15)
     
     ctx.restore()
+  }
+
+  // 绘制排行榜弹窗
+  drawLeaderboardModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 360
+    const modalH = 520
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons = []
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#312e81')  // indigo-950
+    gradient.addColorStop(1, '#4c1d95')  // purple-950
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#818cf8'  // indigo-400
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 关闭按钮（右上角，与边框等距）
+    const closeBtnSize = 32
+    const closeBtnPadding = 20  // 与边框的距离
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+    
+    // 标题
+    const titleY = modalY + 35
+    ctx.font = 'bold 20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#a5b4fc'  // indigo-300
+    ctx.fillText('🏆 排行榜', this.width / 2, titleY)
+    
+    // 切换按钮容器
+    const switchContainerY = titleY + 35
+    const switchContainerW = 200
+    const switchContainerH = 36
+    const switchContainerX = modalX + (modalW - switchContainerW) / 2
+    
+    // 切换按钮背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, switchContainerX, switchContainerY, switchContainerW, switchContainerH, 18)
+    ctx.fill()
+    
+    // 切换按钮：最高分
+    const scoreBtnW = switchContainerW / 2
+    const scoreBtnX = switchContainerX
+    const scoreBtnActive = this.leaderboardType === 'score'
+    
+    if (scoreBtnActive) {
+      const scoreGradient = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
+      scoreGradient.addColorStop(0, '#fbbf24')  // amber-400
+      scoreGradient.addColorStop(1, '#d97706')  // amber-600
+      ctx.fillStyle = scoreGradient
+      drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = scoreBtnActive ? Colors.white : Colors.gray400
+    ctx.textAlign = 'center'
+    ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'leaderboard_score',
+      x: scoreBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 切换按钮：最高关卡
+    const waveBtnX = switchContainerX + scoreBtnW
+    const waveBtnActive = this.leaderboardType === 'wave'
+    
+    if (waveBtnActive) {
+      const waveGradient = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
+      waveGradient.addColorStop(0, '#fbbf24')
+      waveGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = waveGradient
+      drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.fillStyle = waveBtnActive ? Colors.white : Colors.gray400
+    ctx.fillText('最高关卡', waveBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'leaderboard_wave',
+      x: waveBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 前三名展示区（移除分隔线）
+    const top3ContainerY = switchContainerY + switchContainerH + 20
+    const top3ContainerH = 140
+    const top3ItemW = (modalW - 60) / 3  // 3 列，间距 10
+    
+    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+      const leaderboard = this.leaderboardData.leaderboard
+      
+      // 获取前三名（可能少于 3 个）
+      const top1 = leaderboard[0]
+      const top2 = leaderboard[1]
+      const top3 = leaderboard[2]
+      
+      // 绘制第 2 名（左侧）
+      if (top2) {
+        this.drawLeaderboardRankCard(
+          modalX + 20, top3ContainerY, top3ItemW, top3ContainerH,
+          top2.rank, top2.nickname, top2.avatarUrl, top2.value,
+          2, top2.isUser
+        )
+      }
+      
+      // 绘制第 1 名（中间，突出显示）
+      if (top1) {
+        this.drawLeaderboardRankCard(
+          modalX + 20 + top3ItemW + 10, top3ContainerY - 10, top3ItemW, top3ContainerH + 10,
+          top1.rank, top1.nickname, top1.avatarUrl, top1.value,
+          1, top1.isUser, true
+        )
+      }
+      
+      // 绘制第 3 名（右侧）
+      if (top3) {
+        this.drawLeaderboardRankCard(
+          modalX + 20 + (top3ItemW + 10) * 2, top3ContainerY, top3ItemW, top3ContainerH,
+          top3.rank, top3.nickname, top3.avatarUrl, top3.value,
+          3, top3.isUser
+        )
+      }
+    }
+    
+    // 排行榜列表（第 4-6 名 + 自己）
+    const listContainerY = top3ContainerY + top3ContainerH + 8  // 与前三名间距
+    const listItemH = 50
+    
+    // 计算实际需要的列表高度（根据实际条目数）
+    const leaderboard = this.leaderboardData && this.leaderboardData.leaderboard ? this.leaderboardData.leaderboard : []
+    const listCount = Math.max(0, leaderboard.length - 3)  // 减去前 3 名
+    const actualListHeight = listCount > 0 ? (listCount * listItemH + 10) : 50  // 至少显示一定高度
+    
+    // 增加列表宽度，保持左右同等边距
+    const listPadding = 15  // 左右边距
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, modalX + listPadding, listContainerY, modalW - listPadding * 2, actualListHeight, 16)
+    ctx.fill()
+    
+    // 绘制列表项
+    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+      const listStartIndex = 3  // 从第 4 名开始
+      
+      leaderboard.slice(listStartIndex).forEach((user, index) => {
+        const itemY = listContainerY + 10 + index * listItemH
+        const isHighlight = user.isUser || (user.rank <= 3)
+        
+        // 增加列表项宽度，减少左右边距
+        this.drawLeaderboardListItem(
+          modalX + listPadding + 10, itemY, modalW - (listPadding + 10) * 2, listItemH - 10,
+          user.rank, user.nickname, user.avatarUrl, user.value,
+          isHighlight, user.isUser
+        )
+      })
+    }
+    
+    // 底部提示
+    const footerY = modalY + modalH - 35
+    ctx.font = '10px sans-serif'
+    ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'  // indigo-300/60
+    ctx.textAlign = 'center'
+    ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
+    
+    ctx.restore()
+  }
+
+  // 绘制排行榜前三名卡片
+  drawLeaderboardRankCard(x, y, w, h, rank, nickname, avatarUrl, value, rankNum, isUser, isTop1 = false) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    
+    // 背景
+    let bgColor
+    if (isTop1) {
+      const gradient = ctx.createLinearGradient(x, y, x, y + h)
+      gradient.addColorStop(0, '#4f46e5')  // indigo-600
+      gradient.addColorStop(1, '#3730a3')  // indigo-800
+      bgColor = gradient
+    } else if (rankNum === 2) {
+      bgColor = 'rgba(148, 163, 184, 0.3)'  // 银色
+    } else {
+      bgColor = 'rgba(234, 179, 8, 0.2)'  // 铜色
+    }
+    
+    ctx.fillStyle = bgColor
+    drawRoundRect(ctx, x, y, w, h, 16)
+    ctx.fill()
+    
+    // 边框
+    let borderColor
+    if (isTop1) {
+      borderColor = '#fbbf24'  // 金色
+    } else if (rankNum === 2) {
+      borderColor = '#94a3b8'  // 银色
+    } else {
+      borderColor = '#eab308'  // 铜色
+    }
+    
+    ctx.strokeStyle = borderColor
+    ctx.lineWidth = isTop1 ? 3 : 2
+    ctx.stroke()
+    
+    // 排名标签（增加顶部间距）
+    ctx.font = isTop1 ? 'bold 12px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.gray300
+    ctx.textAlign = 'center'
+    const rankText = isTop1 ? '🏆 第 1 名' : `第${rank}名`
+    ctx.fillText(rankText, x + w / 2, y + 20)
+    
+    // 头像（增加间距，避免与排名重叠）
+    const avatarSize = isTop1 ? 52 : 44
+    const avatarX = x + w / 2
+    const avatarY = y + 55  // 向下移动
+    
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1)
+    
+    // 昵称（增加与头像的间距）
+    ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'center'
+    const displayNickname = nickname.length > 6 ? nickname.substring(0, 5) + '...' : nickname
+    ctx.fillText(displayNickname, x + w / 2, y + 95)  // 向下移动
+    
+    // 分数/关卡（增加与昵称的间距）
+    ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
+    ctx.fillStyle = '#a5b4fc'  // indigo-300
+    ctx.fillText(value.toString(), x + w / 2, y + 120)  // 向下移动
+    
+    ctx.restore()
+  }
+
+  // 绘制排行榜列表项
+  drawLeaderboardListItem(x, y, w, h, rank, nickname, avatarUrl, value, isHighlight, isUser) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    
+    // 背景
+    if (isHighlight) {
+      ctx.fillStyle = isUser ? 'rgba(99, 102, 241, 0.3)' : 'rgba(0, 0, 0, 0.2)'
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+    }
+    
+    drawRoundRect(ctx, x, y, w, h, 12)
+    ctx.fill()
+    
+    // 边框（自己的排名高亮）
+    if (isUser) {
+      ctx.strokeStyle = '#6366f1'  // indigo-400
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+    
+    // 排名
+    ctx.font = isHighlight ? 'bold 12px sans-serif' : '11px sans-serif'
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.gray400
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    const rankText = typeof rank === 'number' ? `${rank}.` : rank  // 支持 "100+"
+    ctx.fillText(rankText, x + 12, y + h / 2)
+    
+    // 头像（增加与排名的间距）
+    const avatarSize = 32
+    const avatarX = x + 50  // 增加间距：35 → 50
+    const avatarY = y + h / 2
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false)
+    
+    // 昵称
+    ctx.font = isHighlight ? 'bold 11px sans-serif' : '11px sans-serif'
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'left'
+    const displayNickname = nickname.length > 10 ? nickname.substring(0, 9) + '...' : nickname
+    ctx.fillText(displayNickname, avatarX + avatarSize + 8, y + h / 2)
+    
+    // 分数/关卡
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = '#a5b4fc'  // indigo-300
+    ctx.textAlign = 'right'
+    ctx.fillText(value.toString(), x + w - 10, y + h / 2)
+    
+    ctx.restore()
+  }
+
+  // 绘制头像（支持图片头像和文字头像）
+  drawAvatar(x, y, size, avatarUrl, isTop1) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    ctx.translate(x, y)
+    
+    const radius = size / 2
+    
+    // 检查是否有真实头像 URL
+    if (avatarUrl && (avatarUrl.startsWith('http') || avatarUrl.startsWith('wx'))) {
+      // 使用图片头像
+      this.drawImageAvatar(ctx, 0, 0, size, avatarUrl, isTop1)
+    } else {
+      // 使用文字头像
+      this.drawTextAvatar(ctx, 0, 0, size, avatarUrl, isTop1)
+    }
+    
+    ctx.restore()
+  }
+
+  // 绘制图片头像
+  drawImageAvatar(ctx, x, y, size, url, isTop1) {
+    const radius = size / 2
+    
+    // 创建圆形裁剪区域
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.closePath()
+    ctx.clip()
+    
+    // 绘制金色边框（第 1 名）
+    if (isTop1) {
+      ctx.strokeStyle = '#fbbf24'
+      ctx.lineWidth = 3
+      ctx.stroke()
+    }
+    
+    // 加载并绘制图片
+    const img = wx.createImage()
+    img.src = url
+    img.onload = () => {
+      // 图片加载完成后重绘（需要在游戏循环中触发）
+      ctx.drawImage(img, x - radius, y - radius, size, size)
+    }
+    img.onerror = () => {
+      // 图片加载失败，降级到文字头像
+      console.error('头像图片加载失败，使用文字头像')
+      this.drawTextAvatar(ctx, x, y, size, '', isTop1)
+    }
+    
+    ctx.restore()
+  }
+
+  // 绘制文字头像（使用 Canvas 绘制美观的默认头像）
+  drawTextAvatar(ctx, x, y, size, text, isTop1) {
+    const radius = size / 2
+    
+    // 背景渐变（使用更丰富的渐变色）
+    const gradient = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, 0, x, y, radius)
+    if (isTop1) {
+      // 第 1 名：金色渐变
+      gradient.addColorStop(0, '#fde68a')  // amber-200
+      gradient.addColorStop(0.5, '#fbbf24')  // amber-400
+      gradient.addColorStop(1, '#d97706')  // amber-600
+    } else {
+      // 根据文字生成固定颜色（相同文字相同颜色）
+      const hue = this.getHueFromText(text || 'default')
+      gradient.addColorStop(0, this.getHslColor(hue, 65))
+      gradient.addColorStop(1, this.getHslColor(hue, 45))
+    }
+    
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 边框
+    ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 绘制装饰性图案（圆圈和点）
+    this.drawAvatarPattern(ctx, x, y, radius, text || 'default')
+    
+    // 文字（使用 openid 前 3 位）
+    const displayText = text ? text.substring(0, 3).toUpperCase() : 'U'
+    ctx.font = `bold ${size * 0.35}px sans-serif`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+    ctx.shadowBlur = 2
+    ctx.shadowOffsetY = 1
+    ctx.fillText(displayText, x, y + 1)
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
+  }
+
+  // 根据文字生成固定色相值（保证相同文字相同颜色）
+  getHueFromText(text) {
+    let hash = 0
+    for (let i = 0; i < text.length; i++) {
+      hash = text.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return Math.abs(hash % 360)
+  }
+
+  // HSL 转 RGB 辅助函数（微信小游戏不支持 HSL）
+  hslToRgb(h, s, l) {
+    const sNorm = s / 100
+    const lNorm = l / 100
+    const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+    const m = lNorm - c / 2
+    
+    let r, g, b
+    if (h < 60) {
+      r = c; g = x; b = 0
+    } else if (h < 120) {
+      r = x; g = c; b = 0
+    } else if (h < 180) {
+      r = 0; g = c; b = x
+    } else if (h < 240) {
+      r = 0; g = x; b = c
+    } else if (h < 300) {
+      r = x; g = 0; b = c
+    } else {
+      r = c; g = 0; b = x
+    }
+    
+    return {
+      r: Math.round((r + m) * 255),
+      g: Math.round((g + m) * 255),
+      b: Math.round((b + m) * 255)
+    }
+  }
+
+  // 根据色相获取 RGB 颜色字符串
+  getHslColor(hue, lightness) {
+    const rgb = this.hslToRgb(hue, 70, lightness)
+    return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+  }
+
+  // 绘制头像装饰图案
+  drawAvatarPattern(ctx, x, y, radius, text) {
+    const hue = this.getHueFromText(text)
+    const rgb = this.hslToRgb(hue, 70, 80)
+    const color = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`
+    
+    ctx.fillStyle = color
+    
+    // 绘制几个装饰性小圆点
+    const patterns = [
+      { offsetX: -0.4, offsetY: -0.4, size: 0.15 },
+      { offsetX: 0.5, offsetY: -0.3, size: 0.1 },
+      { offsetX: -0.3, offsetY: 0.5, size: 0.12 },
+      { offsetX: 0.4, offsetY: 0.4, size: 0.08 }
+    ]
+    
+    patterns.forEach(pattern => {
+      ctx.beginPath()
+      ctx.arc(
+        x + pattern.offsetX * radius,
+        y + pattern.offsetY * radius,
+        radius * pattern.size,
+        0,
+        Math.PI * 2
+      )
+      ctx.fill()
+    })
   }
 
   // 绘制暂停弹窗
@@ -919,7 +1427,7 @@ export class UIManager {
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
-      ctx.fillText('记住闪烁的气泡', this.width / 2, y + 24)
+      ctx.fillText('记住高亮的气泡', this.width / 2, y + 24)
     } else if (gameState.phase === 'PLAY') {
       ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
@@ -932,7 +1440,7 @@ export class UIManager {
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
-      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', this.width / 2, y + 24)
+      ctx.fillText('在倒计时结束前点破所有高亮的气泡', this.width / 2, y + 24)
     }
     
     ctx.restore()
@@ -1444,6 +1952,9 @@ export class UIManager {
         break
       case 'pause':
         this.drawPauseModal(gameState)
+        break
+      case 'leaderboard':
+        this.drawLeaderboardModal(gameState)
         break
     }
     
