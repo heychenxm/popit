@@ -206,6 +206,12 @@ export class Main {
       return
     }
     
+    // 检查是否在签到界面
+    if (this.uiManager.currentScreen === 'checkin') {
+      this.handleCheckinTouch(x, y)
+      return
+    }
+    
     switch (this.gameState.phase) {
       case 'MENU':
         this.handleMenuTouch(x, y)
@@ -239,6 +245,22 @@ export class Main {
           break
         case 'leaderboard_wave':
           await this.switchLeaderboardType('wave')
+          break
+      }
+    }
+  }
+
+  // 处理签到触摸
+  async handleCheckinTouch(x, y) {
+    const buttonId = this.uiManager.handleTouch(x, y)
+    
+    if (buttonId) {
+      switch (buttonId) {
+        case 'close':
+          this.closeCheckin()
+          break
+        case 'checkin':
+          await this.doCheckin()
           break
       }
     }
@@ -827,6 +849,15 @@ export class Main {
 
   // 显示签到
   async showCheckin() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 切换到签到界面
+    this.uiManager.currentScreen = 'checkin'
+  }
+
+  // 执行签到（在签到弹窗中点击按钮时调用）
+  async doCheckin() {
     // 获取云端签到状态
     const status = await this.gameState.checkCloudCheckinStatus()
     
@@ -835,17 +866,29 @@ export class Main {
       const result = await this.gameState.doCloudCheckin()
       if (result.success) {
         this.vibrate('medium')
+        this.audioManager.play('success')
         this.uiManager.showToast(
-          `签到成功！领取 ${result.reward.amount}${result.reward.type === 'coin' ? '金币' : '宝石'}`
+          `签到成功！领取 ${result.reward.amount} 金币`
         )
+        // 签到成功后不关闭弹窗，用户手动关闭
+        return true
       } else {
         this.vibrate('light')
         this.uiManager.showToast(result.message)
+        return false
       }
     } else {
       this.vibrate('light')
       this.uiManager.showToast('今天已经签到过了！')
+      return false
     }
+  }
+
+  // 关闭签到弹窗
+  closeCheckin() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    this.uiManager.currentScreen = 'menu'
   }
 
   // 显示分享

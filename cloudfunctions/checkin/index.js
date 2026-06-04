@@ -7,16 +7,29 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-// 签到奖励配置（7 天循环）
-const DAY_REWARDS = [
-  { type: 'coin', amount: 100 },    // 第 1 天
-  { type: 'coin', amount: 200 },    // 第 2 天
-  { type: 'gem', amount: 5 },       // 第 3 天（宝石）
-  { type: 'coin', amount: 500 },    // 第 4 天
-  { type: 'coin', amount: 1000 },   // 第 5 天
-  { type: 'gem', amount: 10 },      // 第 6 天（宝石）
-  { type: 'coin', amount: 2000 }    // 第 7 天
-]
+// 签到奖励配置（新规则：纯金币模式）
+// 第 1 天：300，第 2 天：500，第 3-6 天：1000，第 7 天：3000（1000+2000 额外）
+// 第 8 天起：每天 1000，7 的倍数天：3000（1000+2000）
+function getDayReward(day) {
+  // 基础奖励
+  let baseReward = 1000  // 第 3 天起基础奖励 1000
+  if (day === 1) {
+    baseReward = 300
+  } else if (day === 2) {
+    baseReward = 500
+  }
+  
+  // 7 的倍数天额外奖励 2000
+  const bonusReward = (day % 7 === 0) ? 2000 : 0
+  
+  return {
+    type: 'coin',
+    amount: baseReward + bonusReward,
+    baseReward: baseReward,
+    bonusReward: bonusReward,
+    isBonusDay: bonusReward > 0
+  }
+}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -181,15 +194,7 @@ async function doCheckin(openid) {
 }
 
 /**
- * 计算第几天的奖励
- */
-function getDayReward(day) {
-  const dayIndex = Math.min(day - 1, DAY_REWARDS.length - 1)
-  return DAY_REWARDS[dayIndex]
-}
-
-/**
- * 发放奖励（事务内调用）
+ * 发放奖励（事务内调用，纯金币模式）
  */
 async function addReward(transaction, openid, reward) {
   const userResult = await transaction.collection('user_profile')
@@ -203,18 +208,15 @@ async function addReward(transaction, openid, reward) {
         openid,
         highestWave: 0,
         highestScore: 0,
-        coins: reward.type === 'coin' ? reward.amount : 0,
-        gems: reward.type === 'gem' ? reward.amount : 0,
+        coins: reward.amount,
+        gems: 0,
         lastUpdateTime: Date.now()
       }
     })
   } else {
     // 更新现有用户
-    const updateData = {}
-    if (reward.type === 'coin') {
-      updateData.coins = _.inc(reward.amount)
-    } else {
-      updateData.gems = _.inc(reward.amount)
+    const updateData = {
+      coins: _.inc(reward.amount)
     }
     
     await transaction.collection('user_profile')

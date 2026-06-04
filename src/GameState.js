@@ -35,6 +35,7 @@ export class GameState {
     // 签到数据
     this.lastCheckinDate = getStorage('lastCheckinDate', '')
     this.checkinStreak = getStorage('checkinStreak', 0)
+    this.hasCheckedInToday = false  // 当前是否已签到
     
     // 积分规则相关
     this.waveScore = 0           // 当前关卡得分
@@ -90,6 +91,9 @@ export class GameState {
         setStorage('coins', this.coins)
         setStorage('lastCheckinDate', this.lastCheckinDate)
         setStorage('checkinStreak', this.checkinStreak)
+        
+        // 更新今日是否已签到状态
+        this.updateCheckinStatus()
         
         this.cloudSynced = true
         this.cloudAvailable = true
@@ -234,6 +238,12 @@ export class GameState {
     }
   }
 
+  // 更新今日是否已签到状态
+  updateCheckinStatus() {
+    const today = new Date().toDateString()
+    this.hasCheckedInToday = (this.lastCheckinDate === today)
+  }
+
   // 获取云端签到状态
   async checkCloudCheckinStatus() {
     try {
@@ -308,15 +318,27 @@ export class GameState {
     }
   }
 
-  // 获取当天签到奖励
-  getTodayReward() {
-    const dayReward = [100, 200, 5, 500, 1000, 10, 2000]
-    const dayIndex = Math.min(this.checkinStreak, dayReward.length - 1)
-    const reward = dayReward[dayIndex]
-    const isGem = (dayIndex === 2 || dayIndex === 5)
+  // 获取当天签到奖励（新规则：纯金币模式）
+  getTodayReward(day = null) {
+    const checkinDay = day !== null ? day : this.checkinStreak + 1
+    
+    // 基础奖励
+    let baseReward = 1000  // 第 3 天起基础奖励 1000
+    if (checkinDay === 1) {
+      baseReward = 300
+    } else if (checkinDay === 2) {
+      baseReward = 500
+    }
+    
+    // 7 的倍数天额外奖励 2000
+    const bonusReward = (checkinDay % 7 === 0) ? 2000 : 0
+    
     return {
-      type: isGem ? 'gem' : 'coin',
-      amount: reward
+      type: 'coin',
+      amount: baseReward + bonusReward,
+      baseReward: baseReward,
+      bonusReward: bonusReward,
+      isBonusDay: bonusReward > 0
     }
   }
 
@@ -326,8 +348,10 @@ export class GameState {
     const yesterday = new Date(Date.now() - 86400000).toDateString()
     
     if (this.lastCheckinDate === yesterday) {
+      // 连续签到
       this.checkinStreak++
     } else if (this.lastCheckinDate !== today) {
+      // 中断后重新签到或首次签到
       this.checkinStreak = 1
     }
     
@@ -335,10 +359,11 @@ export class GameState {
     setStorage('lastCheckinDate', today)
     setStorage('checkinStreak', this.checkinStreak)
     
-    // 根据签到天数给予奖励
-    const dayReward = [100, 200, 5, 500, 1000, 10, 2000]
-    const dayIndex = Math.min(this.checkinStreak - 1, dayReward.length - 1)
-    const reward = dayReward[dayIndex]
+    // 更新今日是否已签到状态
+    this.hasCheckedInToday = true
+    
+    // 根据签到天数给予奖励（新规则）
+    const reward = this.getTodayReward()
     
     // 判断是金币还是宝石
     const isGem = (dayIndex === 2 || dayIndex === 5)
