@@ -40,6 +40,8 @@ export class GameState {
     // 分享礼包数据
     this.lastShareGiftDate = getStorage('lastShareGiftDate', '')
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
+    // 初始化时检查今天是否已领取
+    this.updateShareGiftStatus()
     
     // 积分规则相关
     this.waveScore = 0           // 当前关卡得分

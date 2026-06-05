@@ -74,8 +74,10 @@ export class UIManager {
     // 赛季横幅
     this.drawSeasonBanner()
     
-    // 分享礼包图标
-    this.drawShareGiftIcon()
+    // 分享礼包图标（根据是否可以分享来决定是否显示）
+    if (gameState.canShareGift()) {
+      this.drawShareGiftIcon()
+    }
   }
 
   // 绘制信息徽章
@@ -322,7 +324,7 @@ export class UIManager {
     const buttons = [
       { id: 'leaderboard', icon: 'barChart', label: '排行榜', color1: '#6366f1', color2: '#a855f7', borderColor: '#a5b4fc' },
       { id: 'sound', icon: 'speaker', label: '声音', color1: '#0ea5e9', color2: '#3b82f6', borderColor: '#7dd3fc' },
-      { id: 'checkin', icon: 'calendar', label: '签到', color1: '#10b981', color2: '#16a34a', borderColor: '#6ee7b7', hasBadge: true },
+      { id: 'checkin', icon: 'calendar', label: '签到', color1: '#10b981', color2: '#16a34a', borderColor: '#6ee7b7', hasBadge: gameState.canCheckin() },
       { id: 'share', icon: 'share', label: '分享', color1: '#ec4899', color2: '#f43f5e', borderColor: '#f9a8d4', hasBadge: true }
     ]
     
