@@ -507,15 +507,19 @@ export class UIManager {
     const iconY = this.height * 0.15
     const iconSize = 56
     
+    // 弹跳动画（先应用动画偏移）
+    const bounce = Math.sin(this.animationFrame * 0.05) * 3
+    const animatedY = iconY + bounce
+    
     ctx.save()
     
     // 背景
-    const gradient = ctx.createLinearGradient(iconX - iconSize / 2, iconY - iconSize / 2, iconX + iconSize / 2, iconY + iconSize / 2)
+    const gradient = ctx.createLinearGradient(iconX - iconSize / 2, animatedY - iconSize / 2, iconX + iconSize / 2, animatedY + iconSize / 2)
     gradient.addColorStop(0, '#a855f7')
     gradient.addColorStop(1, '#ec4899')
     
     ctx.fillStyle = gradient
-    drawRoundRect(ctx, iconX - iconSize / 2, iconY - iconSize / 2, iconSize, iconSize, 16)
+    drawRoundRect(ctx, iconX - iconSize / 2, animatedY - iconSize / 2, iconSize, iconSize, 16)
     ctx.fill()
     
     ctx.strokeStyle = '#fef08a'
@@ -523,11 +527,11 @@ export class UIManager {
     ctx.stroke()
     
     // 宝箱图标（居中绘制）
-    drawChestIcon(ctx, iconX, iconY + 1, 38)
+    drawChestIcon(ctx, iconX, animatedY + 1, 38)
     
     // 标签
     ctx.font = 'bold 10px sans-serif'
-    const labelY = iconY + iconSize / 2 + 12
+    const labelY = animatedY + iconSize / 2 + 12
     ctx.fillStyle = '#581c87'
     drawRoundRect(ctx, iconX - 24, labelY - 8, 48, 16, 8)
     ctx.fill()
@@ -536,14 +540,11 @@ export class UIManager {
     ctx.textBaseline = 'middle'
     ctx.fillText('分享礼包', iconX, labelY)
     
-    // 弹跳动画
-    const bounce = Math.sin(this.animationFrame * 0.05) * 3
-    ctx.translate(0, bounce)
-    
+    // 记录按钮区域（使用动画后的位置）
     this.buttons.push({
       id: 'share_gift',
       x: iconX - iconSize / 2,
-      y: iconY - iconSize / 2,
+      y: animatedY - iconSize / 2,
       w: iconSize,
       h: iconSize + 24
     })
@@ -618,15 +619,18 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.fillText(`第 ${gameState.wave} 波`, waveX, waveY)
     
-    // 进度点
+    // 进度点（根据当前关卡显示进度）
     const dotY = waveY + 20
     const dotSpacing = 24
     const totalDots = 4
     const dotsStartX = waveX - (totalDots - 1) * dotSpacing / 2
     
+    // 根据关卡计算进度（每 5 关为一个进度点）
+    const progressDot = Math.min(Math.floor((gameState.wave - 1) / 5), totalDots - 1)
+    
     for (let i = 0; i < totalDots; i++) {
       const dotX = dotsStartX + i * dotSpacing
-      const isActive = i < 2
+      const isActive = i <= progressDot
       
       ctx.fillStyle = isActive ? Colors.green500 : Colors.gray600
       ctx.beginPath()

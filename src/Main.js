@@ -221,7 +221,8 @@ export class Main {
         this.handleMenuTouch(x, y)
         break
       case 'OBSERVE':
-        // 观察阶段不允许点击
+        // 观察阶段不允许点击，给出提示
+        this.uiManager.showToast('先记住高亮气泡的位置哦~')
         break
       case 'PLAY':
         this.handleGameTouch(x, y)
@@ -886,6 +887,8 @@ export class Main {
         this.uiManager.showToast(
           `签到成功！领取 ${result.reward.amount} 金币`
         )
+        // 更新签到状态，让 UI 显示已签到
+        this.gameState.hasCheckedInToday = true
         // 签到成功后不关闭弹窗，用户手动关闭
         return true
       } else {
