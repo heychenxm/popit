@@ -72,8 +72,12 @@ export class Main {
     // 同步云端数据（异步，不阻塞游戏启动）
     this.gameState.syncCloudData().then(() => {
       console.log('云端数据同步完成')
+      // 更新分享礼包状态
+      this.gameState.updateShareGiftStatus()
     }).catch(err => {
       console.error('云端数据同步失败:', err)
+      // 即使云端同步失败，也要更新本地状态
+      this.gameState.updateShareGiftStatus()
     })
     
     // 开始游戏循环
@@ -274,6 +278,16 @@ export class Main {
       this.audioManager.play('click')
       this.vibrate()
       
+      // 如果当前是分享弹窗，处理分享按钮
+      if (this.uiManager.currentScreen === 'share') {
+        if (buttonId === 'share_wechat') {
+          this.handleWechatShare()
+        } else if (buttonId === 'close') {
+          this.uiManager.currentScreen = 'menu'
+        }
+        return
+      }
+      
       switch (buttonId) {
         case 'start':
           this.startGame()
@@ -289,7 +303,11 @@ export class Main {
           this.showCheckin()
           break
         case 'share':
+          // 底部分享按钮：直接调用微信分享，奖励 +50 金币
+          this.handleQuickShare()
+          break
         case 'share_gift':
+          // 右上角分享礼包图标：显示分享礼包弹窗，每天可领一次，奖励 +1000 金币
           this.showShare()
           break
       }
@@ -891,11 +909,79 @@ export class Main {
     this.uiManager.currentScreen = 'menu'
   }
 
-  // 显示分享
-  showShare() {
+  // 显示分享礼包（右上角图标）
+  async showShare() {
     this.vibrate('light')
-    this.uiManager.showToast('分享功能开发中...')
-    // TODO: 实现分享功能
+    
+    // 检查今天是否已领取
+    if (!this.gameState.canShareGift()) {
+      this.uiManager.showToast('今日分享礼包已领取')
+      return
+    }
+    
+    // 显示分享礼包弹窗
+    this.uiManager.currentScreen = 'share'
+  }
+  
+  // 快速分享（底部分享按钮）
+  async handleQuickShare() {
+    this.vibrate('light')
+    
+    try {
+      // 调用微信分享 API
+      const shareResult = await wechatAPI.shareToChat({
+        title: '来挑战 POPIT 记忆大师！',
+        imageUrl: '',
+        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
+      })
+      
+      console.log('分享成功:', shareResult)
+      
+      // 分享成功奖励 +50 金币
+      this.gameState.addCoins(50)
+      setStorage('coins', this.gameState.coins)
+      
+      // 确保回到菜单界面
+      this.uiManager.currentScreen = 'menu'
+      
+      // 显示奖励提示（底部 Toast）
+      this.uiManager.showToast('分享成功！金币 +50 🪙')
+      
+      // 同步到云端（异步）
+      this.gameState.updateCloudGameData({ addCoins: 50 }).catch(() => {})
+    } catch (err) {
+      console.error('分享失败:', err)
+      this.uiManager.showToast('分享失败')
+    }
+  }
+  
+  // 处理微信分享（分享礼包弹窗中的分享按钮）
+  async handleWechatShare() {
+    this.vibrate('light')
+    
+    try {
+      // 调用微信分享 API
+      await wechatAPI.shareToChat({
+        title: '来挑战 POPIT 记忆大师！',
+        imageUrl: '',
+        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
+      })
+      
+      // 分享成功后发放奖励
+      const reward = this.gameState.claimShareGift()
+      
+      // 自动关闭弹窗，回到首页
+      this.uiManager.currentScreen = 'menu'
+      
+      // 显示奖励提示
+      this.uiManager.showToast(`分享成功！金币 +${reward.amount} 🪙`)
+      
+      // 同步到云端（异步）
+      this.gameState.updateCloudGameData({ addCoins: reward.amount })
+    } catch (err) {
+      console.error('分享失败:', err)
+      this.uiManager.showToast('分享失败，请重试')
+    }
   }
 
   // 开始游戏循环

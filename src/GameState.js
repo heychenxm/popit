@@ -37,6 +37,10 @@ export class GameState {
     this.checkinStreak = getStorage('checkinStreak', 0)
     this.hasCheckedInToday = false  // 当前是否已签到
     
+    // 分享礼包数据
+    this.lastShareGiftDate = getStorage('lastShareGiftDate', '')
+    this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
+    
     // 积分规则相关
     this.waveScore = 0           // 当前关卡得分
     this.consecutiveWins = 0     // 连续胜利关卡数
@@ -85,6 +89,11 @@ export class GameState {
           this.checkinStreak = cloudData.signin.checkinStreak || 0
         }
         
+        // 同步分享礼包数据
+        if (cloudData.shareGift) {
+          this.lastShareGiftDate = cloudData.shareGift.lastShareGiftDate || ''
+        }
+        
         // 保存到本地
         setStorage('highScore', this.highScore)
         setStorage('bestWave', this.bestWave)
@@ -94,6 +103,9 @@ export class GameState {
         
         // 更新今日是否已签到状态
         this.updateCheckinStatus()
+        
+        // 更新分享礼包状态
+        this.updateShareGiftStatus()
         
         this.cloudSynced = true
         this.cloudAvailable = true
@@ -242,6 +254,35 @@ export class GameState {
   updateCheckinStatus() {
     const today = new Date().toDateString()
     this.hasCheckedInToday = (this.lastCheckinDate === today)
+  }
+  
+  // 更新分享礼包状态（每天 0 点重置）
+  updateShareGiftStatus() {
+    const today = new Date().toDateString()
+    // 如果今天已经领取过，保持状态
+    if (this.lastShareGiftDate === today) {
+      this.hasSharedGiftToday = true
+    } else {
+      // 否则重置为未领取
+      this.hasSharedGiftToday = false
+    }
+  }
+  
+  // 检查是否可以领取分享礼包
+  canShareGift() {
+    return !this.hasSharedGiftToday
+  }
+  
+  // 执行分享礼包领取
+  claimShareGift() {
+    const today = new Date().toDateString()
+    this.lastShareGiftDate = today
+    this.hasSharedGiftToday = true
+    setStorage('lastShareGiftDate', today)
+    
+    // 奖励 1000 金币
+    this.addCoins(1000)
+    return { type: 'coin', amount: 1000 }
   }
 
   // 获取云端签到状态

@@ -895,6 +895,191 @@ export class UIManager {
     ctx.fillText(amountText, x + w / 2, amountY)
   }
 
+  // 绘制分享弹窗
+  drawShareModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 340
+    const modalH = 480
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons = []
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#0f172a')
+    gradient.addColorStop(1, '#1e293b')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 关闭按钮
+    const closeBtnSize = 32
+    const closeBtnPadding = 20
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+    
+    // 礼物图标容器
+    const iconContainerSize = 64
+    const iconContainerX = modalX + modalW / 2
+    const iconContainerY = modalY + 50
+    
+    // 粉红色圆形背景
+    const iconBgGradient = ctx.createRadialGradient(iconContainerX, iconContainerY, 0, iconContainerX, iconContainerY, iconContainerSize / 2)
+    iconBgGradient.addColorStop(0, '#ec4899')
+    iconBgGradient.addColorStop(1, '#be185d')
+    
+    ctx.fillStyle = iconBgGradient
+    ctx.beginPath()
+    ctx.arc(iconContainerX, iconContainerY, iconContainerSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 绘制宝箱图标（居中）
+    const chestSize = 40
+    const chestX = iconContainerX
+    const chestY = iconContainerY + 2
+    drawChestIcon(ctx, chestX, chestY, chestSize, '#fbbf24')
+    
+    // 标题
+    const titleY = iconContainerY + 50
+    ctx.font = 'bold 18px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText('专属分享礼包已备好', this.width / 2, titleY)
+    
+    // 描述文字
+    const descY = titleY + 28
+    ctx.font = '12px sans-serif'
+    ctx.fillStyle = Colors.gray400
+    ctx.textAlign = 'center'
+    
+    const descText1 = '分享本游戏至群聊或好友，'
+    const descText2 = '立即免费获得 '
+    ctx.fillText(descText1, this.width / 2, descY)
+    ctx.fillText(descText2, this.width / 2, descY + 18)
+    
+    // 奖励文字（高亮）
+    ctx.font = 'bold 14px sans-serif'
+    ctx.fillStyle = Colors.yellow400
+    ctx.fillText('1000 金币', this.width / 2 + 35, descY + 18)
+    
+    // 微信小游戏消息预览
+    const previewX = modalX + 20
+    const previewY = descY + 50
+    const previewW = modalW - 40
+    const previewH = 80
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, previewX, previewY, previewW, previewH, 16)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 预览标题
+    ctx.font = '11px sans-serif'
+    ctx.fillStyle = Colors.gray500
+    ctx.textAlign = 'left'
+    ctx.fillText('微信小游戏消息预览', previewX + 12, previewY + 18)
+    
+    // 预览内容
+    const previewContentX = previewX + 12
+    const previewContentY = previewY + 30
+    
+    // 游戏图标
+    const gameIconSize = 40
+    const gameIconX = previewContentX
+    const gameIconY = previewContentY + gameIconSize / 2
+    
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.3)'
+    drawRoundRect(ctx, gameIconX, previewContentY, gameIconSize, gameIconSize, 10)
+    ctx.fill()
+    
+    // 气泡图标
+    ctx.font = '20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText('🎈', gameIconX + gameIconSize / 2, previewContentY + gameIconSize / 2)
+    
+    // 游戏标题
+    ctx.font = 'bold 12px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'left'
+    ctx.fillText('来挑战 POPIT 记忆大师！', gameIconX + gameIconSize + 10, previewContentY + 12)
+    
+    // 游戏描述
+    ctx.font = '11px sans-serif'
+    ctx.fillStyle = Colors.gray400
+    ctx.fillText('我轻松闯过第 12 关，你敢来比一比吗？', gameIconX + gameIconSize + 10, previewContentY + 32)
+    
+    // 分享按钮
+    const btnWidth = modalW - 60
+    const btnHeight = 46
+    const btnX = modalX + 30
+    const btnY = previewY + previewH + 25
+    
+    const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnHeight)
+    btnGradient.addColorStop(0, '#22c55e')
+    btnGradient.addColorStop(1, '#16a34a')
+    
+    ctx.fillStyle = btnGradient
+    drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#86efac'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.fillText('发送到微信好友', modalX + modalW / 2, btnY + btnHeight / 2)
+    
+    this.buttons.push({
+      id: 'share_wechat',
+      x: btnX,
+      y: btnY,
+      w: btnWidth,
+      h: btnHeight
+    })
+    
+    ctx.restore()
+  }
+  
   // 绘制 7 天连签奖励卡片
   drawBonusCard(ctx, x, y, w, h, isSigned) {
     const gradient = ctx.createLinearGradient(x, y, x, y + h)
@@ -1704,7 +1889,137 @@ export class UIManager {
     ctx.restore()
   }
 
-  // 绘制Toast提示
+  // 绘制暂停弹窗
+  drawPauseModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 320
+    const modalH = 380
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons = []
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#1e293b')
+    gradient.addColorStop(1, '#0f172a')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#64748b'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 暂停图标
+    const iconSize = 64
+    const iconX = modalX + modalW / 2
+    const iconY = modalY + 60
+    
+    // 圆形背景
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.3)'
+    ctx.beginPath()
+    ctx.arc(iconX, iconY, iconSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 暂停符号（两条竖线）
+    const pauseBarWidth = 8
+    const pauseBarHeight = 24
+    const pauseGap = 12
+    const pauseCenterX = iconX
+    const pauseCenterY = iconY
+    
+    ctx.fillStyle = Colors.white
+    ctx.fillRect(pauseCenterX - pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
+    ctx.fillRect(pauseCenterX + pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
+    
+    // 标题
+    const titleY = iconY + 50
+    ctx.font = 'bold 22px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText('游戏暂停', this.width / 2, titleY)
+    
+    // 副标题
+    ctx.font = '12px sans-serif'
+    ctx.fillStyle = Colors.gray400
+    ctx.fillText('休息一下，马上回来', this.width / 2, titleY + 24)
+    
+    // 分隔线
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(modalX + 30, titleY + 50)
+    ctx.lineTo(modalX + modalW - 30, titleY + 50)
+    ctx.stroke()
+    
+    // 按钮区域
+    const btnY = titleY + 90
+    const btnW = modalW - 60
+    const btnH = 48
+    
+    // 返回首页按钮
+    ctx.fillStyle = '#475569'
+    drawRoundRect(ctx, modalX + 30, btnY, btnW, btnH, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#64748b'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.fillText('返回首页', modalX + modalW / 2, btnY + btnH / 2)
+    
+    this.buttons.push({
+      id: 'home',
+      x: modalX + 30,
+      y: btnY,
+      w: btnW,
+      h: btnH
+    })
+    
+    // 继续游戏按钮
+    const resumeBtnY = btnY + btnH + 16
+    const resumeGradient = ctx.createLinearGradient(modalX + 30, resumeBtnY, modalX + 30, resumeBtnY + btnH)
+    resumeGradient.addColorStop(0, '#22c55e')
+    resumeGradient.addColorStop(1, '#16a34a')
+    
+    ctx.fillStyle = resumeGradient
+    drawRoundRect(ctx, modalX + 30, resumeBtnY, btnW, btnH, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#86efac'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    ctx.font = 'bold 18px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.fillText('继续游戏', modalX + modalW / 2, resumeBtnY + btnH / 2)
+    
+    this.buttons.push({
+      id: 'resume',
+      x: modalX + 30,
+      y: resumeBtnY,
+      w: btnW,
+      h: btnH
+    })
+    
+    ctx.restore()
+  }
+
+  // 绘制 Toast 提示
   drawToast() {
     if (!this.toast) return
     
@@ -1790,11 +2105,17 @@ export class UIManager {
       case 'fail':
         this.drawFailModal(gameState)
         break
+      case 'pause':
+        this.drawPauseModal(gameState)
+        break
       case 'leaderboard':
         this.drawLeaderboardModal(gameState)
         break
       case 'checkin':
         this.drawCheckinModal(gameState)
+        break
+      case 'share':
+        this.drawShareModal(gameState)
         break
     }
     
