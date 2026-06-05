@@ -752,9 +752,9 @@ export class UIManager {
     ctx.fillText('每日上线签到即可领金币奖励！', this.width / 2, titleY + 22)
     
     // 签到网格布局（整体居中）
-    const gridStartX = modalX + 25  // 增加左边距，使整体居中
+    const gridStartX = modalX + 20  // 左右边距各 20，使整体居中
     const gridStartY = titleY + 60
-    const cellWidth = (modalW - 50 - 15) / 3  // 减去左右边距 50，间距 15
+    const cellWidth = (modalW - 40 - 30) / 3  // 减去左右边距 40，间距 30（2 个 gap）
     const cellHeight = 95
     const gap = 15
     
@@ -889,10 +889,8 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
-    let amountText = `+${reward.amount}`
-    if (reward.isBonusDay) {
-      amountText = `+${reward.baseReward}\n+${reward.bonusReward}`
-    }
+    // 第 7 天只显示基础奖励 +1000，不显示额外奖励
+    const amountText = `+${reward.amount}`
     
     ctx.fillText(amountText, x + w / 2, amountY)
   }
