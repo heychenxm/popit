@@ -1035,14 +1035,14 @@ export class UIManager {
     ctx.textAlign = 'center'
     
     const descText1 = '分享本游戏至群聊或好友，'
-    const descText2 = '立即免费获得 '
+    const descText2 = '立即免费获得'
     ctx.fillText(descText1, this.width / 2, descY)
     ctx.fillText(descText2, this.width / 2, descY + 18)
     
     // 奖励文字（高亮）
     ctx.font = 'bold 14px sans-serif'
     ctx.fillStyle = Colors.yellow400
-    ctx.fillText('1000 金币', this.width / 2 + 35, descY + 18)
+    ctx.fillText('1000 金币', this.width / 2, descY + 34)
     
     // 微信小游戏消息预览
     const previewX = modalX + 20
