@@ -56,6 +56,9 @@ export class UIManager {
     // 清空按钮数组
     this.buttons = []
     
+    // 顶部金币余额
+    this.drawTopCoins(gameState)
+    
     // LOGO 区域
     this.drawLogo()
     
@@ -104,7 +107,49 @@ export class UIManager {
     ctx.restore()
   }
 
-  // 绘制LOGO - 精确还原 index.html 中的 SVG POPIT LOGO
+  // 绘制顶部金币余额（缩小 30%）
+  drawTopCoins(gameState) {
+    const ctx = this.ctx
+    const padding = 20
+    const verticalPadding = padding + 24  // 向下移动 24px
+    const scale = 0.7  // 缩小 30%
+    const iconSize = 28 * scale
+    const badgeHeight = 40 * scale
+    const leftPadding = 20 * scale  // 左边距
+    const rightPadding = 20 * scale // 右边距
+    const iconGap = 12 * scale      // 图标和文字的间距
+    
+    ctx.save()
+    
+    // 设置字体并测量文字宽度（字体也缩小 30%）
+    ctx.font = 'bold 11.2px sans-serif'  // 16 * 0.7 = 11.2
+    ctx.textBaseline = 'middle'
+    const coinsText = gameState.coins.toString()
+    const textWidth = ctx.measureText(coinsText).width
+    
+    // 计算徽章总宽度 = 左边距 + 图标 + 间距 + 文字 + 右边距
+    const badgeWidth = leftPadding + iconSize + iconGap + textWidth + rightPadding
+    
+    // 背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    drawRoundRect(ctx, padding, verticalPadding, badgeWidth, badgeHeight, 20 * scale)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)'
+    ctx.lineWidth = 1 * scale
+    ctx.stroke()
+    
+    // 金币图标（居中绘制）
+    drawCoinIcon(ctx, padding + leftPadding + iconSize / 2, verticalPadding + badgeHeight / 2, iconSize, '#facc15')
+    
+    // 金币数值
+    ctx.textAlign = 'left'
+    ctx.fillStyle = '#facc15'
+    ctx.fillText(coinsText, padding + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
+    
+    ctx.restore()
+  }
+
+  // 绘制 LOGO - 精确还原 index.html 中的 SVG POPIT LOGO
   drawLogo() {
     const ctx = this.ctx
     const logoX = this.width / 2
