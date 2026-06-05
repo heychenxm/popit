@@ -696,18 +696,4 @@ export class GameState {
   async forceSyncCloudData() {
     await cloudDataManager.forceSync()
   }
-  
-  /**
-   * 获取云函数调用统计信息
-   */
-  getCloudCallStats() {
-    return cloudDataManager.getStats()
-  }
-  
-  /**
-   * 重置云函数调用统计
-   */
-  resetCloudCallStats() {
-    cloudDataManager.resetStats()
-  }
 }

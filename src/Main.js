@@ -1053,19 +1053,4 @@ export class Main {
     // 渲染 UI
     this.uiManager.render(this.gameState)
   }
-  
-  /**
-   * 调试：打印云函数调用统计信息
-   */
-  debugCloudStats() {
-    const stats = this.gameState.getCloudCallStats()
-    console.log('=== 云函数调用统计 ===')
-    console.log(`总更新请求次数：${stats.totalUpdateRequests}`)
-    console.log(`今日更新请求次数：${stats.todayUpdateRequests}`)
-    console.log(`实际云函数调用次数：${stats.actualCloudCalls}`)
-    console.log(`合并次数：${stats.mergedCount}`)
-    console.log(`合并率：${stats.mergeRate}%`)
-    console.log('=====================')
-    return stats
-  }
 }
