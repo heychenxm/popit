@@ -167,6 +167,7 @@ export class GameState {
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
+    // 注意：不重置 uiManager.currentScreen，由 Main.js 控制
   }
 
   // 设置计时器
@@ -178,7 +179,13 @@ export class GameState {
   // 清除计时器
   clearTimer() {
     if (this.timerInterval) {
-      clearInterval(this.timerInterval)
+      // 支持 requestAnimationFrame 和 setInterval 两种清除方式
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.timerInterval)
+      }
+      if (typeof clearInterval === 'function') {
+        clearInterval(this.timerInterval)
+      }
       this.timerInterval = null
     }
   }
@@ -381,10 +388,13 @@ export class GameState {
     }
   }
 
-  // 执行签到
+  // 执行签到（本地降级方案，云端不可用时使用）
   doCheckin() {
-    const today = new Date().toDateString()
-    const yesterday = new Date(Date.now() - 86400000).toDateString()
+    // 使用 UTC+8 时间（中国标准时间）避免时区问题
+    const now = new Date()
+    const utc8Time = new Date(now.getTime() + 8 * 3600000)
+    const today = utc8Time.toDateString()
+    const yesterday = new Date(utc8Time.getTime() - 86400000).toDateString()
     
     if (this.lastCheckinDate === yesterday) {
       // 连续签到
@@ -404,7 +414,7 @@ export class GameState {
     // 根据签到天数给予奖励（新规则）
     const reward = this.getTodayReward()
     
-    // 判断是金币还是宝石（第2天和第5天为宝石）
+    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
     const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
     if (isGem) {
       return { type: 'gem', amount: reward.amount }

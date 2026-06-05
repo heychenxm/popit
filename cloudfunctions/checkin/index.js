@@ -98,10 +98,14 @@ async function getCheckinStatus(openid) {
 
 /**
  * 执行签到
+ * 使用 UTC+8 时间（中国标准时间）避免时区问题
  */
 async function doCheckin(openid) {
-  const today = new Date().toDateString()
-  const yesterday = new Date(Date.now() - 86400000).toDateString()
+  // 使用 UTC+8 时间（中国标准时间）
+  const now = new Date()
+  const utc8Time = new Date(now.getTime() + 8 * 3600000) // 转换为 UTC+8
+  const today = utc8Time.toDateString()
+  const yesterday = new Date(utc8Time.getTime() - 86400000).toDateString()
   
   // 使用事务保证原子性
   const transaction = await db.startTransaction()

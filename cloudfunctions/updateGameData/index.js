@@ -21,6 +21,52 @@ exports.main = async (event, context) => {
       addGems      // 增加宝石（相对值）
     } = event
     
+    // 参数校验（防止恶意调用）
+    const maxWave = 999  // 最大关卡数
+    const maxScore = 999999  // 最高分上限
+    const maxCoins = 999999  // 金币上限
+    const maxAddCoins = 10000  // 单次增加金币上限
+    const maxGems = 99999  // 宝石上限
+    const maxAddGems = 10000  // 单次增加宝石上限
+    
+    // 校验参数范围
+    if (highestWave !== undefined && (highestWave < 0 || highestWave > maxWave)) {
+      return {
+        success: false,
+        message: '参数错误：关卡数超出合理范围'
+      }
+    }
+    if (highestScore !== undefined && (highestScore < 0 || highestScore > maxScore)) {
+      return {
+        success: false,
+        message: '参数错误：分数超出合理范围'
+      }
+    }
+    if (coins !== undefined && (coins < 0 || coins > maxCoins)) {
+      return {
+        success: false,
+        message: '参数错误：金币数超出合理范围'
+      }
+    }
+    if (addCoins !== undefined && (addCoins <= 0 || addCoins > maxAddCoins)) {
+      return {
+        success: false,
+        message: '参数错误：增加的金币数超出合理范围'
+      }
+    }
+    if (gems !== undefined && (gems < 0 || gems > maxGems)) {
+      return {
+        success: false,
+        message: '参数错误：宝石数超出合理范围'
+      }
+    }
+    if (addGems !== undefined && (addGems <= 0 || addGems > maxAddGems)) {
+      return {
+        success: false,
+        message: '参数错误：增加的宝石数超出合理范围'
+      }
+    }
+    
     // 使用事务保证原子性
     const transaction = await db.startTransaction()
     

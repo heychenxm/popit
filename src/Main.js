@@ -424,7 +424,7 @@ export class Main {
   startNewWave() {
     this.gameState.activeWaveCompleted = false
     this.gameState.playerClicks = []
-    this.gameState.phase = 'OBSERVE'
+    this.setGameState('OBSERVE', 'game')
     
     // 重置关卡状态（清空当关得分和购买次数）
     this.gameState.resetWave()
@@ -464,36 +464,44 @@ export class Main {
     this.gameState.timerRemaining = this.gameState.observeDuration
     
     this.gameState.clearTimer()
-    this.gameState.timerInterval = setInterval(() => {
+    // 使用 requestAnimationFrame 提高计时精度
+    const checkTimer = () => {
       const elapsed = Date.now() - this.observeStartTime
       this.gameState.timerRemaining = Math.max(0, this.gameState.observeDuration - elapsed)
       
       if (elapsed >= this.gameState.observeDuration) {
         this.gameState.clearTimer()
         this.startPlayPhase()
+      } else {
+        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
       }
-    }, 30)
+    }
+    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
   }
-
+  
   // 恢复观察阶段
   resumeObservePhase() {
     this.observeStartTime = Date.now() - (this.gameState.observeDuration - this.gameState.timerRemaining)
     
     this.gameState.clearTimer()
-    this.gameState.timerInterval = setInterval(() => {
+    // 使用 requestAnimationFrame 提高计时精度
+    const checkTimer = () => {
       const elapsed = Date.now() - this.observeStartTime
       this.gameState.timerRemaining = Math.max(0, this.gameState.observeDuration - elapsed)
       
       if (elapsed >= this.gameState.observeDuration) {
         this.gameState.clearTimer()
         this.startPlayPhase()
+      } else {
+        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
       }
-    }, 30)
+    }
+    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
   }
 
   // 开始游戏阶段
   startPlayPhase() {
-    this.gameState.phase = 'PLAY'
+    this.setGameState('PLAY', 'game')
     
     // 重置泡泡显示（隐藏目标）
     this.bubbleGrid.resetBubbles()
@@ -503,33 +511,41 @@ export class Main {
     this.gameState.clearTimer()
     
     const playStartTime = Date.now()
-    this.gameState.timerInterval = setInterval(() => {
+    // 使用 requestAnimationFrame 提高计时精度
+    const checkTimer = () => {
       const elapsed = Date.now() - playStartTime
       this.gameState.timerRemaining = Math.max(0, this.gameState.playDuration - elapsed)
       
       if (this.gameState.timerRemaining <= 0) {
         this.gameState.clearTimer()
         this.handleTimeOut()
+      } else {
+        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
       }
-    }, 30)
+    }
+    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
   }
-
+  
   // 恢复游戏阶段
   resumePlayPhase() {
-    this.gameState.phase = 'PLAY'
+    this.setGameState('PLAY', 'game')
     
     const playStartTime = Date.now() - (this.gameState.playDuration - this.gameState.timerRemaining)
     this.gameState.clearTimer()
     
-    this.gameState.timerInterval = setInterval(() => {
+    // 使用 requestAnimationFrame 提高计时精度
+    const checkTimer = () => {
       const elapsed = Date.now() - playStartTime
       this.gameState.timerRemaining = Math.max(0, this.gameState.playDuration - elapsed)
       
       if (this.gameState.timerRemaining <= 0) {
         this.gameState.clearTimer()
         this.handleTimeOut()
+      } else {
+        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
       }
-    }, 30)
+    }
+    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
   }
 
   // 处理泡泡点击（单点触控）
@@ -576,6 +592,12 @@ export class Main {
     }
   }
 
+  // 设置游戏状态（统一 phase 和 currentScreen，避免状态不一致）
+  setGameState(phase, screen) {
+    this.gameState.phase = phase
+    this.uiManager.currentScreen = screen
+  }
+  
   // 处理超时（倒计时结束）
   handleTimeOut() {
     // 检查是否还有正确气泡未点完
@@ -591,8 +613,7 @@ export class Main {
         setTimeout(() => this.restartCurrentWave(), 500)
       } else {
         // 生命归零，游戏失败 - 设置 FAIL 状态，等待用户操作
-        this.gameState.phase = 'FAIL'
-        this.uiManager.currentScreen = 'fail'
+        this.setGameState('FAIL', 'fail')
       }
     }
   }
@@ -614,7 +635,7 @@ export class Main {
     this.uiManager.showToast(`通关奖励：+50 金币 `)
     
     // 设置胜利状态（用于 saveHighScore 判断）
-    this.gameState.phase = 'WIN'
+    this.setGameState('WIN', 'win')
     
     // 检查是否显示胜利弹窗（在保存之前判断）
     const modalType = this.shouldShowVictoryModal()
@@ -629,7 +650,6 @@ export class Main {
     
     if (modalType) {
       // 显示胜利弹窗（传递弹窗类型）
-      this.uiManager.currentScreen = 'win'
       this.uiManager.winModalType = modalType
     } else {
       // 进入下一关
@@ -674,8 +694,7 @@ export class Main {
     this.uiManager.showToast(`本关得分：${this.gameState.waveScore}`)
     
     // 显示失败弹窗，提供购买生命选项
-    this.gameState.phase = 'FAIL'
-    this.uiManager.currentScreen = 'fail'
+    this.setGameState('FAIL', 'fail')
   }
 
   // 下一关
@@ -717,7 +736,7 @@ export class Main {
     // 重置关卡状态
     this.gameState.activeWaveCompleted = false
     this.gameState.playerClicks = []
-    this.gameState.phase = 'OBSERVE'
+    this.setGameState('OBSERVE', 'game')
     this.gameState.waveScore = 0
     
     // 重新生成目标气泡位置（重新随机）

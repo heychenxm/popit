@@ -1646,10 +1646,9 @@ export class UIManager {
     drawRoundRect(ctx, modalX + 20, rewardY, modalW - 40, 60, 12)
     ctx.fill()
     
+    // 显示实际获得的奖励（通关奖励 50 金币）
     const rewards = [
-      { type: 'coin', value: '+1250', color: Colors.white },
-      { type: 'gem', value: '+10', color: '#c084fc' },
-      { type: 'heart', value: '+5', color: '#fb7185' }
+      { type: 'coin', value: '+50', color: Colors.white }
     ]
     
     rewards.forEach((reward, i) => {
