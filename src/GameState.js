@@ -408,13 +408,13 @@ export class GameState {
     // 根据签到天数给予奖励（新规则）
     const reward = this.getTodayReward()
     
-    // 判断是金币还是宝石
-    const isGem = (dayIndex === 2 || dayIndex === 5)
+    // 判断是金币还是宝石（第2天和第5天为宝石）
+    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
     if (isGem) {
-      return { type: 'gem', amount: reward }
+      return { type: 'gem', amount: reward.amount }
     }
-    this.addCoins(reward)
-    return { type: 'coin', amount: reward }
+    this.addCoins(reward.amount)
+    return { type: 'coin', amount: reward.amount }
   }
 
   // 购买生命

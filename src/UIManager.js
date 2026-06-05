@@ -2273,24 +2273,39 @@ export class UIManager {
   // 绘制头像（支持文字头像）
   drawAvatar(x, y, size, avatarUrl, isTop1) {
     const ctx = this.ctx
+    
+    // 安全检查：确保 size 是有效正数
+    if (!size || size <= 0) {
+      console.warn('drawAvatar: invalid size', size)
+      return
+    }
+    
     ctx.save()
     ctx.translate(x, y)
     
     const radius = size / 2
     
-    // 绘制文字头像背景
-    const gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
-    if (isTop1) {
-      gradient.addColorStop(0, '#fde68a')
-      gradient.addColorStop(1, '#d97706')
-    } else {
-      // 根据 avatarUrl 生成固定颜色
-      const hue = this.getHueFromText(avatarUrl || 'default')
-      gradient.addColorStop(0, `hsl(${hue}, 70%, 65%)`)
-      gradient.addColorStop(1, `hsl(${hue}, 70%, 45%)`)
+    // 绘制文字头像背景（整个渐变逻辑包裹在 try-catch 中）
+    try {
+      const gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
+      if (isTop1) {
+        gradient.addColorStop(0, '#fde68a')
+        gradient.addColorStop(1, '#d97706')
+      } else {
+        const hue = this.getHueFromText(avatarUrl || 'default')
+        const safeHue = (typeof hue === 'number' && !isNaN(hue)) ? hue : 240
+        // 使用 RGB 格式替代 HSL，避免微信 Canvas 不支持 HSL 格式
+        const color1 = this.hslToHex(safeHue, 70, 65)
+        const color2 = this.hslToHex(safeHue, 70, 45)
+        gradient.addColorStop(0, color1)
+        gradient.addColorStop(1, color2)
+      }
+      ctx.fillStyle = gradient
+    } catch (e) {
+      console.warn('drawAvatar gradient failed, using fallback:', e)
+      ctx.fillStyle = isTop1 ? '#d97706' : '#6366f1'
     }
     
-    ctx.fillStyle = gradient
     ctx.beginPath()
     ctx.arc(0, 0, radius, 0, Math.PI * 2)
     ctx.fill()
@@ -2318,6 +2333,19 @@ export class UIManager {
       hash = text.charCodeAt(i) + ((hash << 5) - hash)
     }
     return Math.abs(hash % 360)
+  }
+
+  // HSL 转 HEX 颜色（避免微信 Canvas 不支持 HSL 格式）
+  hslToHex(h, s, l) {
+    s /= 100
+    l /= 100
+    const a = s * Math.min(l, 1 - l)
+    const f = (n) => {
+      const k = (n + h / 30) % 12
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+      return Math.round(255 * color).toString(16).padStart(2, '0')
+    }
+    return `#${f(0)}${f(8)}${f(4)}`
   }
 
   // 绘制骷髅图标

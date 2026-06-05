@@ -59,6 +59,20 @@ export function getUniqueRandomIndices(total, count) {
   return indices
 }
 
+// 根据索引获取泡泡颜色类别
+export function getColorClass(index) {
+  if (index === 1) {
+    return 'pink'
+  } else if (index === 10) {
+    return 'blue'
+  } else {
+    const cycle = index % 3
+    if (cycle === 0) return 'pink'
+    else if (cycle === 1) return 'purple'
+    else return 'blue'
+  }
+}
+
 // 线性插值
 export function lerp(start, end, t) {
   return start + (end - start) * t

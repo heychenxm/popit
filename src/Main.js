@@ -3,7 +3,7 @@ import { AudioManager } from './AudioManager.js'
 import { BubbleGrid } from './BubbleGrid.js'
 import { UIManager } from './UIManager.js'
 import { wechatAPI } from './WechatAPI.js'
-import { getUniqueRandomIndices } from './utils.js'
+import { getUniqueRandomIndices, setStorage, getColorClass } from './utils.js'
 
 /**
  * 游戏主类 - 整合所有模块
@@ -16,7 +16,7 @@ export class Main {
     // 初始化云开发（替换为你的云环境 ID）
     try {
       wx.cloud.init({
-        env: 'cloud1-d2gbhgc8abb1ab532', // TODO: 替换为实际的云环境 ID
+        env: 'cloud1-d2gbhgc8abb1ab532',
         traceUser: true
       })
       console.log('云开发初始化成功')
@@ -454,20 +454,9 @@ export class Main {
   startObservePhase() {
     this.observeStartTime = Date.now()
     
-    // 高亮目标泡泡（根据索引分配颜色，匹配 index_v1.0.1.html）
-    this.gameState.targets.forEach((targetIdx, arrIndex) => {
-      let colorClass = 'purple'
-      if (targetIdx === 1) {
-        colorClass = 'pink'
-      } else if (targetIdx === 10) {
-        colorClass = 'blue'
-      } else {
-        // 其他位置循环使用三种颜色
-        const cycle = targetIdx % 3
-        if (cycle === 0) colorClass = 'pink'
-        else if (cycle === 1) colorClass = 'purple'
-        else colorClass = 'blue'
-      }
+    // 高亮目标泡泡（根据索引分配颜色）
+    this.gameState.targets.forEach((targetIdx) => {
+      const colorClass = getColorClass(targetIdx)
       this.bubbleGrid.setBubbleState(targetIdx, 'pink', colorClass)
     })
     
@@ -556,18 +545,8 @@ export class Main {
       this.audioManager.play('pop')
       this.vibrate('light')
       
-      // 设置泡泡状态（根据索引分配颜色，匹配 index_v1.0.1.html）
-      let colorClass = 'purple'
-      if (index === 1) {
-        colorClass = 'pink'
-      } else if (index === 10) {
-        colorClass = 'blue'
-      } else {
-        const cycle = index % 3
-        if (cycle === 0) colorClass = 'pink'
-        else if (cycle === 1) colorClass = 'purple'
-        else colorClass = 'blue'
-      }
+      // 设置泡泡状态（根据索引分配颜色）
+      const colorClass = getColorClass(index)
       this.bubbleGrid.setBubbleState(index, 'pink', colorClass)
       
       this.gameState.playerClicks.push(index)
