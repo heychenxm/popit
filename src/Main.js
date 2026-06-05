@@ -70,6 +70,9 @@ export class Main {
     // 绑定触摸事件
     this.bindEvents()
     
+    // 绑定游戏生命周期事件
+    this.bindLifecycleEvents()
+    
     // 同步云端数据（异步，不阻塞游戏启动）
     this.gameState.syncCloudData().then(() => {
       console.log('云端数据同步完成')
@@ -83,6 +86,31 @@ export class Main {
     
     // 开始游戏循环
     this.start()
+  }
+  
+  /**
+   * 绑定游戏生命周期事件
+   */
+  bindLifecycleEvents() {
+    // 游戏隐藏（切换到后台）时强制同步数据
+    wx.onHide(() => {
+      console.log('游戏隐藏，强制同步云端数据')
+      // 先同步待同步的通关数据
+      this.gameState.syncPendingData().then(() => {
+        // 再强制同步所有数据
+        return this.gameState.forceSyncCloudData()
+      }).catch(err => {
+        console.error('强制同步失败:', err)
+      })
+    })
+    
+    // 游戏显示（回到前台）时刷新数据
+    wx.onShow(() => {
+      console.log('游戏显示，刷新云端数据')
+      this.gameState.syncCloudData().catch(err => {
+        console.error('刷新数据失败:', err)
+      })
+    })
   }
 
   // 首次点击时触发用户信息授权（符合微信规范）
@@ -1024,5 +1052,20 @@ export class Main {
     
     // 渲染 UI
     this.uiManager.render(this.gameState)
+  }
+  
+  /**
+   * 调试：打印云函数调用统计信息
+   */
+  debugCloudStats() {
+    const stats = this.gameState.getCloudCallStats()
+    console.log('=== 云函数调用统计 ===')
+    console.log(`总更新请求次数：${stats.totalUpdateRequests}`)
+    console.log(`今日更新请求次数：${stats.todayUpdateRequests}`)
+    console.log(`实际云函数调用次数：${stats.actualCloudCalls}`)
+    console.log(`合并次数：${stats.mergedCount}`)
+    console.log(`合并率：${stats.mergeRate}%`)
+    console.log('=====================')
+    return stats
   }
 }

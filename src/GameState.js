@@ -1,6 +1,7 @@
 import { getStorage, setStorage } from './utils.js'
 import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
 import { config } from './config.js'
+import { cloudDataManager } from './CloudDataManager.js'
 
 /**
  * 游戏状态管理
@@ -63,6 +64,15 @@ export class GameState {
     this.cloudSynced = false
     this.cloudAvailable = true
     
+    // 待同步的通关数据（延迟同步优化）
+    this.pendingCloudSync = false
+    
+    // 排行榜缓存
+    this.leaderboardCache = {
+      score: { data: null, timestamp: 0, expire: 300000 },  // 5 分钟缓存
+      wave: { data: null, timestamp: 0, expire: 300000 }
+    }
+    
     // 用户信息
     this.userInfo = {
       nickname: getStorage('nickname', ''),
@@ -72,11 +82,13 @@ export class GameState {
   }
 
   // 同步云端数据
+  // 优化：使用合并后的 gameData 云函数
   async syncCloudData() {
     try {
       const result = await wx.cloud.callFunction({
-        name: 'syncData',
+        name: 'gameData',
         data: {
+          action: 'sync',
           highestWave: this.bestWave,
           highestScore: this.highScore,
           coins: this.coins,
@@ -174,6 +186,10 @@ export class GameState {
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
+    // 同步待同步的通关数据
+    this.syncPendingData().catch(err => {
+      console.error('同步待同步数据失败:', err)
+    })
     // 注意：不重置 uiManager.currentScreen，由 Main.js 控制
   }
 
@@ -193,22 +209,51 @@ export class GameState {
   }
 
   // 保存最高分和最高关卡（关卡结束后调用）
+  // 优化：延迟同步，只在游戏结束时同步
   async saveHighScore() {
+    let hasUpdate = false
+    
     // 更新最高分
     if (this.score > this.highScore) {
       this.highScore = this.score
       setStorage('highScore', this.highScore)
-      // 同步到云端（异步，不阻塞）
-      this.updateCloudGameData({ highestScore: this.highScore })
+      hasUpdate = true
     }
+    
     // 更新最高关卡（只有成功通过的关卡才算）
     // 注意：这里只在胜利时更新，失败时不更新
     if (this.phase === 'WIN' && this.wave > this.bestWave) {
       this.bestWave = this.wave
       setStorage('bestWave', this.bestWave)
-      // 同步到云端（异步，不阻塞）
-      this.updateCloudGameData({ highestWave: this.bestWave })
+      hasUpdate = true
     }
+    
+    // 标记有待同步的数据（延迟到游戏结束时同步）
+    if (hasUpdate) {
+      this.pendingCloudSync = true
+      console.log('标记待同步数据，将在游戏结束时同步')
+    }
+  }
+  
+  /**
+   * 同步待同步的通关数据（游戏结束时调用）
+   */
+  async syncPendingData() {
+    if (!this.pendingCloudSync) {
+      return
+    }
+    
+    console.log('开始同步待同步数据...')
+    
+    const updates = {
+      highestScore: this.highScore,
+      highestWave: this.bestWave
+    }
+    
+    await this.updateCloudGameData(updates)
+    
+    this.pendingCloudSync = false
+    console.log('待同步数据同步完成')
   }
 
   // 增加金币
@@ -520,8 +565,21 @@ export class GameState {
     // 注意：purchaseCount 不在这里重置，它在整个游戏会话中累计
   }
 
-  // 获取排行榜数据
+  // 获取排行榜数据（带缓存）
   async getLeaderboard(type = 'score') {
+    const cache = this.leaderboardCache[type]
+    const now = Date.now()
+    
+    // 检查缓存是否有效
+    if (cache && cache.data && (now - cache.timestamp) < cache.expire) {
+      console.log(`使用排行榜缓存 (${type})`)
+      return {
+        success: true,
+        data: cache.data,
+        fromCache: true
+      }
+    }
+    
     try {
       const result = await wx.cloud.callFunction({
         name: 'getLeaderboard',
@@ -529,9 +587,16 @@ export class GameState {
       })
       
       if (result.result.success) {
+        // 更新缓存
+        if (cache) {
+          cache.data = result.result.data
+          cache.timestamp = now
+        }
+        
         return {
           success: true,
-          data: result.result.data
+          data: result.result.data,
+          fromCache: false
         }
       } else {
         throw new Error(result.result.message)
@@ -543,6 +608,17 @@ export class GameState {
         message: '获取排行榜失败，请稍后重试'
       }
     }
+  }
+  
+  /**
+   * 清除排行榜缓存
+   */
+  clearLeaderboardCache() {
+    this.leaderboardCache.score.data = null
+    this.leaderboardCache.score.timestamp = 0
+    this.leaderboardCache.wave.data = null
+    this.leaderboardCache.wave.timestamp = 0
+    console.log('排行榜缓存已清除')
   }
 
   // 获取用户信息授权
@@ -598,46 +674,40 @@ export class GameState {
   }
 
   // 更新云端用户游戏数据（添加昵称和头像）
+  // 优化：使用合并后的 gameData 云函数 + CloudDataManager 批量更新
   async updateCloudGameData(updateData) {
-    try {
-      // 添加用户信息到更新数据中
-      const dataWithUserInfo = {
-        ...updateData,
-        nickname: this.userInfo.nickname,
-        avatarUrl: this.userInfo.avatarUrl
-      }
-      
-      const result = await wx.cloud.callFunction({
-        name: 'updateGameData',
-        data: dataWithUserInfo
-      })
-      
-      if (result.result.success) {
-        const cloudData = result.result.data
-        
-        // 更新本地数据
-        if (cloudData.highestWave !== undefined) {
-          this.bestWave = cloudData.highestWave
-          setStorage('bestWave', this.bestWave)
-        }
-        if (cloudData.highestScore !== undefined) {
-          this.highScore = cloudData.highestScore
-          setStorage('highScore', this.highScore)
-        }
-        if (cloudData.coins !== undefined) {
-          this.coins = cloudData.coins
-          setStorage('coins', this.coins)
-        }
-        
-        this.cloudAvailable = true
-        return true
-      } else {
-        throw new Error(result.result.message)
-      }
-    } catch (err) {
-      console.error('更新云端游戏数据失败:', err)
-      this.cloudAvailable = false
-      return false
+    // 添加用户信息到更新数据中
+    const dataWithUserInfo = {
+      action: 'update',
+      ...updateData,
+      nickname: this.userInfo.nickname,
+      avatarUrl: this.userInfo.avatarUrl
     }
+    
+    // 使用 CloudDataManager 批量更新
+    cloudDataManager.addUpdate(dataWithUserInfo)
+    
+    return true
+  }
+  
+  /**
+   * 强制同步云端数据（用于游戏退出等关键场景）
+   */
+  async forceSyncCloudData() {
+    await cloudDataManager.forceSync()
+  }
+  
+  /**
+   * 获取云函数调用统计信息
+   */
+  getCloudCallStats() {
+    return cloudDataManager.getStats()
+  }
+  
+  /**
+   * 重置云函数调用统计
+   */
+  resetCloudCallStats() {
+    cloudDataManager.resetStats()
   }
 }

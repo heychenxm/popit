@@ -26,6 +26,10 @@ try {
 }
 
 // 导出game实例供调试使用
-if (typeof global !== 'undefined') {
+if (typeof globalThis !== 'undefined') {
+  globalThis.game = game
+} else if (typeof global !== 'undefined') {
   global.game = game
+} else if (typeof wx !== 'undefined') {
+  wx.game = game
 }

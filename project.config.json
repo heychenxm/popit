@@ -25,6 +25,7 @@
         "cloudfunctionRoot": "cloudfunctions/"
     },
     "cloudfunctionRoot": "cloudfunctions/",
+    "cloudfunctionEnv": "cloud1-d2gbhgc8abb1ab532",
     "compileType": "game",
     "simulatorPluginLibVersion": {},
     "packOptions": {
