@@ -1,4 +1,6 @@
 import { getStorage, setStorage } from './utils.js'
+import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
+import { config } from './config.js'
 
 /**
  * 游戏状态管理
@@ -9,9 +11,9 @@ export class GameState {
     this.score = 0
     this.highScore = getStorage('highScore', 0)
     this.bestWave = getStorage('bestWave', 0)
-    this.coins = getStorage('coins', 1000)
-    this.lives = 3
-    this.maxLives = 5
+    this.coins = getStorage('coins', config.game.initialCoins)
+    this.lives = config.game.initialLives
+    this.maxLives = config.game.maxLives
 
     // 游戏关卡数据
     this.wave = 1
@@ -24,6 +26,7 @@ export class GameState {
     this.observeDuration = 1500  // 观察阶段时长（毫秒）
     this.playDuration = 4000     // 游戏阶段时长（毫秒）
     this.timerInterval = null
+    this.timerType = null        // 'raf' | 'interval' | null
     this.timerRemaining = 0
     this.activeWaveCompleted = false
     
@@ -126,7 +129,11 @@ export class GameState {
     } catch (err) {
       console.error('云端数据同步失败:', err)
       this.cloudAvailable = false
-      return false
+      this.cloudSynced = false
+      return {
+        success: false,
+        message: '云端数据同步失败'
+      }
     }
   }
 
@@ -134,7 +141,7 @@ export class GameState {
   reset() {
     this.score = 0
     this.wave = 1
-    this.lives = 3
+    this.lives = config.game.initialLives
     this.targets = []
     this.playerClicks = []
     this.phase = 'OBSERVE'
@@ -154,10 +161,10 @@ export class GameState {
   resetAllData() {
     this.highScore = 0
     this.bestWave = 0
-    this.coins = 1000
+    this.coins = config.game.initialCoins
     setStorage('highScore', 0)
     setStorage('bestWave', 0)
-    setStorage('coins', 1000)
+    setStorage('coins', config.game.initialCoins)
   }
 
   // 返回主菜单
@@ -179,14 +186,9 @@ export class GameState {
   // 清除计时器
   clearTimer() {
     if (this.timerInterval) {
-      // 支持 requestAnimationFrame 和 setInterval 两种清除方式
-      if (typeof cancelAnimationFrame === 'function') {
-        cancelAnimationFrame(this.timerInterval)
-      }
-      if (typeof clearInterval === 'function') {
-        clearInterval(this.timerInterval)
-      }
+      safeCancelAnimationFrame(this.timerInterval)
       this.timerInterval = null
+      this.timerType = null
     }
   }
 
@@ -218,7 +220,7 @@ export class GameState {
 
   // 检查是否可以签到（用于 UI 显示红点）
   canCheckin() {
-    const today = new Date().toDateString()
+    const today = getTodayString()
     // 如果云端已同步，使用云端数据；否则使用本地数据
     if (this.cloudSynced) {
       return this.lastCheckinDate !== today
@@ -230,13 +232,13 @@ export class GameState {
 
   // 更新今日是否已签到状态
   updateCheckinStatus() {
-    const today = new Date().toDateString()
+    const today = getTodayString()
     this.hasCheckedInToday = (this.lastCheckinDate === today)
   }
   
   // 更新分享礼包状态（每天 0 点重置）
   updateShareGiftStatus() {
-    const today = new Date().toDateString()
+    const today = getTodayString()
     // 如果今天已经领取过，保持状态
     if (this.lastShareGiftDate === today) {
       this.hasSharedGiftToday = true
@@ -248,7 +250,7 @@ export class GameState {
   
   // 更新分享次数状态（每天 0 点重置）
   updateShareCountStatus() {
-    const today = new Date().toDateString()
+    const today = getTodayString()
     if (this.lastShareDate !== today) {
       // 新的一天，重置分享次数
       this.lastShareDate = today
@@ -269,8 +271,8 @@ export class GameState {
     this.updateShareCountStatus()
     this.todayShareCount++
     setStorage('todayShareCount', this.todayShareCount)
-    // 发放奖励 50 金币
-    this.addCoins(50)
+    // 发放奖励金币
+    this.addCoins(config.rewards.share)
   }
   
   // 检查是否可以领取分享礼包
@@ -280,14 +282,14 @@ export class GameState {
   
   // 执行分享礼包领取
   claimShareGift() {
-    const today = new Date().toDateString()
+    const today = getTodayString()
     this.lastShareGiftDate = today
     this.hasSharedGiftToday = true
     setStorage('lastShareGiftDate', today)
     
-    // 奖励 1000 金币
-    this.addCoins(1000)
-    return { type: 'coin', amount: 1000 }
+    // 奖励金币
+    this.addCoins(config.rewards.shareGift)
+    return { type: 'coin', amount: config.rewards.shareGift }
   }
 
   // 获取云端签到状态
@@ -330,7 +332,7 @@ export class GameState {
       
       if (result.result.success && result.result.data.cloudAvailable) {
         // 更新本地数据
-        this.lastCheckinDate = new Date().toDateString()
+        this.lastCheckinDate = getTodayString()
         this.checkinStreak = result.result.data.checkinStreak
         setStorage('lastCheckinDate', this.lastCheckinDate)
         setStorage('checkinStreak', this.checkinStreak)
@@ -369,15 +371,13 @@ export class GameState {
     const checkinDay = day !== null ? day : this.checkinStreak + 1
     
     // 基础奖励
-    let baseReward = 1000  // 第 3 天起基础奖励 1000
-    if (checkinDay === 1) {
-      baseReward = 300
-    } else if (checkinDay === 2) {
-      baseReward = 500
+    let baseReward = config.checkin.defaultBase
+    if (config.checkin.rewards[checkinDay]) {
+      baseReward = config.checkin.rewards[checkinDay].base
     }
     
-    // 7 的倍数天额外奖励 2000
-    const bonusReward = (checkinDay % 7 === 0) ? 2000 : 0
+    // N 的倍数天额外奖励
+    const bonusReward = (checkinDay % config.checkin.bonusDay === 0) ? config.checkin.bonusAmount : 0
     
     return {
       type: 'coin',
@@ -390,11 +390,8 @@ export class GameState {
 
   // 执行签到（本地降级方案，云端不可用时使用）
   doCheckin() {
-    // 使用 UTC+8 时间（中国标准时间）避免时区问题
-    const now = new Date()
-    const utc8Time = new Date(now.getTime() + 8 * 3600000)
-    const today = utc8Time.toDateString()
-    const yesterday = new Date(utc8Time.getTime() - 86400000).toDateString()
+    const today = getTodayString()
+    const yesterday = getYesterdayString()
     
     if (this.lastCheckinDate === yesterday) {
       // 连续签到
@@ -425,13 +422,12 @@ export class GameState {
 
   // 购买生命
   canPurchaseLife() {
-    return this.purchaseCount < 3 && this.coins >= this.getPurchasePrice()
+    return this.purchaseCount < config.game.maxPurchaseCount && this.coins >= this.getPurchasePrice()
   }
 
   // 获取当前购买价格
   getPurchasePrice() {
-    const prices = [300, 500, 1000]
-    return prices[this.purchaseCount] || 9999
+    return config.game.purchasePrices[this.purchaseCount] || 9999
   }
 
   // 执行购买生命
@@ -450,8 +446,8 @@ export class GameState {
   // 增加连续胜利计数
   addConsecutiveWin() {
     this.consecutiveWins++
-    // 每连续胜利 5 关，恢复 1 生命（不超过上限）
-    if (this.consecutiveWins % 5 === 0 && this.lives < this.maxLives) {
+    // 每连续胜利 N 关，恢复 1 生命（不超过上限）
+    if (this.consecutiveWins % config.rewards.consecutiveWin === 0 && this.lives < this.maxLives) {
       this.lives++
       return true // 返回 true 表示恢复了生命
     }

@@ -795,7 +795,7 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#34d399'
-    ctx.fillText('🗓️ 每日签到', this.width / 2, titleY)
+    ctx.fillText('每日签到', this.width / 2, titleY)
     
     // 副标题
     ctx.font = '12px sans-serif'

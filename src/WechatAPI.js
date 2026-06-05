@@ -18,20 +18,6 @@ export class WechatAPI {
     return true
   }
 
-  // 获取用户信息
-  getUserInfo() {
-    return new Promise((resolve, reject) => {
-      wx.getUserInfo({
-        success: (res) => {
-          resolve(res.userInfo)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
-    })
-  }
-
   // 获取登录凭证
   login() {
     return new Promise((resolve, reject) => {

@@ -60,17 +60,16 @@ export function getUniqueRandomIndices(total, count) {
 }
 
 // 根据索引获取泡泡颜色类别
+// 颜色分配规则：基于索引的确定性分配，确保相同索引始终返回相同颜色
 export function getColorClass(index) {
-  if (index === 1) {
-    return 'pink'
-  } else if (index === 10) {
-    return 'blue'
-  } else {
-    const cycle = index % 3
-    if (cycle === 0) return 'pink'
-    else if (cycle === 1) return 'purple'
-    else return 'blue'
-  }
+  // 特殊索引固定颜色
+  if (index === 1) return 'pink'
+  if (index === 10) return 'blue'
+  
+  // 其他索引按循环分配
+  const cycle = index % 3
+  const colors = ['pink', 'purple', 'blue']
+  return colors[cycle]
 }
 
 // 线性插值
@@ -201,5 +200,42 @@ export function getStorage(key, defaultValue = null) {
   } catch (e) {
     console.error('getStorage error:', e)
     return defaultValue
+  }
+}
+
+// 获取当前日期字符串（YYYY-MM-DD 格式，使用本地时间）
+export function getTodayString() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// 获取昨天的日期字符串（YYYY-MM-DD 格式）
+export function getYesterdayString() {
+  const now = new Date()
+  const yesterday = new Date(now.getTime() - 86400000)
+  const year = yesterday.getFullYear()
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0')
+  const day = String(yesterday.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// 安全的 requestAnimationFrame（兼容微信小游戏环境）
+export function safeRequestAnimationFrame(callback) {
+  if (typeof requestAnimationFrame === 'function') {
+    return requestAnimationFrame(callback)
+  }
+  // 降级方案：使用 setTimeout
+  return setTimeout(callback, 1000 / 60)
+}
+
+// 安全的 cancelAnimationFrame
+export function safeCancelAnimationFrame(id) {
+  if (typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(id)
+  } else if (typeof clearTimeout === 'function') {
+    clearTimeout(id)
   }
 }

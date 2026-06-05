@@ -60,7 +60,7 @@ exports.main = async (event, context) => {
  * 获取签到状态
  */
 async function getCheckinStatus(openid) {
-  const today = new Date().toDateString()
+  const today = getTodayString()
   
   const result = await db.collection('user_signin')
     .where({ openid })
@@ -97,15 +97,34 @@ async function getCheckinStatus(openid) {
 }
 
 /**
+ * 获取当前日期字符串（YYYY-MM-DD 格式）
+ */
+function getTodayString() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * 获取昨天的日期字符串（YYYY-MM-DD 格式）
+ */
+function getYesterdayString() {
+  const now = new Date()
+  const yesterday = new Date(now.getTime() - 86400000)
+  const year = yesterday.getFullYear()
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0')
+  const day = String(yesterday.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
  * 执行签到
- * 使用 UTC+8 时间（中国标准时间）避免时区问题
  */
 async function doCheckin(openid) {
-  // 使用 UTC+8 时间（中国标准时间）
-  const now = new Date()
-  const utc8Time = new Date(now.getTime() + 8 * 3600000) // 转换为 UTC+8
-  const today = utc8Time.toDateString()
-  const yesterday = new Date(utc8Time.getTime() - 86400000).toDateString()
+  const today = getTodayString()
+  const yesterday = getYesterdayString()
   
   // 使用事务保证原子性
   const transaction = await db.startTransaction()

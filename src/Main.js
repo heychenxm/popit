@@ -3,7 +3,8 @@ import { AudioManager } from './AudioManager.js'
 import { BubbleGrid } from './BubbleGrid.js'
 import { UIManager } from './UIManager.js'
 import { wechatAPI } from './WechatAPI.js'
-import { getUniqueRandomIndices, setStorage, getColorClass } from './utils.js'
+import { getUniqueRandomIndices, setStorage, getColorClass, safeRequestAnimationFrame } from './utils.js'
+import { config } from './config.js'
 
 /**
  * 游戏主类 - 整合所有模块
@@ -13,13 +14,13 @@ export class Main {
     // 初始化微信 API
     wechatAPI.init()
     
-    // 初始化云开发（替换为你的云环境 ID）
+    // 初始化云开发（根据环境自动选择云环境 ID）
     try {
       wx.cloud.init({
-        env: 'cloud1-d2gbhgc8abb1ab532',
+        env: config.cloudEnv,
         traceUser: true
       })
-      console.log('云开发初始化成功')
+      console.log(`云开发初始化成功 (环境: ${config.env})`)
     } catch (err) {
       console.error('云开发初始化失败:', err)
     }
@@ -97,29 +98,7 @@ export class Main {
     }
     this.hasTriedInitUserInfo = true
     
-    try {
-      // 尝试获取用户信息
-      const userInfo = await this.gameState.getUserProfile()
-      console.log('获取用户信息成功:', userInfo)
-      
-      // 保存到云端
-      const result = await this.gameState.saveUserProfileToCloud(
-        userInfo.nickName,
-        userInfo.avatarUrl
-      )
-      
-      if (result.success) {
-        console.log('用户资料保存成功')
-      } else {
-        console.error('用户资料保存失败:', result.message)
-      }
-    } catch (err) {
-      // 用户拒绝授权，使用默认头像
-      console.log('用户拒绝授权，使用默认头像')
-      // 生成默认昵称
-      const defaultNickname = `玩家${wx.getSystemInfoSync().SDKVersion || 'default'}`
-      await this.gameState.saveUserProfileToCloud(defaultNickname, '')
-    }
+    await this.initUserInfo()
   }
 
   // 初始化用户信息（在用户确认授权后调用）
@@ -474,10 +453,12 @@ export class Main {
         this.gameState.clearTimer()
         this.startPlayPhase()
       } else {
-        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+        this.gameState.timerType = 'raf'
       }
     }
-    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+    this.gameState.timerType = 'raf'
   }
   
   // 恢复观察阶段
@@ -494,10 +475,12 @@ export class Main {
         this.gameState.clearTimer()
         this.startPlayPhase()
       } else {
-        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+        this.gameState.timerType = 'raf'
       }
     }
-    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+    this.gameState.timerType = 'raf'
   }
 
   // 开始游戏阶段
@@ -521,10 +504,12 @@ export class Main {
         this.gameState.clearTimer()
         this.handleTimeOut()
       } else {
-        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+        this.gameState.timerType = 'raf'
       }
     }
-    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+    this.gameState.timerType = 'raf'
   }
   
   // 恢复游戏阶段
@@ -543,10 +528,12 @@ export class Main {
         this.gameState.clearTimer()
         this.handleTimeOut()
       } else {
-        this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+        this.gameState.timerType = 'raf'
       }
     }
-    this.gameState.timerInterval = requestAnimationFrame(checkTimer)
+    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+    this.gameState.timerType = 'raf'
   }
 
   // 处理泡泡点击（单点触控）
@@ -628,12 +615,12 @@ export class Main {
     // 增加连续胜利计数，检查是否恢复生命
     const lifeRecovered = this.gameState.addConsecutiveWin()
     if (lifeRecovered) {
-      this.uiManager.showToast(`连续 5 胜！恢复 1 生命 ❤️`)
+      this.uiManager.showToast(`连续 ${config.rewards.consecutiveWin} 胜！恢复 1 生命 ❤️`)
     }
     
-    // 发放通关奖励：50 金币
-    this.gameState.addCoins(50)
-    this.uiManager.showToast(`通关奖励：+50 金币 `)
+    // 发放通关奖励：金币
+    this.gameState.addCoins(config.rewards.waveClear)
+    this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
     
     // 设置胜利状态（用于 saveHighScore 判断）
     this.setGameState('WIN', 'win')
@@ -728,7 +715,7 @@ export class Main {
       this.restartCurrentWave()
     } else {
       this.vibrate('light')
-      this.uiManager.showToast(`金币不足或已达到购买上限（需要${currentPrice}金币）`)
+      this.uiManager.showToast(`金币不足或已达到购买上限（需要${currentPrice}金币，最多${config.game.maxPurchaseCount}次）`)
     }
   }
 
@@ -928,9 +915,9 @@ export class Main {
   async handleQuickShare() {
     this.vibrate('light')
     
-    // 检查每日分享次数限制（每天最多 10 次）
+    // 检查每日分享次数限制
     const todayShareCount = this.gameState.getTodayShareCount()
-    if (todayShareCount >= 10) {
+    if (todayShareCount >= config.game.maxShareCountPerDay) {
       this.uiManager.showToast('今日分享次数已达上限')
       return
     }
@@ -955,7 +942,7 @@ export class Main {
       this.uiManager.showToast('分享成功！金币 +50 🪙')
       
       // 同步到云端（异步）
-      this.gameState.updateCloudGameData({ addCoins: 50 }).catch(() => {})
+      this.gameState.updateCloudGameData({ addCoins: config.rewards.share }).catch(() => {})
     } catch (err) {
       console.error('分享失败:', err)
       this.uiManager.showToast('分享失败')
@@ -1013,7 +1000,7 @@ export class Main {
     this.render()
     
     // 继续循环
-    requestAnimationFrame(() => this.gameLoop())
+    safeRequestAnimationFrame(() => this.gameLoop())
   }
 
   // 更新
