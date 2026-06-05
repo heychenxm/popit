@@ -929,6 +929,310 @@ export class UIManager {
     ctx.fillText('额外 +2000', x + w / 2, y + h - 25)
   }
 
+  // 绘制排行榜弹窗
+  drawLeaderboardModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 360
+    const modalH = 520
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons = []
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#312e81')
+    gradient.addColorStop(1, '#4c1d95')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#818cf8'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 关闭按钮
+    const closeBtnSize = 32
+    const closeBtnPadding = 20
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+    
+    // 标题
+    const titleY = modalY + 35
+    ctx.font = 'bold 20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText('🏆 排行榜', this.width / 2, titleY)
+    
+    // 切换按钮容器
+    const switchContainerY = titleY + 35
+    const switchContainerW = 200
+    const switchContainerH = 36
+    const switchContainerX = modalX + (modalW - switchContainerW) / 2
+    
+    // 切换按钮背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, switchContainerX, switchContainerY, switchContainerW, switchContainerH, 18)
+    ctx.fill()
+    
+    // 切换按钮：最高分
+    const scoreBtnW = switchContainerW / 2
+    const scoreBtnX = switchContainerX
+    const scoreBtnActive = this.leaderboardType === 'score'
+    
+    if (scoreBtnActive) {
+      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
+      scoreGrad.addColorStop(0, '#fbbf24')
+      scoreGrad.addColorStop(1, '#d97706')
+      ctx.fillStyle = scoreGrad
+      drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = scoreBtnActive ? Colors.white : Colors.gray400
+    ctx.textAlign = 'center'
+    ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'leaderboard_score',
+      x: scoreBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 切换按钮：最高关卡
+    const waveBtnX = switchContainerX + scoreBtnW
+    const waveBtnActive = this.leaderboardType === 'wave'
+    
+    if (waveBtnActive) {
+      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
+      waveGrad.addColorStop(0, '#fbbf24')
+      waveGrad.addColorStop(1, '#d97706')
+      ctx.fillStyle = waveGrad
+      drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.fillStyle = waveBtnActive ? Colors.white : Colors.gray400
+    ctx.fillText('最高关卡', waveBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'leaderboard_wave',
+      x: waveBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 前三名展示区
+    const top3ContainerY = switchContainerY + switchContainerH + 20
+    const top3ContainerH = 140
+    const top3ItemW = (modalW - 60) / 3
+    
+    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+      const leaderboard = this.leaderboardData.leaderboard
+      const top1 = leaderboard[0]
+      const top2 = leaderboard[1]
+      const top3 = leaderboard[2]
+      
+      if (top2) {
+        this.drawLeaderboardRankCard(
+          modalX + 20, top3ContainerY, top3ItemW, top3ContainerH,
+          top2.rank, top2.nickname, top2.avatarUrl, top2.value,
+          2, top2.isUser
+        )
+      }
+      
+      if (top1) {
+        this.drawLeaderboardRankCard(
+          modalX + 20 + top3ItemW + 10, top3ContainerY - 10, top3ItemW, top3ContainerH + 10,
+          top1.rank, top1.nickname, top1.avatarUrl, top1.value,
+          1, top1.isUser, true
+        )
+      }
+      
+      if (top3) {
+        this.drawLeaderboardRankCard(
+          modalX + 20 + (top3ItemW + 10) * 2, top3ContainerY, top3ItemW, top3ContainerH,
+          top3.rank, top3.nickname, top3.avatarUrl, top3.value,
+          3, top3.isUser
+        )
+      }
+    }
+    
+    // 排行榜列表
+    const listContainerY = top3ContainerY + top3ContainerH + 10
+    const listItemH = 50
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, modalX + 20, listContainerY, modalW - 40, 160, 16)
+    ctx.fill()
+    
+    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+      const leaderboard = this.leaderboardData.leaderboard
+      const listStartIndex = 3
+      
+      leaderboard.slice(listStartIndex).forEach((user, index) => {
+        const itemY = listContainerY + 10 + index * listItemH
+        const isHighlight = user.isUser || (user.rank <= 3)
+        
+        this.drawLeaderboardListItem(
+          modalX + 30, itemY, modalW - 80, listItemH - 10,
+          user.rank, user.nickname, user.avatarUrl, user.value,
+          isHighlight, user.isUser
+        )
+      })
+    }
+    
+    // 底部提示
+    const footerY = modalY + modalH - 35
+    ctx.font = '10px sans-serif'
+    ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
+    ctx.textAlign = 'center'
+    ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
+    
+    ctx.restore()
+  }
+
+  // 绘制排行榜前三名卡片
+  drawLeaderboardRankCard(x, y, w, h, rank, nickname, avatarUrl, value, rankNum, isUser, isTop1 = false) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    
+    let bgColor
+    if (isTop1) {
+      const grad = ctx.createLinearGradient(x, y, x, y + h)
+      grad.addColorStop(0, '#4f46e5')
+      grad.addColorStop(1, '#3730a3')
+      bgColor = grad
+    } else if (rankNum === 2) {
+      bgColor = 'rgba(148, 163, 184, 0.3)'
+    } else {
+      bgColor = 'rgba(234, 179, 8, 0.2)'
+    }
+    
+    ctx.fillStyle = bgColor
+    drawRoundRect(ctx, x, y, w, h, 16)
+    ctx.fill()
+    
+    let borderColor
+    if (isTop1) {
+      borderColor = '#fbbf24'
+    } else if (rankNum === 2) {
+      borderColor = '#94a3b8'
+    } else {
+      borderColor = '#eab308'
+    }
+    
+    ctx.strokeStyle = borderColor
+    ctx.lineWidth = isTop1 ? 3 : 2
+    ctx.stroke()
+    
+    ctx.font = isTop1 ? 'bold 12px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.gray300
+    ctx.textAlign = 'center'
+    const rankText = isTop1 ? '🏆 第 1 名' : `第${rank}名`
+    ctx.fillText(rankText, x + w / 2, y + 20)
+    
+    const avatarSize = isTop1 ? 52 : 44
+    const avatarX = x + w / 2
+    const avatarY = y + 55
+    
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1)
+    
+    ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'center'
+    const displayNickname = nickname.length > 6 ? nickname.substring(0, 5) + '...' : nickname
+    ctx.fillText(displayNickname, x + w / 2, y + 95)
+    
+    ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText(value.toString(), x + w / 2, y + 120)
+    
+    ctx.restore()
+  }
+
+  // 绘制排行榜列表项
+  drawLeaderboardListItem(x, y, w, h, rank, nickname, avatarUrl, value, isHighlight, isUser) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    
+    if (isHighlight) {
+      ctx.fillStyle = isUser ? 'rgba(99, 102, 241, 0.3)' : 'rgba(0, 0, 0, 0.2)'
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+    }
+    
+    drawRoundRect(ctx, x, y, w, h, 12)
+    ctx.fill()
+    
+    if (isUser) {
+      ctx.strokeStyle = '#6366f1'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+    
+    ctx.font = isHighlight ? 'bold 12px sans-serif' : '11px sans-serif'
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.gray400
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    const rankText = typeof rank === 'number' ? `${rank}.` : rank
+    ctx.fillText(rankText, x + 12, y + h / 2)
+    
+    const avatarSize = 32
+    const avatarX = x + 50
+    const avatarY = y + h / 2
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false)
+    
+    ctx.font = isHighlight ? 'bold 11px sans-serif' : '11px sans-serif'
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'left'
+    const displayNickname = nickname.length > 10 ? nickname.substring(0, 9) + '...' : nickname
+    ctx.fillText(displayNickname, avatarX + avatarSize + 8, y + h / 2)
+    
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.textAlign = 'right'
+    ctx.fillText(value.toString(), x + w - 10, y + h / 2)
+    
+    ctx.restore()
+  }
+
   // 绘制阶段指示器
   drawPhaseIndicator(gameState) {
     const ctx = this.ctx
@@ -1598,6 +1902,56 @@ export class UIManager {
     ctx.fill()
     
     ctx.restore()
+  }
+
+  // 绘制头像（支持文字头像）
+  drawAvatar(x, y, size, avatarUrl, isTop1) {
+    const ctx = this.ctx
+    ctx.save()
+    ctx.translate(x, y)
+    
+    const radius = size / 2
+    
+    // 绘制文字头像背景
+    const gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
+    if (isTop1) {
+      gradient.addColorStop(0, '#fde68a')
+      gradient.addColorStop(1, '#d97706')
+    } else {
+      // 根据 avatarUrl 生成固定颜色
+      const hue = this.getHueFromText(avatarUrl || 'default')
+      gradient.addColorStop(0, `hsl(${hue}, 70%, 65%)`)
+      gradient.addColorStop(1, `hsl(${hue}, 70%, 45%)`)
+    }
+    
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 边框
+    ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 文字
+    const displayText = avatarUrl ? avatarUrl.substring(0, 3).toUpperCase() : 'U'
+    ctx.font = `bold ${size * 0.35}px sans-serif`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(displayText, 0, 1)
+    
+    ctx.restore()
+  }
+
+  // 根据文字生成固定色相值
+  getHueFromText(text) {
+    let hash = 0
+    for (let i = 0; i < text.length; i++) {
+      hash = text.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return Math.abs(hash % 360)
   }
 
   // 绘制骷髅图标
