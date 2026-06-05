@@ -43,6 +43,12 @@ export class GameState {
     // 初始化时检查今天是否已领取
     this.updateShareGiftStatus()
     
+    // 分享次数数据（用于限制每日分享刷金币）
+    this.lastShareDate = getStorage('lastShareDate', '')
+    this.todayShareCount = getStorage('todayShareCount', 0)
+    // 初始化时检查分享次数
+    this.updateShareCountStatus()
+    
     // 积分规则相关
     this.waveScore = 0           // 当前关卡得分
     this.consecutiveWins = 0     // 连续胜利关卡数
@@ -119,43 +125,6 @@ export class GameState {
       }
     } catch (err) {
       console.error('云端数据同步失败:', err)
-      this.cloudAvailable = false
-      return false
-    }
-  }
-
-  // 更新云端游戏数据
-  async updateCloudGameData(updateData) {
-    try {
-      const result = await wx.cloud.callFunction({
-        name: 'updateGameData',
-        data: updateData
-      })
-      
-      if (result.result.success) {
-        const cloudData = result.result.data
-        
-        // 更新本地数据
-        if (cloudData.highestWave !== undefined) {
-          this.bestWave = cloudData.highestWave
-          setStorage('bestWave', this.bestWave)
-        }
-        if (cloudData.highestScore !== undefined) {
-          this.highScore = cloudData.highestScore
-          setStorage('highScore', this.highScore)
-        }
-        if (cloudData.coins !== undefined) {
-          this.coins = cloudData.coins
-          setStorage('coins', this.coins)
-        }
-        
-        this.cloudAvailable = true
-        return true
-      } else {
-        throw new Error(result.result.message)
-      }
-    } catch (err) {
-      console.error('更新云端游戏数据失败:', err)
       this.cloudAvailable = false
       return false
     }
@@ -268,6 +237,33 @@ export class GameState {
       // 否则重置为未领取
       this.hasSharedGiftToday = false
     }
+  }
+  
+  // 更新分享次数状态（每天 0 点重置）
+  updateShareCountStatus() {
+    const today = new Date().toDateString()
+    if (this.lastShareDate !== today) {
+      // 新的一天，重置分享次数
+      this.lastShareDate = today
+      this.todayShareCount = 0
+      setStorage('lastShareDate', today)
+      setStorage('todayShareCount', 0)
+    }
+  }
+  
+  // 获取今日分享次数
+  getTodayShareCount() {
+    this.updateShareCountStatus()
+    return this.todayShareCount
+  }
+  
+  // 记录分享并发放奖励
+  recordShare() {
+    this.updateShareCountStatus()
+    this.todayShareCount++
+    setStorage('todayShareCount', this.todayShareCount)
+    // 发放奖励 50 金币
+    this.addCoins(50)
   }
   
   // 检查是否可以领取分享礼包

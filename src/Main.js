@@ -906,6 +906,13 @@ export class Main {
   async handleQuickShare() {
     this.vibrate('light')
     
+    // 检查每日分享次数限制（每天最多 10 次）
+    const todayShareCount = this.gameState.getTodayShareCount()
+    if (todayShareCount >= 10) {
+      this.uiManager.showToast('今日分享次数已达上限')
+      return
+    }
+    
     try {
       // 调用微信分享 API
       const shareResult = await wechatAPI.shareToChat({
@@ -916,9 +923,8 @@ export class Main {
       
       console.log('分享成功:', shareResult)
       
-      // 分享成功奖励 +50 金币
-      this.gameState.addCoins(50)
-      setStorage('coins', this.gameState.coins)
+      // 记录分享次数并发放奖励
+      this.gameState.recordShare()
       
       // 确保回到菜单界面
       this.uiManager.currentScreen = 'menu'

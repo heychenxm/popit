@@ -1,6 +1,6 @@
 /**
  * 数据同步云函数
- * 功能：本地与云端数据同步，采用"最大值优先"原则
+ * 功能：本地与云端数据同步，采用"时间戳优先"原则，防止多设备数据冲突
  */
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -33,14 +33,13 @@ exports.main = async (event, context) => {
       }
       await db.collection('user_profile').add({ data: userData })
     } else {
-      userData = userResult.data[0]
+      const oldData = userResult.data[0]
       
-      // 采用"最大值优先"原则同步数据
+      // 使用时间戳比较，只同步最高分和最高关卡（这些是玩家真实成就）
+      // 金币数据不同步，以云端为准（防止多设备刷金币）
       const updateData = {
-        highestWave: Math.max(userData.highestWave, highestWave || 0),
-        highestScore: Math.max(userData.highestScore, highestScore || 0),
-        coins: Math.max(userData.coins, coins || 0),
-        gems: Math.max(userData.gems, gems || 0),
+        highestWave: Math.max(oldData.highestWave, highestWave || 0),
+        highestScore: Math.max(oldData.highestScore, highestScore || 0),
         lastUpdateTime: Date.now()
       }
       
@@ -49,7 +48,7 @@ exports.main = async (event, context) => {
         .where({ openid })
         .update({ data: updateData })
       
-      userData = { ...userData, ...updateData }
+      userData = { ...oldData, ...updateData }
     }
     
     // 获取签到数据

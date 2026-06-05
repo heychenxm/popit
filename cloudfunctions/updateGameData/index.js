@@ -60,20 +60,20 @@ exports.main = async (event, context) => {
           updateData.highestScore = Math.max(userData.highestScore, highestScore)
         }
         
-        // 金币取最大值或累加
+        // 金币处理：取最大值和累加可以共存
         if (coins !== undefined) {
           updateData.coins = Math.max(userData.coins, coins)
         }
         if (addCoins !== undefined) {
-          updateData.coins = _.inc(addCoins)
+          updateData.coins = (updateData.coins || userData.coins) + addCoins
         }
         
-        // 宝石取最大值或累加
+        // 宝石处理：取最大值和累加可以共存
         if (gems !== undefined) {
           updateData.gems = Math.max(userData.gems, gems)
         }
         if (addGems !== undefined) {
-          updateData.gems = _.inc(addGems)
+          updateData.gems = (updateData.gems || userData.gems) + addGems
         }
         
         // 更新数据
