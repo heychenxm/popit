@@ -92,9 +92,12 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
+    // 记录上次同步时间
+    let lastSyncTime = 0
+    const syncInterval = 60000 // 1 分钟内不重复同步
+    
     // 游戏隐藏（切换到后台）时强制同步数据
     wx.onHide(() => {
-      console.log('游戏隐藏，强制同步云端数据')
       // 先同步待同步的通关数据
       this.gameState.syncPendingData().then(() => {
         // 再强制同步所有数据
@@ -106,10 +109,14 @@ export class Main {
     
     // 游戏显示（回到前台）时刷新数据
     wx.onShow(() => {
-      console.log('游戏显示，刷新云端数据')
-      this.gameState.syncCloudData().catch(err => {
-        console.error('刷新数据失败:', err)
-      })
+      const now = Date.now()
+      // 如果距离上次同步超过 1 分钟，才同步
+      if (now - lastSyncTime > syncInterval) {
+        lastSyncTime = now
+        this.gameState.syncCloudData().catch(err => {
+          console.error('刷新数据失败:', err)
+        })
+      }
     })
   }
 

@@ -41,6 +41,13 @@ export class GameState {
     this.checkinStreak = getStorage('checkinStreak', 0)
     this.hasCheckedInToday = false  // 当前是否已签到
     
+    // 签到状态缓存
+    this.checkinStatusCache = {
+      data: null,
+      timestamp: 0
+    }
+    this.checkinCacheDuration = 300000 // 5 分钟缓存
+    
     // 分享礼包数据
     this.lastShareGiftDate = getStorage('lastShareGiftDate', '')
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
@@ -69,8 +76,8 @@ export class GameState {
     
     // 排行榜缓存
     this.leaderboardCache = {
-      score: { data: null, timestamp: 0, expire: 300000 },  // 5 分钟缓存
-      wave: { data: null, timestamp: 0, expire: 300000 }
+      score: { data: null, timestamp: 0, expire: 600000 },  // 10 分钟缓存
+      wave: { data: null, timestamp: 0, expire: 600000 }
     }
     
     // 用户信息
@@ -82,7 +89,7 @@ export class GameState {
   }
 
   // 同步云端数据
-  // 优化：使用合并后的 gameData 云函数
+  // 优化：本地优先策略，云端数据仅作为备份
   async syncCloudData() {
     try {
       const result = await wx.cloud.callFunction({
@@ -92,28 +99,35 @@ export class GameState {
           highestWave: this.bestWave,
           highestScore: this.highScore,
           coins: this.coins,
-          gems: 0 // 宝石数据
+          gems: 0
         }
       })
       
       if (result.result.success) {
         const cloudData = result.result.data
         
-        // 同步用户档案数据（取最大值）
+        // 本地优先策略：只在本地数据为空时才使用云端数据
         if (cloudData.profile) {
-          this.bestWave = Math.max(this.bestWave, cloudData.profile.highestWave || 0)
-          this.highScore = Math.max(this.highScore, cloudData.profile.highestScore || 0)
-          this.coins = Math.max(this.coins, cloudData.profile.coins || 0)
+          // 只有当本地数据为 0 时，才使用云端数据
+          if (this.bestWave === 0 && cloudData.profile.highestWave > 0) {
+            this.bestWave = cloudData.profile.highestWave
+          }
+          if (this.highScore === 0 && cloudData.profile.highestScore > 0) {
+            this.highScore = cloudData.profile.highestScore
+          }
+          if (this.coins === 0 && cloudData.profile.coins > 0) {
+            this.coins = cloudData.profile.coins
+          }
         }
         
-        // 同步签到数据
-        if (cloudData.signin) {
+        // 签到数据：本地优先，云端作为备份
+        if (cloudData.signin && !this.lastCheckinDate) {
           this.lastCheckinDate = cloudData.signin.lastCheckinDate || ''
           this.checkinStreak = cloudData.signin.checkinStreak || 0
         }
         
-        // 同步分享礼包数据
-        if (cloudData.shareGift) {
+        // 分享礼包数据：本地优先
+        if (cloudData.shareGift && !this.lastShareGiftDate) {
           this.lastShareGiftDate = cloudData.shareGift.lastShareGiftDate || ''
         }
         
@@ -133,18 +147,17 @@ export class GameState {
         this.cloudSynced = true
         this.cloudAvailable = true
         
-        console.log('云端数据同步成功')
         return true
       } else {
         throw new Error(result.result.message)
       }
     } catch (err) {
-      console.error('云端数据同步失败:', err)
+      // 云端同步失败不影响游戏运行
       this.cloudAvailable = false
-      this.cloudSynced = false
       return {
         success: false,
-        message: '云端数据同步失败'
+        message: '云端同步失败，使用本地数据',
+        cloudAvailable: false
       }
     }
   }
@@ -338,41 +351,61 @@ export class GameState {
   }
 
   // 获取云端签到状态
+  // 优化：添加 5 分钟缓存，使用合并后的 gameData 云函数
   async checkCloudCheckinStatus() {
+    // 检查缓存
+    const now = Date.now()
+    if (this.checkinStatusCache.data && 
+        (now - this.checkinStatusCache.timestamp) < this.checkinCacheDuration) {
+      return this.checkinStatusCache.data
+    }
+    
     try {
       const result = await wx.cloud.callFunction({
-        name: 'checkin',
-        data: { action: 'getStatus' }
+        name: 'gameData',
+        data: { action: 'checkinStatus' }
       })
       
       if (result.result.success && result.result.data.cloudAvailable) {
-        return {
+        const status = {
           canCheckin: !result.result.data.isTodayChecked,
           streak: result.result.data.checkinStreak,
           todayReward: result.result.data.todayReward,
           cloudAvailable: true
         }
+        
+        // 更新缓存
+        this.checkinStatusCache.data = status
+        this.checkinStatusCache.timestamp = now
+        
+        return status
       } else {
         throw new Error('云端不可用')
       }
     } catch (err) {
-      console.error('获取云端签到状态失败:', err)
       // 云端不可用时降级到本地检查
-      return {
+      const status = {
         canCheckin: this.canCheckin(),
         streak: this.checkinStreak,
         todayReward: this.getTodayReward(),
         cloudAvailable: false
       }
+      
+      // 也缓存本地结果
+      this.checkinStatusCache.data = status
+      this.checkinStatusCache.timestamp = now
+      
+      return status
     }
   }
 
   // 执行云端签到
+  // 优化：使用合并后的 gameData 云函数
   async doCloudCheckin() {
     try {
       const result = await wx.cloud.callFunction({
-        name: 'checkin',
-        data: { action: 'checkin' }
+        name: 'gameData',
+        data: { action: 'doCheckin' }
       })
       
       if (result.result.success && result.result.data.cloudAvailable) {

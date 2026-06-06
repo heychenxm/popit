@@ -35,5 +35,6 @@
     "isGameTourist": false,
     "appid": "wxbd18a37b0c266cd0",
     "editorSetting": {},
-    "libVersion": "3.16.1"
+    "libVersion": "3.16.1",
+    "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
 }

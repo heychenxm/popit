@@ -16,8 +16,8 @@ export class CloudDataManager {
     // 防抖定时器
     this.debounceTimer = null
     
-    // 同步间隔（毫秒）- 默认 5 秒
-    this.syncInterval = 5000
+    // 同步间隔（毫秒）- 默认 10 秒（增加间隔以减少调用次数）
+    this.syncInterval = 10000
     
     // 是否正在同步
     this.isSyncing = false
