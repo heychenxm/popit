@@ -55,6 +55,12 @@ export class Main {
     // 观察阶段计时
     this.observeStartTime = 0
     
+    // 分享发奖状态（微信已移除 shareAppMessage 的 success 回调）
+    this.pendingShare = null
+    this.shareReturnTimer = null
+    this.shareShowTimer = null
+    this.sharePollTimer = null
+    
     // 初始化
     this.init()
   }
@@ -98,6 +104,11 @@ export class Main {
     
     // 游戏隐藏（切换到后台）时强制同步数据
     wx.onHide(() => {
+      if (this.pendingShare) {
+        this.pendingShare.sawHide = true
+        this.pendingShare.hiddenAt = Date.now()
+      }
+      
       // 先同步待同步的通关数据
       this.gameState.syncPendingData().then(() => {
         // 再强制同步所有数据
@@ -109,6 +120,17 @@ export class Main {
     
     // 游戏显示（回到前台）时刷新数据
     wx.onShow(() => {
+      if (this.shareShowTimer) {
+        clearTimeout(this.shareShowTimer)
+      }
+      this.shareShowTimer = setTimeout(() => {
+        this.onSharePanelClosed(false)
+      }, 120)
+      
+      if (this.pendingShare?.armed) {
+        return
+      }
+      
       const now = Date.now()
       // 如果距离上次同步超过 1 分钟，才同步
       if (now - lastSyncTime > syncInterval) {
@@ -211,6 +233,9 @@ export class Main {
   handleTouchStart(x, y) {
     // 首次点击时触发用户信息授权（符合微信规范）
     this.tryInitUserInfo()
+    
+    // 分享返回后，部分机型 onShow 不触发；浮层分享需点击屏幕领取
+    this.onSharePanelClosed(true)
     
     // 暂停状态优先处理
     if (this.gameState.isPaused) {
@@ -959,71 +984,147 @@ export class Main {
     this.uiManager.currentScreen = 'share'
   }
   
-  // 快速分享（底部分享按钮）
-  async handleQuickShare() {
+  clearShareState() {
+    if (this.shareReturnTimer) {
+      clearTimeout(this.shareReturnTimer)
+      this.shareReturnTimer = null
+    }
+    if (this.sharePollTimer) {
+      clearInterval(this.sharePollTimer)
+      this.sharePollTimer = null
+    }
+    this.pendingShare = null
+  }
+  
+  // 发起分享，返回游戏后本地发奖
+  startShareForReward(type) {
+    this.clearShareState()
     this.vibrate('light')
     
-    // 检查每日分享次数限制
-    const todayShareCount = this.gameState.getTodayShareCount()
-    if (todayShareCount >= config.game.maxShareCountPerDay) {
+    const startedAt = Date.now()
+    this.pendingShare = {
+      type,
+      startedAt,
+      hiddenAt: null,
+      sawHide: false,
+      armed: false,
+      granted: false
+    }
+    
+    wx.shareAppMessage({
+      title: '来挑战 POPIT 记忆大师！',
+      query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
+    })
+    
+    // 分享面板弹出后再开始判定，避免打开面板时的 onShow 误触发
+    setTimeout(() => {
+      if (this.pendingShare && this.pendingShare.startedAt === startedAt) {
+        this.pendingShare.armed = true
+        this.sharePollTimer = setInterval(() => {
+          this.onSharePanelClosed(false)
+        }, 250)
+      }
+    }, 400)
+    
+    this.shareReturnTimer = setTimeout(() => {
+      this.clearShareState()
+    }, 60000)
+  }
+  
+  // 分享面板关闭后尝试发奖（fromTouch：用户点击屏幕触发）
+  onSharePanelClosed(fromTouch = false) {
+    const pending = this.pendingShare
+    if (!pending || !pending.armed || pending.granted) {
+      return
+    }
+    
+    const elapsed = Date.now() - pending.startedAt
+    
+    // 分享面板刚弹出，忽略
+    if (elapsed < 400) {
+      return
+    }
+    
+    // 很快回到游戏且未离开过小游戏，视为取消
+    if (elapsed < 700 && !pending.sawHide) {
+      this.clearShareState()
+      return
+    }
+    
+    const leftApp = pending.sawHide
+    
+    // 切到微信聊天再返回：可自动发奖
+    if (leftApp && pending.hiddenAt) {
+      const awayMs = Date.now() - pending.hiddenAt
+      if (awayMs < 300) {
+        this.clearShareState()
+        return
+      }
+      if (elapsed >= 500) {
+        this.applyShareReward(pending.type)
+      }
+      return
+    }
+    
+    // 分享浮层未触发 onHide：需用户点击屏幕确认（避免取消也发奖）
+    if (fromTouch && elapsed >= 600) {
+      this.applyShareReward(pending.type)
+    }
+  }
+  
+  // 发放分享奖励（仅本地）
+  applyShareReward(type) {
+    if (this.pendingShare?.granted) {
+      return
+    }
+    
+    if (this.pendingShare) {
+      this.pendingShare.granted = true
+    }
+    this.clearShareState()
+    
+    if (type === 'quick') {
+      if (this.gameState.getTodayShareCount() >= config.game.maxShareCountPerDay) {
+        this.uiManager.showToast('今日分享次数已达上限')
+        return
+      }
+      this.gameState.recordShare()
+      this.uiManager.currentScreen = 'menu'
+      this.uiManager.showToast(`分享成功！金币 +${config.rewards.share} 🪙`)
+      return
+    }
+    
+    if (type === 'gift') {
+      if (!this.gameState.canShareGift()) {
+        this.uiManager.showToast('今日分享礼包已领取')
+        this.uiManager.currentScreen = 'menu'
+        return
+      }
+      this.gameState.claimShareGift()
+      this.uiManager.currentScreen = 'menu'
+      this.uiManager.showToast(`分享成功！金币 +${config.rewards.shareGift} 🪙`)
+    }
+  }
+
+  // 快速分享（底部分享按钮）
+  handleQuickShare() {
+    if (this.gameState.getTodayShareCount() >= config.game.maxShareCountPerDay) {
       this.uiManager.showToast('今日分享次数已达上限')
       return
     }
     
-    try {
-      // 调用微信分享 API
-      const shareResult = await wechatAPI.shareToChat({
-        title: '来挑战 POPIT 记忆大师！',
-        imageUrl: '',
-        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
-      })
-      
-      console.log('分享成功:', shareResult)
-      
-      // 记录分享次数并发放奖励
-      this.gameState.recordShare()
-      
-      // 确保回到菜单界面
-      this.uiManager.currentScreen = 'menu'
-      
-      // 显示奖励提示（底部 Toast）
-      this.uiManager.showToast('分享成功！金币 +50 🪙')
-      
-      // 同步到云端（异步）
-      this.gameState.updateCloudGameData({ addCoins: config.rewards.share }).catch(() => {})
-    } catch (err) {
-      console.error('分享失败:', err)
-      this.uiManager.showToast('分享失败')
-    }
+    this.startShareForReward('quick')
   }
   
   // 处理微信分享（分享礼包弹窗中的分享按钮）
-  async handleWechatShare() {
-    this.vibrate('light')
-    
-    try {
-      // 调用微信分享 API
-      await wechatAPI.shareToChat({
-        title: '来挑战 POPIT 记忆大师！',
-        imageUrl: '',
-        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
-      })
-      
-      // 分享成功后发放奖励
-      const reward = this.gameState.claimShareGift()
-      
-      // 自动关闭弹窗，回到首页
+  handleWechatShare() {
+    if (!this.gameState.canShareGift()) {
+      this.uiManager.showToast('今日分享礼包已领取')
       this.uiManager.currentScreen = 'menu'
-      
-      // 显示奖励提示
-      this.uiManager.showToast(`分享成功！金币 +${reward.amount} 🪙`)
-      
-      // 同步到云端（异步）
-      this.gameState.updateCloudGameData({ addCoins: reward.amount })
-    } catch (err) {
-      console.error('分享失败:', err)
-      this.uiManager.showToast('分享失败，请重试')
+      return
     }
+    
+    this.startShareForReward('gift')
   }
 
   // 开始游戏循环

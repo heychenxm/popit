@@ -12,7 +12,7 @@ export class GameState {
     this.score = 0
     this.highScore = Number(getStorage('highScore', 0)) || 0
     this.bestWave = Number(getStorage('bestWave', 0)) || 0
-    this.coins = getStorage('coins', config.game.initialCoins)
+    this.coins = Number(getStorage('coins', config.game.initialCoins)) || config.game.initialCoins
     this.lives = config.game.initialLives
     this.maxLives = config.game.maxLives
 
@@ -280,8 +280,9 @@ export class GameState {
 
   // 增加金币
   addCoins(amount) {
-    this.coins += amount
-    this.sessionCoins += amount  // 累加会话金币
+    const delta = Number(amount) || 0
+    this.coins = Number(this.coins) + delta
+    this.sessionCoins += delta
     setStorage('coins', this.coins)
   }
 

@@ -1327,24 +1327,32 @@ export class UIManager {
       }
     }
     
-    // 排行榜列表
+    // 排行榜列表（4-6 名占满容器宽度，左右等距）
+    const modalPadding = 20
+    const listInnerPadding = 10
+    const listContainerX = modalX + modalPadding
+    const listContainerW = modalW - modalPadding * 2
     const listContainerY = top3ContainerY + top3ContainerH + 10
-    const listItemH = 50
+    const listContainerH = 160
+    const listItemH = 40
+    const listItemGap = 8
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    drawRoundRect(ctx, modalX + 20, listContainerY, modalW - 40, 160, 16)
+    drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
     ctx.fill()
     
     if (this.leaderboardData && this.leaderboardData.leaderboard) {
       const leaderboard = this.leaderboardData.leaderboard
       const listStartIndex = 3
+      const itemX = listContainerX + listInnerPadding
+      const itemW = listContainerW - listInnerPadding * 2
       
       leaderboard.slice(listStartIndex).forEach((user, index) => {
-        const itemY = listContainerY + 10 + index * listItemH
+        const itemY = listContainerY + listInnerPadding + index * (listItemH + listItemGap)
         const isHighlight = user.isUser || (user.rank <= 3)
         
         this.drawLeaderboardListItem(
-          modalX + 30, itemY, modalW - 80, listItemH - 10,
+          itemX, itemY, itemW, listItemH,
           user.rank, user.nickname, user.avatarUrl, user.value,
           isHighlight, user.isUser
         )
@@ -1424,6 +1432,7 @@ export class UIManager {
   // 绘制排行榜列表项
   drawLeaderboardListItem(x, y, w, h, rank, nickname, avatarUrl, value, isHighlight, isUser) {
     const ctx = this.ctx
+    const itemPadding = 12
     
     ctx.save()
     
@@ -1447,10 +1456,10 @@ export class UIManager {
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     const rankText = typeof rank === 'number' ? `${rank}.` : rank
-    ctx.fillText(rankText, x + 12, y + h / 2)
+    ctx.fillText(rankText, x + itemPadding, y + h / 2)
     
     const avatarSize = 32
-    const avatarX = x + 50
+    const avatarX = x + itemPadding + 28
     const avatarY = y + h / 2
     this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false)
     
@@ -1458,12 +1467,12 @@ export class UIManager {
     ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
     ctx.textAlign = 'left'
     const displayNickname = nickname.length > 10 ? nickname.substring(0, 9) + '...' : nickname
-    ctx.fillText(displayNickname, avatarX + avatarSize + 8, y + h / 2)
+    ctx.fillText(displayNickname, avatarX + avatarSize / 2 + 12, y + h / 2)
     
     ctx.font = 'bold 13px sans-serif'
     ctx.fillStyle = '#a5b4fc'
     ctx.textAlign = 'right'
-    ctx.fillText(value.toString(), x + w - 10, y + h / 2)
+    ctx.fillText(value.toString(), x + w - itemPadding, y + h / 2)
     
     ctx.restore()
   }
