@@ -1,4 +1,4 @@
-import { Colors, isPointInCircle, drawRoundRect } from './utils.js'
+import { Colors, isPointInCircle, drawRoundRect, getBubbleGridTop, getBubbleGridMaxSize } from './utils.js'
 
 /**
  * 泡泡网格渲染器 - 支持 4x4 到 7x7 动态网格
@@ -88,12 +88,9 @@ export class BubbleGrid {
     this.width = canvas.width / this.pixelRatio
     this.height = canvas.height / this.pixelRatio
     
-    const maxWidth = this.width * 0.9
-    const maxHeight = this.height * 0.5
-    
-    this.gridSize = Math.min(maxWidth, maxHeight)
+    this.gridSize = getBubbleGridMaxSize(this.width, this.height)
     this.gridX = (this.width - this.gridSize) / 2
-    this.gridY = this.height * 0.32
+    this.gridY = getBubbleGridTop(this.width, this.height)
     this.cellSize = (this.gridSize - this.gap * 2) / this.cols
   }
 

@@ -422,6 +422,7 @@ export class Main {
 
   // 重新开始游戏
   restartGame() {
+    this.gameState.isNewScoreRecord = false
     this.gameState.reset()
     this.uiManager.currentScreen = 'game'
     this.startNewWave()
@@ -635,8 +636,8 @@ export class Main {
         // 还有生命，重新开始当前关卡
         setTimeout(() => this.restartCurrentWave(), 500)
       } else {
-        // 生命归零，游戏失败 - 设置 FAIL 状态，等待用户操作
-        this.setGameState('FAIL', 'fail')
+        // 生命归零，游戏失败
+        this.onGameFail()
       }
     }
   }
@@ -657,11 +658,13 @@ export class Main {
     this.gameState.addCoins(config.rewards.waveClear)
     this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
     
-    // 设置胜利状态（用于 saveHighScore 判断）
-    this.setGameState('WIN', 'win')
-    
     // 检查是否显示胜利弹窗（在保存之前判断）
     const modalType = this.shouldShowVictoryModal()
+    const isNewScoreRecord = this.gameState.isNewHighScore()
+    this.gameState.isNewScoreRecord = modalType ? isNewScoreRecord : false
+    
+    // 设置胜利状态（用于 saveHighScore 判断）
+    this.setGameState('WIN', 'win')
     
     // 保存最高分和最高关卡
     await this.gameState.saveHighScore()
@@ -704,24 +707,32 @@ export class Main {
     return null
   }
 
-  // 处理游戏结束
-  async handleGameOver() {
-    this.audioManager.play('wrong')
-    this.vibrate('heavy')
-    await this.gameState.saveHighScore()
+  // 游戏失败（生命归零等）
+  onGameFail({ playFeedback = false } = {}) {
+    if (playFeedback) {
+      this.audioManager.play('wrong')
+      this.vibrate('heavy')
+    }
     
-    // 重置连续胜利计数
+    // 与本局开始时的历史最高分比较，避免关卡中途已更新 highScore 导致判断失效
+    this.gameState.isNewScoreRecord = this.gameState.isNewHighScore()
     this.gameState.resetConsecutiveWins()
-    
-    // 失败没有金币奖励
-    this.uiManager.showToast(`本关得分：${this.gameState.waveScore}`)
-    
-    // 显示失败弹窗，提供购买生命选项
     this.setGameState('FAIL', 'fail')
+    this.uiManager.showToast(`本局得分：${this.gameState.score}`)
+    
+    this.gameState.saveHighScore().catch(err => {
+      console.error('保存最高分失败:', err)
+    })
+  }
+
+  // 处理游戏结束
+  handleGameOver() {
+    this.onGameFail({ playFeedback: true })
   }
 
   // 下一关
   nextLevel() {
+    this.gameState.isNewScoreRecord = false
     this.gameState.wave++
     this.uiManager.currentScreen = 'game'
     this.startNewWave()
@@ -744,6 +755,7 @@ export class Main {
       this.uiManager.showToast(`购买成功！花费 ${currentPrice} 金币，生命 +1 ❤️`)
       
       // 关闭失败弹窗
+      this.gameState.isNewScoreRecord = false
       this.uiManager.currentScreen = 'game'
       
       // 重置当前关卡（重新开始，包括观察阶段）
@@ -776,6 +788,7 @@ export class Main {
 
   // 返回主菜单
   navigateToMenu() {
+    this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()

@@ -10,8 +10,8 @@ export class GameState {
   constructor() {
     // 玩家数据
     this.score = 0
-    this.highScore = getStorage('highScore', 0)
-    this.bestWave = getStorage('bestWave', 0)
+    this.highScore = Number(getStorage('highScore', 0)) || 0
+    this.bestWave = Number(getStorage('bestWave', 0)) || 0
     this.coins = getStorage('coins', config.game.initialCoins)
     this.lives = config.game.initialLives
     this.maxLives = config.game.maxLives
@@ -66,6 +66,8 @@ export class GameState {
     this.purchaseCount = 0       // 购买生命次数（整个游戏会话累计，最多 3 次）
     this.sessionCoins = 0        // 本次游戏会话获得的金币（不包含初始 1000）
     this.hasShownRecordBreakModal = false  // 本局是否已显示破纪录弹窗
+    this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
+    this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     
     // 云端数据同步标志
     this.cloudSynced = false
@@ -176,6 +178,8 @@ export class GameState {
     this.purchaseCount = 0
     this.sessionCoins = 0  // 重置会话金币
     this.hasShownRecordBreakModal = false  // 重置破纪录弹窗标志
+    this.isNewScoreRecord = false
+    this.sessionStartHighScore = this.highScore
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
@@ -221,14 +225,19 @@ export class GameState {
     }
   }
 
+  // 本局得分是否破了历史最高分（与本局开始时记录比较）
+  isNewHighScore() {
+    return Number(this.score) > Number(this.sessionStartHighScore)
+  }
+
   // 保存最高分和最高关卡（关卡结束后调用）
   // 优化：延迟同步，只在游戏结束时同步
   async saveHighScore() {
     let hasUpdate = false
     
     // 更新最高分
-    if (this.score > this.highScore) {
-      this.highScore = this.score
+    if (Number(this.score) > Number(this.highScore)) {
+      this.highScore = Number(this.score)
       setStorage('highScore', this.highScore)
       hasUpdate = true
     }

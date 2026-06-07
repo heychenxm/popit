@@ -57,7 +57,7 @@ export const config = {
   
   // 奖励配置
   rewards: {
-    waveClear: 50,             // 通关奖励
+    waveClear: 30,             // 通关奖励
     share: 50,                 // 分享奖励
     shareGift: 1000,           // 分享礼包奖励
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔

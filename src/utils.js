@@ -239,3 +239,49 @@ export function safeCancelAnimationFrame(id) {
     clearTimeout(id)
   }
 }
+
+// 游戏界面布局（对齐 index_v1.0.3.html）
+export function getGameHudBottom() {
+  return 160 // topPadding(60) + 波次行(50) + 分数卡片(50)
+}
+
+export function getGameScreenLayout(width, height) {
+  const hudBottom = getGameHudBottom()
+  const countdownTop = height * 0.85 - 36
+
+  const phaseMarginTop = 12 // my-3
+  const phaseBlockHeight = 70 // min-h-[70px]
+  const phaseTop = hudBottom + phaseMarginTop
+  const phaseCenterY = phaseTop + phaseBlockHeight / 2
+
+  // 两行文字在提示区内垂直居中（对应 HTML justify-center）
+  const textLineGap = 26 // 标题(24px) + 间距(8px) + 副标题(12px) 的中心距
+  const titleY = phaseCenterY - textLineGap / 2
+  const descY = phaseCenterY + textLineGap / 2
+
+  // 网格在提示区下方剩余空间中垂直居中（对应 HTML my-auto）
+  const gridAreaTop = phaseTop + phaseBlockHeight + 12
+  const gridAreaBottom = countdownTop - 8
+  const maxWidth = width * 0.9
+  const maxHeight = gridAreaBottom - gridAreaTop - 16
+  const gridSize = Math.max(120, Math.min(maxWidth, maxHeight))
+
+  const gridContainerHeight = gridSize + 16
+  const gridAreaHeight = gridAreaBottom - gridAreaTop
+  const gridY = gridAreaTop + Math.max(0, (gridAreaHeight - gridContainerHeight) / 2)
+
+  return { titleY, descY, gridY, gridSize }
+}
+
+export function getPhaseIndicatorLayout(width, height) {
+  const { titleY, descY } = getGameScreenLayout(width, height)
+  return { titleY, descY }
+}
+
+export function getBubbleGridTop(width, height) {
+  return getGameScreenLayout(width, height).gridY
+}
+
+export function getBubbleGridMaxSize(width, height) {
+  return getGameScreenLayout(width, height).gridSize
+}

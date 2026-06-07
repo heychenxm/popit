@@ -1,4 +1,5 @@
-import { Colors, drawRoundRect, drawText, drawTextWithShadow, isPointInRect } from './utils.js'
+import { Colors, drawRoundRect, drawText, drawTextWithShadow, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
+import { config } from './config.js'
 import { 
   drawBarChartIcon, 
   drawSpeakerIcon, 
@@ -1467,10 +1468,10 @@ export class UIManager {
     ctx.restore()
   }
 
-  // 绘制阶段指示器
+  // 绘制阶段指示器（对齐 index_v1.0.3.html：HUD 下方独立提示区，不与网格重叠）
   drawPhaseIndicator(gameState) {
     const ctx = this.ctx
-    const y = this.height * 0.28
+    const { titleY, descY } = getPhaseIndicatorLayout(this.width, this.height)
     
     ctx.save()
     
@@ -1481,12 +1482,13 @@ export class UIManager {
       ctx.fillStyle = Colors.purple500
       ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('请观察！', this.width / 2, y)
+      ctx.fillText('请观察！', this.width / 2, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
-      ctx.fillText('记住高亮的气泡', this.width / 2, y + 24)
+      ctx.textBaseline = 'middle'
+      ctx.fillText('记住高亮的气泡', this.width / 2, descY)
     } else if (gameState.phase === 'PLAY') {
       ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
@@ -1494,12 +1496,13 @@ export class UIManager {
       ctx.fillStyle = Colors.yellow300
       ctx.shadowColor = 'rgba(234, 179, 8, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('点它！', this.width / 2, y)
+      ctx.fillText('点它！', this.width / 2, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
-      ctx.fillText('在倒计时结束前点破所有高亮的气泡', this.width / 2, y + 24)
+      ctx.textBaseline = 'middle'
+      ctx.fillText('在倒计时结束前点破所有高亮的气泡', this.width / 2, descY)
     }
     
     ctx.restore()
@@ -1573,6 +1576,77 @@ export class UIManager {
     ctx.restore()
   }
 
+  // 绘制带「新纪录!」徽章的得分行
+  drawScoreWithRecordBadge(ctx, centerY, labelPrefix, scoreText, options = {}) {
+    const {
+      isNewRecord = false,
+      labelColor = Colors.gray300,
+      scoreColor = Colors.yellow300,
+      newScoreColor = '#fb7185',
+      fontSize = 11,
+      badgeText = '新纪录!'
+    } = options
+    const badgeFontSize = Math.max(9, fontSize - 2)
+    
+    ctx.textBaseline = 'middle'
+    
+    if (!isNewRecord) {
+      ctx.font = `bold ${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.fillStyle = scoreColor
+      ctx.fillText(`${labelPrefix}${scoreText}`, this.width / 2, centerY)
+      return
+    }
+    
+    ctx.font = `${fontSize}px sans-serif`
+    const prefixWidth = ctx.measureText(labelPrefix).width
+    
+    ctx.font = `bold ${fontSize}px sans-serif`
+    const scoreWidth = ctx.measureText(scoreText).width
+    
+    ctx.font = `${badgeFontSize}px sans-serif`
+    const badgeW = ctx.measureText(badgeText).width + 12
+    const badgeH = Math.max(16, badgeFontSize + 7)
+    const gap = 6
+    const totalWidth = prefixWidth + scoreWidth + gap + badgeW
+    let startX = this.width / 2 - totalWidth / 2
+    
+    ctx.textAlign = 'left'
+    ctx.font = `${fontSize}px sans-serif`
+    ctx.fillStyle = labelColor
+    ctx.fillText(labelPrefix, startX, centerY)
+    startX += prefixWidth
+    
+    ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.fillStyle = newScoreColor
+    ctx.fillText(scoreText, startX, centerY)
+    startX += scoreWidth + gap
+    
+    ctx.fillStyle = Colors.rose500
+    drawRoundRect(ctx, startX, centerY - badgeH / 2, badgeW, badgeH, badgeH / 2)
+    ctx.fill()
+    
+    ctx.font = `${badgeFontSize}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = Colors.white
+    ctx.fillText(badgeText, startX + badgeW / 2, centerY)
+    
+    ctx.textAlign = 'center'
+  }
+
+  // 绘制胜利弹窗中的最高分栏（破纪录时显示「新纪录!」徽章）
+  drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState) {
+    const barH = 28
+    const centerY = scoreY + barH / 2
+    
+    this.drawScoreWithRecordBadge(ctx, centerY, '最高分: ', `${gameState.highScore}`, {
+      isNewRecord: gameState.isNewHighScore(),
+      labelColor: Colors.gray300,
+      scoreColor: Colors.gray300,
+      fontSize: 11
+    })
+  }
+
   // 绘制胜利弹窗
   drawWinModal(gameState) {
     const ctx = this.ctx
@@ -1644,40 +1718,30 @@ export class UIManager {
     ctx.fillStyle = Colors.gray300
     ctx.fillText('获得奖励', this.width / 2, starY + 70)
     
-    // 奖励物品
+    // 奖励物品（居中展示）
     const rewardY = starY + 90
+    const rewardBoxH = 60
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    drawRoundRect(ctx, modalX + 20, rewardY, modalW - 40, 60, 12)
+    drawRoundRect(ctx, modalX + 20, rewardY, modalW - 40, rewardBoxH, 12)
     ctx.fill()
     
-    // 显示实际获得的奖励（通关奖励 50 金币）
-    const rewards = [
-      { type: 'coin', value: '+50', color: Colors.white }
-    ]
+    const rewardCenterX = this.width / 2
+    const rewardCenterY = rewardY + rewardBoxH / 2
+    const coinSize = 24
+    const valueText = `+${config.rewards.waveClear}`
     
-    rewards.forEach((reward, i) => {
-      const rx = modalX + 50 + i * 90
-      const ry = rewardY + 20
-      
-      // 绘制图标（居中）
-      switch (reward.type) {
-        case 'coin':
-          drawCoinIcon(ctx, rx + 12, ry + 4, 24, '#facc15')
-          break
-        case 'gem':
-          this.drawGemIcon(ctx, rx + 12, ry + 4, 24, '#c084fc')
-          break
-        case 'heart':
-          drawHeartIcon(ctx, rx + 12, ry + 4, 24, '#fb7185')
-          break
-      }
-      
-      ctx.font = 'bold 14px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = reward.color
-      ctx.fillText(reward.value, rx + 20, rewardY + 48)
-    })
+    ctx.font = 'bold 14px sans-serif'
+    ctx.textBaseline = 'middle'
+    const valueWidth = ctx.measureText(valueText).width
+    const totalWidth = coinSize + 8 + valueWidth
+    let startX = rewardCenterX - totalWidth / 2
+    
+    drawCoinIcon(ctx, startX + coinSize / 2, rewardCenterY, coinSize, '#facc15')
+    startX += coinSize + 8
+    
+    ctx.textAlign = 'left'
+    ctx.fillStyle = Colors.white
+    ctx.fillText(valueText, startX, rewardCenterY)
     
     // 最高分
     const scoreY = rewardY + 80
@@ -1689,8 +1753,9 @@ export class UIManager {
     ctx.stroke()
     
     ctx.font = '11px sans-serif'
-    ctx.fillStyle = Colors.gray300
-    ctx.fillText(`最高分: ${gameState.highScore}`, this.width / 2, scoreY + 14)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    this.drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState)
     
     // 按钮
     const btnY = scoreY + 40
@@ -1706,6 +1771,8 @@ export class UIManager {
     ctx.stroke()
     
     ctx.font = 'bold 14px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
     ctx.fillText('返回首页', modalX + 20 + btnW / 2, btnY + btnH / 2)
     
@@ -1731,6 +1798,8 @@ export class UIManager {
     ctx.stroke()
     
     ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     ctx.fillText('下一关', nextBtnX + btnW / 2, btnY + btnH / 2)
     
     this.buttons.push({
@@ -1744,11 +1813,40 @@ export class UIManager {
     ctx.restore()
   }
 
+  // 绘制失败弹窗中的「继续 + 金币价格」按钮文字
+  drawContinuePurchaseButton(ctx, btnX, btnY, btnW, btnH, price, enabled = true) {
+    const centerY = btnY + btnH / 2
+    const centerX = btnX + btnW / 2
+    const coinSize = 14
+    const textColor = enabled ? Colors.white : Colors.gray400
+    const coinColor = enabled ? '#facc15' : '#6b7280'
+    
+    ctx.font = 'bold 13px sans-serif'
+    ctx.textBaseline = 'middle'
+    
+    const continueText = '继续'
+    const priceText = `${price}`
+    const continueWidth = ctx.measureText(continueText).width
+    const priceWidth = ctx.measureText(priceText).width
+    const totalWidth = continueWidth + 6 + coinSize + 4 + priceWidth
+    let startX = centerX - totalWidth / 2
+    
+    ctx.textAlign = 'left'
+    ctx.fillStyle = textColor
+    ctx.fillText(continueText, startX, centerY)
+    startX += continueWidth + 6
+    
+    drawCoinIcon(ctx, startX + coinSize / 2, centerY, coinSize, coinColor)
+    startX += coinSize + 4
+    
+    ctx.fillText(priceText, startX, centerY)
+  }
+
   // 绘制失败弹窗
   drawFailModal(gameState) {
     const ctx = this.ctx
     const modalW = 320
-    const modalH = 400
+    const modalH = 380
     const modalX = (this.width - modalW) / 2
     const modalY = (this.height - modalH) / 2
     
@@ -1807,10 +1905,16 @@ export class UIManager {
     ctx.lineTo(modalX + modalW - 20, titleY + 110)
     ctx.stroke()
     
-    // 本关得分
+    // 本局总得分
     ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = Colors.yellow300
-    ctx.fillText(`本关得分：${gameState.waveScore}`, this.width / 2, titleY + 135)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    this.drawScoreWithRecordBadge(ctx, titleY + 135, '本局得分：', `${gameState.score}`, {
+      isNewRecord: gameState.isNewHighScore(),
+      labelColor: Colors.yellow300,
+      scoreColor: Colors.yellow300,
+      fontSize: 16
+    })
     
     // 分隔线 2
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
@@ -1820,45 +1924,27 @@ export class UIManager {
     ctx.lineTo(modalX + modalW - 20, titleY + 155)
     ctx.stroke()
     
-    // 购买生命区域
-    const purchaseY = titleY + 170
+    // 当前金币
+    const infoY = titleY + 170
+    const infoH = 50
     const canPurchase = gameState.canPurchaseLife()
     const purchasePrice = gameState.getPurchasePrice()
     
-    // 购买生命背景
     ctx.fillStyle = canPurchase ? 'rgba(34, 197, 94, 0.15)' : 'rgba(75, 85, 99, 0.2)'
-    drawRoundRect(ctx, modalX + 20, purchaseY, modalW - 40, 65, 12)
+    drawRoundRect(ctx, modalX + 20, infoY, modalW - 40, infoH, 12)
     ctx.fill()
     ctx.strokeStyle = canPurchase ? Colors.emerald500 : Colors.gray600
     ctx.lineWidth = 2
     ctx.stroke()
     
-    // 购买生命标题
-    ctx.font = 'bold 14px sans-serif'
-    ctx.fillStyle = canPurchase ? Colors.emerald400 : Colors.gray400
-    ctx.textAlign = 'left'
-    ctx.fillText('购买生命继续游戏', modalX + 35, purchaseY + 22)
-    
-    // 剩余次数
-    ctx.font = '11px sans-serif'
-    ctx.fillStyle = canPurchase ? Colors.gray300 : Colors.gray500
-    ctx.fillText(`剩余次数：${3 - gameState.purchaseCount}/3`, modalX + 35, purchaseY + 42)
-    
-    // 金币图标和价格
-    drawCoinIcon(ctx, modalX + modalW - 95, purchaseY + 32, 18, canPurchase ? '#facc15' : '#6b7280')
-    ctx.font = 'bold 15px sans-serif'
-    ctx.fillStyle = canPurchase ? Colors.yellow300 : Colors.gray500
-    ctx.textAlign = 'right'
-    ctx.fillText(`${purchasePrice}`, modalX + modalW - 65, purchaseY + 42)
-    
-    // 当前金币
-    ctx.font = '11px sans-serif'
-    ctx.fillStyle = Colors.gray400
-    ctx.textAlign = 'left'
-    ctx.fillText(`当前金币：${gameState.coins}`, modalX + modalW - 95, purchaseY + 22)
+    ctx.font = 'bold 16px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText(`当前金币：${gameState.coins}`, this.width / 2, infoY + infoH / 2)
     
     // 按钮区域
-    const btnY = purchaseY + 85
+    const btnY = infoY + infoH + 20
     const btnW = (modalW - 60) / 2
     const btnH = 42
     
@@ -1873,6 +1959,7 @@ export class UIManager {
     ctx.font = 'bold 14px sans-serif'
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     ctx.fillText('返回首页', modalX + 20 + btnW / 2, btnY + btnH / 2)
     
     this.buttons.push({
@@ -1883,40 +1970,46 @@ export class UIManager {
       h: btnH
     })
     
-    // 购买生命按钮（如果可以购买）
-    if (canPurchase) {
-      const purchaseBtnGradient = ctx.createLinearGradient(modalX + 40 + btnW, btnY, modalX + 40 + btnW + btnW, btnY + btnH)
-      purchaseBtnGradient.addColorStop(0, '#22c55e')
-      purchaseBtnGradient.addColorStop(1, '#16a34a')
+    const continueBtnX = modalX + 40 + btnW
+    const hasPurchaseAttempts = gameState.purchaseCount < config.game.maxPurchaseCount
+    
+    if (hasPurchaseAttempts) {
+      if (canPurchase) {
+        const purchaseBtnGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX + btnW, btnY + btnH)
+        purchaseBtnGradient.addColorStop(0, '#22c55e')
+        purchaseBtnGradient.addColorStop(1, '#16a34a')
+        
+        ctx.fillStyle = purchaseBtnGradient
+        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
+        ctx.fill()
+        ctx.strokeStyle = '#86efac'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      } else {
+        ctx.fillStyle = Colors.gray700
+        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
+        ctx.fill()
+        ctx.strokeStyle = Colors.gray500
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
       
-      ctx.fillStyle = purchaseBtnGradient
-      drawRoundRect(ctx, modalX + 40 + btnW, btnY, btnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = '#86efac'
-      ctx.lineWidth = 2
-      ctx.stroke()
-      
-      ctx.font = 'bold 13px sans-serif'
-      ctx.fillStyle = Colors.white
-      ctx.textAlign = 'center'
-      ctx.fillText(`购买生命 (${purchasePrice})`, modalX + 40 + btnW + btnW / 2, btnY + btnH / 2)
+      this.drawContinuePurchaseButton(ctx, continueBtnX, btnY, btnW, btnH, purchasePrice, canPurchase)
       
       this.buttons.push({
         id: 'purchase',
-        x: modalX + 40 + btnW,
+        x: continueBtnX,
         y: btnY,
         w: btnW,
         h: btnH
       })
     } else {
-      // 再试一次（不能购买时显示）
-      const retryBtnX = modalX + 40 + btnW
-      const retryGradient = ctx.createLinearGradient(retryBtnX, btnY, retryBtnX, btnY + btnH)
+      const retryGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX, btnY + btnH)
       retryGradient.addColorStop(0, '#ffd13b')
       retryGradient.addColorStop(1, '#ff9e00')
       
       ctx.fillStyle = retryGradient
-      drawRoundRect(ctx, retryBtnX, btnY, btnW, btnH, 12)
+      drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = '#fffdf0'
       ctx.lineWidth = 3
@@ -1925,11 +2018,12 @@ export class UIManager {
       ctx.font = 'bold 14px sans-serif'
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
-      ctx.fillText('再试一次', retryBtnX + btnW / 2, btnY + btnH / 2)
+      ctx.textBaseline = 'middle'
+      ctx.fillText('重新开始', continueBtnX + btnW / 2, btnY + btnH / 2)
       
       this.buttons.push({
-        id: 'retry',
-        x: retryBtnX,
+        id: 'restart',
+        x: continueBtnX,
         y: btnY,
         w: btnW,
         h: btnH
