@@ -111,7 +111,8 @@ export class BubbleGrid {
         radius: (this.cellSize - 16) / 2,
         state: 'normal',
         scale: 1,
-        activeColor: null
+        activeColor: null,
+        clicked: false  // 添加 clicked 标记，用于区分观察阶段和点击后
       })
     }
   }
@@ -122,14 +123,28 @@ export class BubbleGrid {
       bubble.state = 'normal'
       bubble.scale = 1
       bubble.activeColor = null
+      bubble.clicked = false
     })
   }
 
+  // 设置泡泡状态（观察阶段专用 - 会闪动）
+  setBubbleStateForObserving(index, color = 'purple') {
+    if (index >= 0 && index < this.bubbles.length) {
+      this.bubbles[index].state = color
+      this.bubbles[index].activeColor = color
+      this.bubbles[index].clicked = false  // 观察阶段，不标记为已点击，保持闪动
+    }
+  }
+  
   // 设置泡泡状态
   setBubbleState(index, state, color = 'purple') {
     if (index >= 0 && index < this.bubbles.length) {
       this.bubbles[index].state = state
       this.bubbles[index].activeColor = color
+      // 如果是点击后的激活状态，标记为已点击（停止闪动）
+      if (state === 'pink' || state === 'purple' || state === 'blue') {
+        this.bubbles[index].clicked = true
+      }
     }
   }
 
@@ -352,13 +367,18 @@ export class BubbleGrid {
   }
 
   // 绘制激活泡泡（发光状态）
-  drawActiveBubble(ctx, x, y, radius, color) {
+  drawActiveBubble(ctx, x, y, radius, color, isObserving = false) {
     const colors = this.activeColors[color]
     if (!colors) colors = this.activeColors.purple
     
-    // 发光效果
+    // 观察阶段：闪动效果（亮度和缩放变化）
+    // 点击后：保持高亮状态，不闪动
+    const brightness = isObserving ? 0.7 + Math.sin(this.glowPhase) * 0.3 : 1
+    const scale = isObserving ? 1 + Math.sin(this.glowPhase) * 0.04 : 1.04
+    
+    // 发光效果（观察阶段更强）
     ctx.shadowColor = colors.glow
-    ctx.shadowBlur = 20 + Math.sin(this.glowPhase) * 5
+    ctx.shadowBlur = isObserving ? (20 + Math.sin(this.glowPhase) * 10) : 25
     
     // 径向渐变
     const gradient = ctx.createRadialGradient(
@@ -370,9 +390,13 @@ export class BubbleGrid {
     gradient.addColorStop(1, colors.edge)
     
     ctx.fillStyle = gradient
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.scale(scale, scale)
     ctx.beginPath()
-    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
     ctx.fill()
+    ctx.restore()
     
     // 边框
     ctx.strokeStyle = colors.border
@@ -433,7 +457,9 @@ export class BubbleGrid {
       } else if (bubble.state === 'red') {
         this.drawErrorBubble(ctx, bubble.x, bubble.y, bubble.radius)
       } else if (bubble.state === 'pink' || bubble.state === 'purple' || bubble.state === 'blue') {
-        this.drawActiveBubble(ctx, bubble.x, bubble.y, bubble.radius, bubble.activeColor || bubble.state)
+        // 判断是否在观察阶段（通过检查是否有 clicked 标记）
+        const isObserving = !bubble.clicked
+        this.drawActiveBubble(ctx, bubble.x, bubble.y, bubble.radius, bubble.activeColor || bubble.state, isObserving)
       }
     })
   }

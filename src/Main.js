@@ -471,10 +471,11 @@ export class Main {
   startObservePhase() {
     this.observeStartTime = Date.now()
     
-    // 高亮目标泡泡（根据索引分配颜色）
+    // 高亮目标泡泡（根据索引分配颜色）- 观察阶段，气泡会闪动
     this.gameState.targets.forEach((targetIdx) => {
       const colorClass = getColorClass(targetIdx)
-      this.bubbleGrid.setBubbleState(targetIdx, 'pink', colorClass)
+      // 使用 'observing' 状态标记，表示正在观察阶段（会闪动）
+      this.bubbleGrid.setBubbleStateForObserving(targetIdx, colorClass)
     })
     
     // 设置计时器
