@@ -237,7 +237,7 @@ export class Main {
         break
       case 'OBSERVE':
         // 观察阶段不允许点击，给出提示
-        this.uiManager.showToast('先记住高亮气泡的位置哦~')
+        this.uiManager.showToast('先记住闪烁气泡的位置哦~')
         break
       case 'PLAY':
         this.handleGameTouch(x, y)

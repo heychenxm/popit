@@ -1490,7 +1490,7 @@ export class UIManager {
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('记住高亮的气泡', this.width / 2, descY)
+      ctx.fillText('记住闪烁的气泡', this.width / 2, descY)
     } else if (gameState.phase === 'PLAY') {
       ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
@@ -1504,7 +1504,7 @@ export class UIManager {
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('在倒计时结束前点破所有高亮的气泡', this.width / 2, descY)
+      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', this.width / 2, descY)
     }
     
     ctx.restore()
