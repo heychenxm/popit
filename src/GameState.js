@@ -73,6 +73,12 @@ export class GameState {
       wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
     }
     
+    // ✅ 优化：赛季排名缓存（30 分钟）
+    this.seasonLeaderboardCache = {
+      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存
+      wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
+    }
+    
     // 用户信息
     this.userInfo = {
       nickname: getStorage('nickname', ''),
@@ -113,8 +119,19 @@ export class GameState {
   }
 
   // 同步云端数据
-  // 优化：本地优先策略，云端数据仅作为备份
+  // ✅ 优化：本地优先策略，本地数据完整时跳过同步
   async syncCloudData() {
+    // ✅ 检查本地数据是否完整
+    const hasLocalData = this.bestWave > 0 || this.highScore > 0 || this.coins > 0
+    
+    // 如果本地数据完整，跳过同步（减少云函数调用）
+    if (hasLocalData) {
+      console.log('本地数据完整，跳过启动同步')
+      // 初始化赛季信息（不需要云端数据）
+      this.initSeasonInfo()
+      return { success: true, message: '使用本地数据' }
+    }
+    
     try {
       const result = await wx.cloud.callFunction({
         name: 'gameData',
@@ -679,11 +696,24 @@ export class GameState {
   }
   
   /**
-   * 获取赛季数据
+   * 获取赛季数据（带缓存）
    * @param {string} type - 数据类型：'score' 或 'wave'
    * @returns {Promise<Object>} 赛季数据
    */
   async getSeasonData(type = 'score') {
+    const cache = this.seasonLeaderboardCache[type]
+    const now = Date.now()
+    
+    // ✅ 检查缓存是否有效（30 分钟）
+    if (cache && cache.data && (now - cache.timestamp) < cache.expire) {
+      console.log(`使用赛季排名缓存 (${type})`)
+      return {
+        success: true,
+        data: cache.data,
+        fromCache: true
+      }
+    }
+    
     try {
       const result = await wx.cloud.callFunction({
         name: 'seasonLeaderboard',
@@ -691,6 +721,12 @@ export class GameState {
       })
       
       if (result.result.success) {
+        // ✅ 更新缓存
+        if (cache) {
+          cache.data = result.result.data
+          cache.timestamp = now
+        }
+        
         // 更新赛季信息
         this.seasonInfo = {
           currentSeasonId: result.result.data.seasonId,
@@ -711,13 +747,24 @@ export class GameState {
         
         return {
           success: true,
-          data: result.result.data
+          data: result.result.data,
+          fromCache: false
         }
       } else {
         throw new Error(result.result.message)
       }
     } catch (err) {
       console.error('获取赛季数据失败:', err)
+      // 如果缓存存在但过期，返回缓存数据作为降级
+      if (cache && cache.data) {
+        console.log('返回过期缓存数据')
+        return {
+          success: true,
+          data: cache.data,
+          fromCache: true,
+          expired: true
+        }
+      }
       return {
         success: false,
         message: '获取赛季数据失败，请稍后重试'
@@ -726,7 +773,59 @@ export class GameState {
   }
   
   /**
-   * 更新赛季数据
+   * 更新赛季数据（本地更新，不立即同步到云端）
+   * @param {number} score - 当前得分
+   * @param {number} wave - 当前关卡
+   * @param {number} clears - 通关次数
+   * @param {number} streak - 连胜次数
+   */
+  updateSeasonDataLocal(score, wave, clears, streak) {
+    // 只更新本地数据，不调用云函数
+    this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore, score)
+    this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave, wave)
+    this.seasonData.totalClears = (this.seasonData.totalClears || 0) + (clears || 0)
+    this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak, streak || 0)
+    
+    // 标记需要刷新到云端
+    this.seasonData.pendingFlush = true
+  }
+  
+  /**
+   * 将赛季数据批量刷新到云端（在游戏结束时调用）
+   * @returns {Promise<boolean>} 是否成功
+   */
+  async flushSeasonDataToCloud() {
+    // 检查是否需要刷新
+    if (!this.seasonData.pendingFlush) {
+      return true
+    }
+    
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'gameData',
+        data: {
+          action: 'updateSeasonData',
+          seasonScore: this.seasonData.seasonScore,
+          seasonWave: this.seasonData.seasonWave,
+          totalClears: this.seasonData.totalClears,
+          bestStreak: this.seasonData.bestStreak
+        }
+      })
+      
+      if (result.result.success) {
+        // 清除刷新标记
+        this.seasonData.pendingFlush = false
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('批量更新赛季数据失败:', err)
+      return false
+    }
+  }
+  
+  /**
+   * 更新赛季数据（立即同步到云端，用于需要实时性的场景）
    * @param {number} score - 当前得分
    * @param {number} wave - 当前关卡
    * @param {number} clears - 通关次数

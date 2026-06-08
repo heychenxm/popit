@@ -907,7 +907,8 @@ export class UIManager {
       grad.addColorStop(1, '#047857')
       ctx.fillStyle = grad
     } else if (isSigned) {
-      ctx.fillStyle = 'rgba(55, 65, 81, 0.5)'
+      // 已签到的天数保持与未签到天数一致的样式
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     } else {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     }
@@ -919,7 +920,8 @@ export class UIManager {
       ctx.strokeStyle = '#fbbf24'
       ctx.lineWidth = 3
     } else if (isSigned) {
-      ctx.strokeStyle = 'rgba(107, 114, 128, 0.5)'
+      // 已签到的天数边框与未签到天数一致
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.3)'
       ctx.lineWidth = 2
     } else {
       ctx.strokeStyle = 'rgba(52, 211, 153, 0.3)'
@@ -928,28 +930,33 @@ export class UIManager {
     ctx.stroke()
     
     ctx.font = isToday ? 'bold 12px sans-serif' : '11px sans-serif'
-    ctx.fillStyle = isToday ? '#fbbf24' : (isSigned ? Colors.gray500 : Colors.gray300)
+    ctx.fillStyle = isToday ? '#fbbf24' : Colors.gray300
     ctx.textAlign = 'center'
-    const dayText = isSigned ? '已签到' : (isToday ? '今天' : `第${day}天`)
-    ctx.fillText(dayText, x + w / 2, y + 18)
+    // 已签到的格子顶部显示"已获得"，未签到的显示"第 X 天"，今天的显示"今天"
+    const dayText = isSigned ? '已获得' : (isToday ? '今天' : `第${day}天`)
+    ctx.fillText(dayText, x + w / 2, y + 22)
   }
 
   // 绘制奖励内容
   drawCheckinReward(ctx, x, y, w, h, reward, isSigned) {
     const iconSize = 36
-    const iconY = y + h / 2 + 5
-    const amountY = y + h - 20
+    // 金币图标位置下移，给顶部"已获得"留空间
+    const iconY = y + h / 2 + 10
+    // 增加金币图标和金币数量之间的间距（+10px）
+    const amountY = y + h - 12
     
-    drawCoinIcon(ctx, x + w / 2, iconY, iconSize, isSigned ? '#9ca3af' : '#facc15')
+    // 金币图标颜色保持一致，不置灰
+    drawCoinIcon(ctx, x + w / 2, iconY, iconSize, '#facc15')
     
-    ctx.font = isSigned ? 'bold 11px sans-serif' : 'bold 14px sans-serif'
-    ctx.fillStyle = isSigned ? Colors.gray500 : Colors.white
+    ctx.font = 'bold 12px sans-serif'
+    ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
     // 第 7 天只显示基础奖励 +1000，不显示额外奖励
     const amountText = `+${reward.amount}`
     
+    // 只显示金币数量，不显示"已获得"（顶部已显示）
     ctx.fillText(amountText, x + w / 2, amountY)
   }
 

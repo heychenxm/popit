@@ -450,6 +450,11 @@ export class Main {
       this.audioManager.play('click')
       this.vibrate()
       
+      // ✅ 优化：批量更新赛季数据到云端
+      this.gameState.flushSeasonDataToCloud().catch(err => {
+        console.error('批量更新赛季数据失败:', err)
+      })
+      
       switch (buttonId) {
         case 'home':
           this.navigateToMenu()
@@ -744,8 +749,8 @@ export class Main {
     this.gameState.addCoins(config.rewards.waveClear)
     this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
     
-    // 更新赛季数据
-    await this.gameState.updateSeasonData(
+    // ✅ 优化：只更新本地数据，不调用云函数
+    this.gameState.updateSeasonDataLocal(
       this.gameState.score,
       this.gameState.wave,
       1,  // 通关次数 +1
@@ -813,6 +818,11 @@ export class Main {
     this.gameState.resetConsecutiveWins()
     this.setGameState('FAIL', 'fail')
     this.uiManager.showToast(`本局得分：${this.gameState.score}`)
+    
+    // ✅ 优化：批量更新赛季数据到云端
+    this.gameState.flushSeasonDataToCloud().catch(err => {
+      console.error('批量更新赛季数据失败:', err)
+    })
     
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
