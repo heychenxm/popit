@@ -2,6 +2,7 @@ import { getStorage, setStorage } from './utils.js'
 import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
 import { config } from './config.js'
 import { cloudDataManager } from './CloudDataManager.js'
+import { getSeasonCycle, getSeasonTimeRemaining, formatSeasonCountdown } from './seasonUtils.js'
 
 /**
  * 游戏状态管理
@@ -85,6 +86,30 @@ export class GameState {
       timestamp: 0
     }
     this.checkinCacheDuration = 300000 // 5 分钟缓存
+    
+    // 赛季数据
+    this.seasonData = {
+      seasonId: '',
+      seasonScore: 0,
+      seasonWave: 0,
+      totalGames: 0,
+      totalClears: 0,
+      bestStreak: 0,
+      userRank: 0,
+      rewardCoins: 0,
+      settled: false
+    }
+    
+    // 赛季信息
+    this.seasonInfo = {
+      currentSeasonId: '',
+      seasonStartTime: 0,
+      seasonEndTime: 0,
+      timeRemaining: 0
+    }
+    
+    // 初始化赛季信息
+    this.initSeasonInfo()
   }
 
   // 同步云端数据
@@ -638,5 +663,117 @@ export class GameState {
     
     const result = await cloudDataManager.flush()
     return result
+  }
+  
+  /**
+   * 初始化赛季信息
+   */
+  initSeasonInfo() {
+    const { seasonId, seasonStart, seasonEnd } = getSeasonCycle(new Date())
+    this.seasonInfo = {
+      currentSeasonId: seasonId,
+      seasonStartTime: seasonStart.getTime(),
+      seasonEndTime: seasonEnd.getTime(),
+      timeRemaining: Math.max(0, seasonEnd.getTime() - Date.now())
+    }
+  }
+  
+  /**
+   * 获取赛季数据
+   * @param {string} type - 数据类型：'score' 或 'wave'
+   * @returns {Promise<Object>} 赛季数据
+   */
+  async getSeasonData(type = 'score') {
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'seasonLeaderboard',
+        data: { type }
+      })
+      
+      if (result.result.success) {
+        // 更新赛季信息
+        this.seasonInfo = {
+          currentSeasonId: result.result.data.seasonId,
+          seasonStartTime: result.result.data.seasonStartTime,
+          seasonEndTime: result.result.data.seasonEndTime,
+          timeRemaining: result.result.data.seasonEndTime - Date.now()
+        }
+        
+        // 更新用户赛季数据
+        if (result.result.data.userStats) {
+          this.seasonData = {
+            ...this.seasonData,
+            ...result.result.data.userStats,
+            userRank: result.result.data.userRank,
+            seasonScore: result.result.data.userValue
+          }
+        }
+        
+        return {
+          success: true,
+          data: result.result.data
+        }
+      } else {
+        throw new Error(result.result.message)
+      }
+    } catch (err) {
+      console.error('获取赛季数据失败:', err)
+      return {
+        success: false,
+        message: '获取赛季数据失败，请稍后重试'
+      }
+    }
+  }
+  
+  /**
+   * 更新赛季数据
+   * @param {number} score - 当前得分
+   * @param {number} wave - 当前关卡
+   * @param {number} clears - 通关次数
+   * @param {number} streak - 连胜次数
+   * @returns {Promise<boolean>} 是否成功
+   */
+  async updateSeasonData(score, wave, clears, streak) {
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'gameData',
+        data: {
+          action: 'updateSeasonData',
+          seasonScore: score,
+          seasonWave: wave,
+          totalClears: clears,
+          bestStreak: streak
+        }
+      })
+      
+      if (result.result.success) {
+        // 更新本地赛季数据
+        this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore, score)
+        this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave, wave)
+        this.seasonData.totalClears = (this.seasonData.totalClears || 0) + (clears || 0)
+        this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak, streak || 0)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('更新赛季数据失败:', err)
+      return false
+    }
+  }
+  
+  /**
+   * 获取赛季倒计时字符串
+   * @returns {string} 倒计时字符串
+   */
+  getSeasonCountdownText() {
+    return formatSeasonCountdown()
+  }
+  
+  /**
+   * 获取赛季剩余时间（毫秒）
+   * @returns {number} 剩余时间（毫秒）
+   */
+  getSeasonTimeRemaining() {
+    return getSeasonTimeRemaining()
   }
 }

@@ -225,6 +225,12 @@ export class Main {
       return
     }
     
+    // 检查是否在赛季排名界面
+    if (this.uiManager.currentScreen === 'season_leaderboard') {
+      this.handleSeasonLeaderboardTouch(x, y)
+      return
+    }
+    
     // 检查是否在签到界面
     if (this.uiManager.currentScreen === 'checkin') {
       this.handleCheckinTouch(x, y)
@@ -270,6 +276,76 @@ export class Main {
     }
   }
 
+  // 处理赛季排名触摸
+  async handleSeasonLeaderboardTouch(x, y) {
+    const buttonId = this.uiManager.handleTouch(x, y)
+    
+    if (buttonId) {
+      switch (buttonId) {
+        case 'close':
+          this.closeSeasonLeaderboard()
+          break
+        case 'season_leaderboard_score':
+          await this.switchSeasonLeaderboardType('score')
+          break
+        case 'season_leaderboard_wave':
+          await this.switchSeasonLeaderboardType('wave')
+          break
+      }
+    }
+  }
+
+  // 显示赛季排名
+  async showSeasonLeaderboard() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 切换到赛季排名界面
+    this.uiManager.currentScreen = 'season_leaderboard'
+    
+    // 检查云开发是否已初始化
+    if (!this.cloudInitialized) {
+      console.warn('云开发未初始化，无法获取赛季排名')
+      this.uiManager.showToast('云开发未初始化')
+      this.uiManager.seasonLeaderboardData = null
+      return
+    }
+    
+    // 获取赛季排名数据（默认最高分）
+    this.uiManager.seasonLeaderboardType = 'score'
+    await this.refreshSeasonLeaderboard()
+  }
+
+  // 刷新赛季排名数据
+  async refreshSeasonLeaderboard() {
+    const result = await this.gameState.getSeasonData(this.uiManager.seasonLeaderboardType)
+    
+    if (result.success) {
+      this.uiManager.seasonLeaderboardData = result.data
+    } else {
+      this.uiManager.showToast(result.message || '获取赛季排名失败')
+      this.uiManager.seasonLeaderboardData = null
+    }
+  }
+
+  // 切换赛季排名类型
+  async switchSeasonLeaderboardType(type) {
+    if (this.uiManager.seasonLeaderboardType === type) return
+    
+    this.uiManager.seasonLeaderboardType = type
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    await this.refreshSeasonLeaderboard()
+  }
+
+  // 关闭赛季排名
+  closeSeasonLeaderboard() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    this.uiManager.currentScreen = 'menu'
+  }
+
   // 处理签到触摸
   async handleCheckinTouch(x, y) {
     const buttonId = this.uiManager.handleTouch(x, y)
@@ -309,8 +385,10 @@ export class Main {
           this.startGame()
           break
         case 'leaderboard':
-        case 'leaderboard_detail':
           this.showLeaderboard()
+          break
+        case 'leaderboard_detail':
+          this.showSeasonLeaderboard()
           break
         case 'sound':
           this.toggleSound()
@@ -659,6 +737,14 @@ export class Main {
     // 发放通关奖励：金币
     this.gameState.addCoins(config.rewards.waveClear)
     this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
+    
+    // 更新赛季数据
+    await this.gameState.updateSeasonData(
+      this.gameState.score,
+      this.gameState.wave,
+      1,  // 通关次数 +1
+      this.gameState.consecutiveWins
+    )
     
     // 检查是否显示胜利弹窗（在保存之前判断）
     const modalType = this.shouldShowVictoryModal()

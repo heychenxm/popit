@@ -54,6 +54,8 @@ exports.main = async (event, context) => {
         return await handleDoCheckin(openid)
       case 'checkinAndReward':
         return await handleCheckinAndReward(openid)
+      case 'updateSeasonData':
+        return await handleUpdateSeasonData(openid, event)
       default:
         return {
           success: false,
@@ -546,4 +548,112 @@ function getYesterdayString() {
   const month = String(yesterday.getMonth() + 1).padStart(2, '0')
   const day = String(yesterday.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+/**
+ * 获取当前赛季周期信息
+ */
+function getSeasonCycle(now = new Date()) {
+  const day = now.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
+  
+  // 计算距离下周六 00:00 的天数
+  let daysToNextSat = 6 - day;
+  if (daysToNextSat <= 0) daysToNextSat += 7;
+  
+  // 赛季结束时间：下周六 00:00
+  const seasonEnd = new Date(now);
+  seasonEnd.setDate(seasonEnd.getDate() + daysToNextSat);
+  seasonEnd.setHours(0, 0, 0, 0);
+  
+  // 赛季开始时间：本周五 24:00（即上周六 00:00）
+  const seasonStart = new Date(seasonEnd);
+  seasonStart.setDate(seasonStart.getDate() - 7);
+  
+  // 生成赛季编号（基于赛季开始日期计算第几周）
+  const year = seasonStart.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const weekNum = Math.ceil(((seasonStart - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+  const seasonId = `${year}-S${String(weekNum).padStart(2, '0')}`;
+  
+  return { seasonId, seasonStart, seasonEnd };
+}
+
+/**
+ * 处理赛季数据更新
+ */
+async function handleUpdateSeasonData(openid, event) {
+  const { seasonScore, seasonWave, totalClears, bestStreak } = event
+  
+  try {
+    // 获取当前赛季周期
+    const { seasonId } = getSeasonCycle(new Date())
+    
+    // 查询用户赛季数据
+    const result = await db.collection('season_data')
+      .where({ 
+        openid,
+        seasonId: seasonId
+      })
+      .get()
+    
+    if (result.data.length === 0) {
+      // 创建新赛季数据
+      await db.collection('season_data').add({
+        data: {
+          openid,
+          seasonId: seasonId,
+          seasonScore: seasonScore || 0,
+          seasonWave: seasonWave || 0,
+          totalGames: 1,
+          totalClears: totalClears || 0,
+          bestStreak: bestStreak || 0,
+          lastUpdateTime: Date.now(),
+          settled: false,
+          rank: 0,
+          rewardCoins: 0
+        }
+      })
+    } else {
+      const userData = result.data[0]
+      
+      // 更新赛季数据（取最大值）
+      const updateData = {
+        lastUpdateTime: Date.now(),
+        totalGames: (userData.totalGames || 0) + 1
+      }
+      
+      if (seasonScore !== undefined) {
+        updateData.seasonScore = Math.max(userData.seasonScore, seasonScore)
+      }
+      if (seasonWave !== undefined) {
+        updateData.seasonWave = Math.max(userData.seasonWave, seasonWave)
+      }
+      if (totalClears !== undefined) {
+        updateData.totalClears = (userData.totalClears || 0) + totalClears
+      }
+      if (bestStreak !== undefined) {
+        updateData.bestStreak = Math.max(userData.bestStreak, bestStreak)
+      }
+      
+      await db.collection('season_data')
+        .where({ 
+          openid,
+          seasonId: seasonId
+        })
+        .update({ data: updateData })
+    }
+    
+    return {
+      success: true,
+      message: '赛季数据更新成功',
+      seasonId: seasonId
+    }
+    
+  } catch (err) {
+    console.error('更新赛季数据失败:', err)
+    return {
+      success: false,
+      message: '更新赛季数据失败：' + err.message
+    }
+  }
 }

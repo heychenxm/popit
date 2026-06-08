@@ -73,7 +73,7 @@ export class UIManager {
     this.drawBottomButtons(gameState)
     
     // 赛季横幅
-    this.drawSeasonBanner()
+    this.drawSeasonBanner(gameState)
     
     // 分享礼包图标（根据是否可以分享来决定是否显示）
     if (gameState.canShareGift()) {
@@ -411,7 +411,7 @@ export class UIManager {
   }
 
   // 绘制赛季横幅 - 精确匹配 index.html
-  drawSeasonBanner() {
+  drawSeasonBanner(gameState) {
     const ctx = this.ctx
     const bannerX = 20
     const bannerY = this.height * 0.82
@@ -458,10 +458,24 @@ export class UIManager {
     ctx.fillStyle = Colors.yellow300
     ctx.fillText('新赛季开启', textStartX, bannerY + bannerH / 2 - 8)
     
-    // 副标题：text-[10px] text-gray-300
+    // 副标题 + 赛季倒计时（同行显示）
     ctx.font = '10px sans-serif'
+    ctx.textBaseline = 'middle'
+    
+    const subtitleText = '每周五 24:00 结算排行榜'
     ctx.fillStyle = Colors.gray300
-    ctx.fillText('每周五 24:00 结算排行榜', textStartX, bannerY + bannerH / 2 + 10)
+    ctx.textAlign = 'left'
+    ctx.fillText(subtitleText, textStartX, bannerY + bannerH / 2 + 10)
+    
+    // 赛季倒计时显示（同行右侧）
+    if (gameState && gameState.seasonInfo && gameState.seasonInfo.timeRemaining > 0) {
+      const remaining = gameState.seasonInfo.timeRemaining
+      const days = Math.floor(remaining / (24 * 60 * 60 * 1000))
+      const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+      
+      ctx.textAlign = 'right'
+      ctx.fillText(`剩余 ${days}天${hours}时`, bannerX + bannerW - 80, bannerY + bannerH / 2 + 10)
+    }
     
     // 查看详情按钮：rounded-full
     const detailBtnX = bannerX + bannerW - 70
@@ -481,7 +495,7 @@ export class UIManager {
     ctx.font = 'bold 11px sans-serif'
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
-    ctx.fillText('查看详情 >', detailBtnX + detailBtnW / 2, detailBtnY + detailBtnH / 2)
+    ctx.fillText('查看详情', detailBtnX + detailBtnW / 2, detailBtnY + detailBtnH / 2)
     
     this.buttons.push({
       id: 'leaderboard_detail',
@@ -1352,12 +1366,259 @@ export class UIManager {
       })
     }
     
+    ctx.restore()
+  }
+
+  // 绘制赛季排名弹窗
+  drawSeasonLeaderboardModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 360
+    const modalH = 520
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons = []
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#312e81')
+    gradient.addColorStop(1, '#4c1d95')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#818cf8'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 关闭按钮
+    const closeBtnSize = 32
+    const closeBtnPadding = 20
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+    
+    // 标题
+    const titleY = modalY + 35
+    ctx.font = 'bold 20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#a5b4fc'
+    
+    // 显示赛季编号 + 标题（如：S23 赛季排名）
+    let titleText = '🏆 赛季排名'
+    if (gameState && gameState.seasonInfo && gameState.seasonInfo.currentSeasonId) {
+      const seasonNum = gameState.seasonInfo.currentSeasonId.replace(/^\d+-S/, 'S')
+      titleText = `🏆 ${seasonNum} 赛季排名`
+    }
+    ctx.fillText(titleText, this.width / 2, titleY)
+    
+    // 切换按钮容器
+    const switchContainerY = titleY + 35
+    const switchContainerW = 200
+    const switchContainerH = 36
+    const switchContainerX = modalX + (modalW - switchContainerW) / 2
+    
+    // 切换按钮背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, switchContainerX, switchContainerY, switchContainerW, switchContainerH, 18)
+    ctx.fill()
+    
+    // 切换按钮：最高分
+    const scoreBtnW = switchContainerW / 2
+    const scoreBtnX = switchContainerX
+    const scoreBtnActive = this.seasonLeaderboardType === 'score'
+    
+    if (scoreBtnActive) {
+      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
+      scoreGrad.addColorStop(0, '#fbbf24')
+      scoreGrad.addColorStop(1, '#d97706')
+      ctx.fillStyle = scoreGrad
+      drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = scoreBtnActive ? Colors.white : Colors.gray400
+    ctx.textAlign = 'center'
+    ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'season_leaderboard_score',
+      x: scoreBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 切换按钮：最高关卡
+    const waveBtnX = switchContainerX + scoreBtnW
+    const waveBtnActive = this.seasonLeaderboardType === 'wave'
+    
+    if (waveBtnActive) {
+      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
+      waveGrad.addColorStop(0, '#fbbf24')
+      waveGrad.addColorStop(1, '#d97706')
+      ctx.fillStyle = waveGrad
+      drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
+      ctx.fill()
+    }
+    
+    ctx.fillStyle = waveBtnActive ? Colors.white : Colors.gray400
+    ctx.fillText('最高关卡', waveBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
+    
+    this.buttons.push({
+      id: 'season_leaderboard_wave',
+      x: waveBtnX,
+      y: switchContainerY,
+      w: scoreBtnW,
+      h: switchContainerH
+    })
+    
+    // 前 6 名展示区（2 行 3 列）
+    const topContainerY = switchContainerY + switchContainerH + 20
+    const topContainerH = 280
+    const topItemW = (modalW - 60) / 3
+    const topItemH = 130
+    const topGap = 15
+    
+    if (this.seasonLeaderboardData && this.seasonLeaderboardData.leaderboard) {
+      const leaderboard = this.seasonLeaderboardData.leaderboard
+      
+      // 第 1 行：第 2、1、3 名
+      if (leaderboard[1]) {
+        this.drawSeasonLeaderboardRankCard(
+          modalX + 20, topContainerY, topItemW, topItemH,
+          leaderboard[1].rank, leaderboard[1].nickname, leaderboard[1].avatarUrl, leaderboard[1].value,
+          2, leaderboard[1].isUser
+        )
+      }
+      
+      if (leaderboard[0]) {
+        this.drawSeasonLeaderboardRankCard(
+          modalX + 20 + topItemW + topGap, topContainerY - 10, topItemW, topItemH + 10,
+          leaderboard[0].rank, leaderboard[0].nickname, leaderboard[0].avatarUrl, leaderboard[0].value,
+          1, leaderboard[0].isUser, true
+        )
+      }
+      
+      if (leaderboard[2]) {
+        this.drawSeasonLeaderboardRankCard(
+          modalX + 20 + (topItemW + topGap) * 2, topContainerY, topItemW, topItemH,
+          leaderboard[2].rank, leaderboard[2].nickname, leaderboard[2].avatarUrl, leaderboard[2].value,
+          3, leaderboard[2].isUser
+        )
+      }
+      
+      // 第 2 行：第 4、5、6 名
+      for (let i = 3; i < 6 && i < leaderboard.length; i++) {
+        const col = i - 3
+        this.drawSeasonLeaderboardRankCard(
+          modalX + 20 + col * (topItemW + topGap), topContainerY + topItemH + topGap + 10, topItemW, topItemH,
+          leaderboard[i].rank, leaderboard[i].nickname, leaderboard[i].avatarUrl, leaderboard[i].value,
+          i + 1, leaderboard[i].isUser
+        )
+      }
+    }
+    
     // 底部提示
     const footerY = modalY + modalH - 35
     ctx.font = '10px sans-serif'
     ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
     ctx.textAlign = 'center'
     ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
+    
+    ctx.restore()
+  }
+
+  // 绘制赛季排名卡片
+  drawSeasonLeaderboardRankCard(x, y, w, h, rank, nickname, avatarUrl, value, rankNum, isUser, isTop1 = false) {
+    const ctx = this.ctx
+    
+    ctx.save()
+    
+    let bgColor
+    if (isTop1) {
+      const grad = ctx.createLinearGradient(x, y, x, y + h)
+      grad.addColorStop(0, '#4f46e5')
+      grad.addColorStop(1, '#3730a3')
+      bgColor = grad
+    } else if (rankNum === 2) {
+      bgColor = 'rgba(148, 163, 184, 0.3)'
+    } else if (rankNum === 3) {
+      bgColor = 'rgba(234, 179, 8, 0.2)'
+    } else {
+      bgColor = 'rgba(99, 102, 241, 0.2)'
+    }
+    
+    ctx.fillStyle = bgColor
+    drawRoundRect(ctx, x, y, w, h, 16)
+    ctx.fill()
+    
+    let borderColor
+    if (isTop1) {
+      borderColor = '#fbbf24'
+    } else if (rankNum === 2) {
+      borderColor = '#94a3b8'
+    } else if (rankNum === 3) {
+      borderColor = '#eab308'
+    } else {
+      borderColor = '#6366f1'
+    }
+    
+    ctx.strokeStyle = borderColor
+    ctx.lineWidth = isTop1 ? 3 : 2
+    ctx.stroke()
+    
+    ctx.font = isTop1 ? 'bold 12px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.gray300
+    ctx.textAlign = 'center'
+    const rankText = isTop1 ? '🏆 第 1 名' : `第${rank}名`
+    ctx.fillText(rankText, x + w / 2, y + 20)
+    
+    const avatarSize = isTop1 ? 52 : 44
+    const avatarX = x + w / 2
+    const avatarY = y + 55
+    
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1)
+    
+    ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
+    ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'center'
+    const displayNickname = nickname.length > 6 ? nickname.substring(0, 5) + '...' : nickname
+    ctx.fillText(displayNickname, x + w / 2, y + 95)
+    
+    ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText(value.toString(), x + w / 2, y + 120)
     
     ctx.restore()
   }
@@ -2256,6 +2517,9 @@ export class UIManager {
         break
       case 'leaderboard':
         this.drawLeaderboardModal(gameState)
+        break
+      case 'season_leaderboard':
+        this.drawSeasonLeaderboardModal(gameState)
         break
       case 'checkin':
         this.drawCheckinModal(gameState)
