@@ -240,6 +240,294 @@ export function safeCancelAnimationFrame(id) {
   }
 }
 
+// 云函数调用记录管理
+const CLOUD_CALL_LOG_KEY = 'cloudCallLog'
+const CLOUD_CALL_STATS_KEY = 'cloudCallStats'
+const MAX_LOG_COUNT = 100  // 最多保存 100 条记录
+
+/**
+ * 记录云函数调用
+ * @param {string} functionName - 云函数名称
+ * @param {Object} data - 调用参数
+ * @param {boolean} success - 是否成功
+ * @param {number} duration - 调用耗时（毫秒）
+ * @param {string} errorMsg - 错误信息（如果有）
+ */
+export function recordCloudCall(functionName, data, success, duration, errorMsg = '') {
+  try {
+    const logs = getStorage(CLOUD_CALL_LOG_KEY, [])
+    
+    const logEntry = {
+      functionName,
+      timestamp: Date.now(),
+      date: getTodayString(),
+      success,
+      duration,
+      errorMsg,
+      // 只记录参数 key，不记录完整数据（节省空间）
+      paramKeys: data ? Object.keys(data) : []
+    }
+    
+    logs.push(logEntry)
+    
+    // 只保留最近的记录
+    if (logs.length > MAX_LOG_COUNT) {
+      logs.splice(0, logs.length - MAX_LOG_COUNT)
+    }
+    
+    setStorage(CLOUD_CALL_LOG_KEY, logs)
+    
+    // 更新总数统计
+    updateCloudCallStats(functionName, success, duration)
+    
+    console.log(`[云函数调用记录] ${functionName} - ${success ? '成功' : '失败'} (${duration}ms)`)
+  } catch (e) {
+    console.error('记录云函数调用失败:', e)
+  }
+}
+
+/**
+ * 更新云函数调用总数统计
+ */
+function updateCloudCallStats(functionName, success, duration) {
+  try {
+    const today = getTodayString()
+    let stats = getStorage(CLOUD_CALL_STATS_KEY, {
+      total: 0,
+      success: 0,
+      fail: 0,
+      totalDuration: 0,
+      byFunction: {},
+      byDate: {}
+    })
+    
+    // 更新总计数
+    stats.total++
+    if (success) {
+      stats.success++
+    } else {
+      stats.fail++
+    }
+    stats.totalDuration += duration
+    
+    // 按云函数统计
+    if (!stats.byFunction[functionName]) {
+      stats.byFunction[functionName] = {
+        total: 0,
+        success: 0,
+        fail: 0,
+        totalDuration: 0
+      }
+    }
+    stats.byFunction[functionName].total++
+    if (success) {
+      stats.byFunction[functionName].success++
+    } else {
+      stats.byFunction[functionName].fail++
+    }
+    stats.byFunction[functionName].totalDuration += duration
+    
+    // 按日期统计
+    if (!stats.byDate[today]) {
+      stats.byDate[today] = {
+        total: 0,
+        success: 0,
+        fail: 0,
+        totalDuration: 0
+      }
+    }
+    stats.byDate[today].total++
+    if (success) {
+      stats.byDate[today].success++
+    } else {
+      stats.byDate[today].fail++
+    }
+    stats.byDate[today].totalDuration += duration
+    
+    setStorage(CLOUD_CALL_STATS_KEY, stats)
+  } catch (e) {
+    console.error('更新云函数调用统计失败:', e)
+  }
+}
+
+/**
+ * 获取云函数调用记录
+ * @param {string} functionName - 可选，按云函数名称筛选
+ * @param {string} date - 可选，按日期筛选（YYYY-MM-DD）
+ * @returns {Array} 调用记录列表
+ */
+export function getCloudCallLogs(functionName = null, date = null) {
+  try {
+    const logs = getStorage(CLOUD_CALL_LOG_KEY, [])
+    
+    let filtered = logs
+    
+    if (functionName) {
+      filtered = filtered.filter(log => log.functionName === functionName)
+    }
+    
+    if (date) {
+      filtered = filtered.filter(log => log.date === date)
+    }
+    
+    return filtered
+  } catch (e) {
+    console.error('获取云函数调用记录失败:', e)
+    return []
+  }
+}
+
+/**
+ * 获取云函数调用统计
+ * @param {string} date - 可选，按日期筛选
+ * @returns {Object} 统计信息
+ */
+export function getCloudCallStats(date = null) {
+  try {
+    const logs = date ? getCloudCallLogs(null, date) : getCloudCallLogs()
+    
+    const stats = {
+      total: logs.length,
+      success: 0,
+      fail: 0,
+      totalDuration: 0,
+      byFunction: {}
+    }
+    
+    logs.forEach(log => {
+      if (log.success) {
+        stats.success++
+      } else {
+        stats.fail++
+      }
+      stats.totalDuration += log.duration || 0
+      
+      if (!stats.byFunction[log.functionName]) {
+        stats.byFunction[log.functionName] = {
+          total: 0,
+          success: 0,
+          fail: 0,
+          totalDuration: 0
+        }
+      }
+      
+      stats.byFunction[log.functionName].total++
+      if (log.success) {
+        stats.byFunction[log.functionName].success++
+      } else {
+        stats.byFunction[log.functionName].fail++
+      }
+      stats.byFunction[log.functionName].totalDuration += log.duration || 0
+    })
+    
+    // 计算平均耗时
+    stats.avgDuration = stats.total > 0 ? Math.round(stats.totalDuration / stats.total) : 0
+    
+    Object.keys(stats.byFunction).forEach(name => {
+      const func = stats.byFunction[name]
+      func.avgDuration = func.total > 0 ? Math.round(func.totalDuration / func.total) : 0
+    })
+    
+    return stats
+  } catch (e) {
+    console.error('获取云函数调用统计失败:', e)
+    return { total: 0, success: 0, fail: 0, totalDuration: 0, byFunction: {}, avgDuration: 0 }
+  }
+}
+
+/**
+ * 获取云函数调用总数统计（从独立 storage 读取）
+ * @returns {Object} 总数统计信息
+ */
+export function getCloudCallTotalStats() {
+  try {
+    const stats = getStorage(CLOUD_CALL_STATS_KEY, {
+      total: 0,
+      success: 0,
+      fail: 0,
+      totalDuration: 0,
+      byFunction: {},
+      byDate: {}
+    })
+    
+    // 计算平均耗时
+    stats.avgDuration = stats.total > 0 ? Math.round(stats.totalDuration / stats.total) : 0
+    
+    // 为每个云函数计算平均耗时
+    Object.keys(stats.byFunction).forEach(name => {
+      const func = stats.byFunction[name]
+      func.avgDuration = func.total > 0 ? Math.round(func.totalDuration / func.total) : 0
+    })
+    
+    // 为每个日期计算平均耗时
+    Object.keys(stats.byDate).forEach(date => {
+      const dayStats = stats.byDate[date]
+      dayStats.avgDuration = dayStats.total > 0 ? Math.round(dayStats.totalDuration / dayStats.total) : 0
+    })
+    
+    return stats
+  } catch (e) {
+    console.error('获取云函数调用总数统计失败:', e)
+    return { 
+      total: 0, 
+      success: 0, 
+      fail: 0, 
+      totalDuration: 0, 
+      avgDuration: 0,
+      byFunction: {},
+      byDate: {}
+    }
+  }
+}
+
+/**
+ * 清空云函数调用记录
+ */
+export function clearCloudCallLogs() {
+  try {
+    setStorage(CLOUD_CALL_LOG_KEY, [])
+    setStorage(CLOUD_CALL_STATS_KEY, {
+      total: 0,
+      success: 0,
+      fail: 0,
+      totalDuration: 0,
+      byFunction: {},
+      byDate: {}
+    })
+    console.log('[云函数调用记录] 已清空')
+  } catch (e) {
+    console.error('清空云函数调用记录失败:', e)
+  }
+}
+
+/**
+ * 封装的云函数调用（自动记录调用信息）
+ * @param {string} name - 云函数名称
+ * @param {Object} data - 调用参数
+ * @returns {Promise} 云函数调用结果
+ */
+export async function callCloudFunction(name, data = {}) {
+  const startTime = Date.now()
+  
+  try {
+    const result = await wx.cloud.callFunction({
+      name,
+      data
+    })
+    
+    const duration = Date.now() - startTime
+    const success = result && result.result && result.result.success !== false
+    
+    recordCloudCall(name, data, success, duration, success ? '' : (result.result?.message || '未知错误'))
+    
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+    recordCloudCall(name, data, false, duration, error.message || '调用异常')
+    throw error
+  }
+}
+
 // 游戏界面布局（对齐 index_v1.0.3.html）
 export function getGameHudBottom() {
   return 160 // topPadding(60) + 波次行(50) + 分数卡片(50)

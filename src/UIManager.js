@@ -41,6 +41,11 @@ export class UIManager {
     // 排行榜加载状态
   this.leaderboardLoading = false
   this.leaderboardLoadTime = 0
+
+    // Logo 图片
+    this.logoImage = null
+    this.logoImageLoaded = false
+    this._loadLogoImage()
   }
 
   // 更新布局
@@ -151,80 +156,76 @@ export class UIManager {
     ctx.restore()
   }
 
-  // 绘制 LOGO - 精确还原 index.html 中的 SVG POPIT LOGO
-  drawLogo() {
-    const ctx = this.ctx
-    const logoX = this.width / 2
-    const logoY = this.height * 0.18
-    const logoWidth = 200
-    const logoHeight = 80
-    
-    ctx.save()
-    
-    // 创建渐变
-    const gradients = [
-      this.createLogoGradient(ctx, logoX - 50, logoY - 20, logoX - 30, logoY + 20, '#ff4b5c', '#c70039'), // P1
-      this.createLogoGradient(ctx, logoX - 15, logoY - 20, logoX + 5, logoY + 20, '#ffe600', '#ff9900'), // O
-      this.createLogoGradient(ctx, logoX + 20, logoY - 20, logoX + 40, logoY + 20, '#69f0ae', '#00b0ff'), // P2
-      this.createLogoGradient(ctx, logoX + 55, logoY - 20, logoX + 75, logoY + 20, '#00e5ff', '#2979ff'), // I
-      this.createLogoGradient(ctx, logoX + 90, logoY - 20, logoX + 110, logoY + 20, '#d500f9', '#651fff'), // T
-    ]
-    
-    const letterWidth = logoWidth / 5
-    const startX = logoX - logoWidth / 2
-    
-    // 绘制每个字母
-    const letters = ['P', 'O', 'P', 'I', 'T']
-    letters.forEach((letter, i) => {
-      const x = startX + i * letterWidth + letterWidth / 2
-      const y = logoY
-      
-      ctx.font = 'bold 36px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      
-      // 白色描边
-      ctx.strokeStyle = Colors.white
-      ctx.lineWidth = 4
-      ctx.strokeText(letter, x, y)
-      
-      // 渐变填充
-      ctx.fillStyle = gradients[i]
-      ctx.fillText(letter, x, y)
-      
-      // 高光
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
-      ctx.beginPath()
-      ctx.ellipse(x - 5, y - 10, 4, 2, -0.4, 0, Math.PI * 2)
-      ctx.fill()
-    })
-    
-    // 装饰点（Sprinkles）
-    const sprinkles = [
-      { x: startX - 10, y: logoY - 25, color: '#ff4b5c', size: 6 },
-      { x: startX + 10, y: logoY - 30, color: '#00e5ff', size: 4 },
-      { x: startX + 25, y: logoY - 22, color: '#ffe600', size: 5 },
-      { x: logoX + logoWidth / 2 + 10, y: logoY + 25, color: '#ffe600', size: 5 },
-      { x: logoX + logoWidth / 2 + 20, y: logoY + 20, color: '#69f0ae', size: 3 },
-      { x: logoX + logoWidth / 2 + 15, y: logoY + 30, color: '#00e5ff', size: 4 },
-    ]
-    
-    sprinkles.forEach(s => {
-      ctx.fillStyle = s.color
-      ctx.beginPath()
-      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2)
-      ctx.fill()
-    })
-    
-    ctx.restore()
+  // 加载 Logo 图片
+  _loadLogoImage() {
+    try {
+      const img = typeof wx !== 'undefined' && wx.createImage
+        ? wx.createImage()
+        : (typeof Image !== 'undefined' ? new Image() : null)
+      if (!img) return
+
+      img.onload = () => {
+        this.logoImage = img
+        this.logoImageLoaded = true
+      }
+      img.onerror = () => {
+        console.warn('Logo 图片加载失败')
+      }
+      img.src = 'src/assets/images/pop_logo.png'
+    } catch (e) {
+      console.warn('Logo 图片初始化失败:', e)
+    }
   }
 
-  // 创建 LOGO 渐变
-  createLogoGradient(ctx, x1, y1, x2, y2, color1, color2) {
-    const gradient = ctx.createLinearGradient(x1, y1, x2, y2)
-    gradient.addColorStop(0, color1)
-    gradient.addColorStop(1, color2)
-    return gradient
+  // 计算 Logo 自适应尺寸
+  _getLogoLayout() {
+    const img = this.logoImage
+    const aspectRatio = img && img.width && img.height
+      ? img.width / img.height
+      : 1.5
+
+    const maxWidth = this.width * 0.85
+    const maxHeight = this.height * 0.22
+
+    let drawWidth = maxWidth
+    let drawHeight = drawWidth / aspectRatio
+
+    if (drawHeight > maxHeight) {
+      drawHeight = maxHeight
+      drawWidth = drawHeight * aspectRatio
+    }
+
+    const logoScale = 1.05
+    drawWidth *= logoScale
+    drawHeight *= logoScale
+
+    const centerX = this.width / 2
+    const centerY = this.height * 0.18
+
+    return {
+      x: centerX - drawWidth / 2,
+      y: centerY - drawHeight / 2,
+      width: drawWidth,
+      height: drawHeight,
+    }
+  }
+
+  // 绘制 LOGO 图片（自适应屏幕尺寸）
+  drawLogo() {
+    if (!this.logoImageLoaded || !this.logoImage) return
+
+    const ctx = this.ctx
+    const layout = this._getLogoLayout()
+
+    ctx.save()
+    ctx.drawImage(
+      this.logoImage,
+      layout.x,
+      layout.y,
+      layout.width,
+      layout.height
+    )
+    ctx.restore()
   }
 
   // 绘制最高分数

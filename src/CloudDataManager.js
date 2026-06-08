@@ -8,6 +8,8 @@
  * 4. 频率限制：控制同步频率，避免频繁调用
  */
 
+import { callCloudFunction } from './utils.js'
+
 export class CloudDataManager {
   constructor() {
     // 待同步的数据缓存
@@ -76,10 +78,7 @@ export class CloudDataManager {
     this.pendingUpdates = {}
     
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: updates
-      })
+      const result = await callCloudFunction('gameData', updates)
       
       if (result.result.success) {
         this.failCount = 0  // 重置失败计数

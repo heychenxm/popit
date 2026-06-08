@@ -1,4 +1,4 @@
-import { getStorage, setStorage } from './utils.js'
+import { getStorage, setStorage, callCloudFunction } from './utils.js'
 import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
 import { config } from './config.js'
 import { cloudDataManager } from './CloudDataManager.js'
@@ -133,15 +133,12 @@ export class GameState {
     }
     
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: {
-          action: 'sync',
-          highestWave: this.bestWave,
-          highestScore: this.highScore,
-          coins: this.coins,
-          gems: 0
-        }
+      const result = await callCloudFunction('gameData', {
+        action: 'sync',
+        highestWave: this.bestWave,
+        highestScore: this.highScore,
+        coins: this.coins,
+        gems: 0
       })
       
       if (result.result.success) {
@@ -548,10 +545,7 @@ export class GameState {
     
     // 缓存无效，调用云端获取最新数据
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'getLeaderboard',
-        data: { type }
-      })
+      const result = await callCloudFunction('getLeaderboard', { type })
       
       if (result.result.success) {
         // 更新缓存
@@ -616,12 +610,9 @@ export class GameState {
   // 保存用户信息到云端
   async saveUserProfileToCloud(nickname, avatarUrl) {
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'saveUserProfile',
-        data: {
-          nickname,
-          avatarUrl
-        }
+      const result = await callCloudFunction('saveUserProfile', {
+        nickname,
+        avatarUrl
       })
       
       if (result.result.success) {
@@ -715,10 +706,7 @@ export class GameState {
     }
     
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'seasonLeaderboard',
-        data: { type }
-      })
+      const result = await callCloudFunction('seasonLeaderboard', { type })
       
       if (result.result.success) {
         // ✅ 更新缓存
@@ -834,15 +822,12 @@ export class GameState {
    */
   async updateSeasonData(score, wave, clears, streak) {
     try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: {
-          action: 'updateSeasonData',
-          seasonScore: score,
-          seasonWave: wave,
-          totalClears: clears,
-          bestStreak: streak
-        }
+      const result = await callCloudFunction('gameData', {
+        action: 'updateSeasonData',
+        seasonScore: score,
+        seasonWave: wave,
+        totalClears: clears,
+        bestStreak: streak
       })
       
       if (result.result.success) {
