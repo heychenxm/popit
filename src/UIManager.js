@@ -294,13 +294,6 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.fillText('开始游戏', this.width / 2, btnY + btnHeight / 2)
     
-    // 播放箭头
-    ctx.shadowColor = 'transparent'
-    ctx.shadowOffsetY = 0
-    ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
-    ctx.fillText('▶', btnX + btnWidth - 28, btnY + btnHeight / 2)
-    
     // 记录按钮区域
     this.buttons.push({
       id: 'start',
