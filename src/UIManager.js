@@ -2214,6 +2214,8 @@ export class UIManager {
     startX += coinSize + 4
     
     ctx.fillText(priceText, startX, centerY)
+    
+    return totalWidth
   }
 
   // 绘制失败弹窗
@@ -2551,7 +2553,11 @@ export class UIManager {
     
     ctx.save()
     
-    const toastW = 200
+    // 根据文本内容自适应宽度
+    ctx.font = 'bold 12px sans-serif'
+    ctx.textAlign = 'center'
+    const textWidth = ctx.measureText(this.toast.text).width
+    const toastW = Math.min(400, Math.max(200, textWidth + 40))  // 最小 200，最大 400，左右各留 20px 边距
     const toastH = 36
     const toastX = (this.width - toastW) / 2
     const toastY = this.height - 100

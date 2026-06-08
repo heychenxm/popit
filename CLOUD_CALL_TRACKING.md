@@ -51,7 +51,7 @@ const specificLogs = getCloudCallLogs('gameData', '2026-06-08')
 ```javascript
 import { getCloudCallStats } from './utils.js'
 
-// 获取所有统计
+// 获取所有统计（从日志计算）
 const allStats = getCloudCallStats()
 // 返回：
 // {
@@ -80,6 +80,37 @@ const allStats = getCloudCallStats()
 
 // 获取今天的统计
 const todayStats = getCloudCallStats('2026-06-08')
+```
+
+### 3.1 获取总数统计（推荐）
+
+```javascript
+import { getCloudCallTotalStats } from './utils.js'
+
+// 获取独立的总数统计（从 cloudCallStats storage 直接读取）
+const totalStats = getCloudCallTotalStats()
+// 返回：
+// {
+//   total: 100,          // 总调用次数（永久累计，不受日志数量限制）
+//   success: 95,         // 总成功次数
+//   fail: 5,             // 总失败次数
+//   totalDuration: 5000, // 总耗时（毫秒）
+//   avgDuration: 50,     // 平均耗时（毫秒）
+//   byFunction: {        // 按云函数分组统计（永久累计）
+//     gameData: { ... },
+//     getLeaderboard: { ... }
+//   },
+//   byDate: {            // 按日期分组统计
+//     "2026-06-08": { ... },
+//     "2026-06-07": { ... }
+//   }
+// }
+
+// 查看某个云函数的总调用次数
+console.log('gameData 总调用次数:', totalStats.byFunction.gameData?.total)
+
+// 查看今天的调用次数
+console.log('今天调用次数:', totalStats.byDate['2026-06-08']?.total)
 ```
 
 ### 4. 清空记录
