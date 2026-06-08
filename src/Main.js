@@ -318,6 +318,9 @@ export class Main {
 
   // 刷新赛季排名数据
   async refreshSeasonLeaderboard() {
+    // 设置加载状态
+    this.uiManager.seasonLeaderboardLoading = true
+    
     const result = await this.gameState.getSeasonData(this.uiManager.seasonLeaderboardType)
     
     if (result.success) {
@@ -326,6 +329,9 @@ export class Main {
       this.uiManager.showToast(result.message || '获取赛季排名失败')
       this.uiManager.seasonLeaderboardData = null
     }
+    
+    // 清除加载状态
+    this.uiManager.seasonLeaderboardLoading = false
   }
 
   // 切换赛季排名类型
@@ -943,6 +949,9 @@ export class Main {
 
   // 刷新排行榜数据
   async refreshLeaderboard() {
+    // 设置加载状态
+    this.uiManager.leaderboardLoading = true
+    
     const result = await this.gameState.getLeaderboard(this.uiManager.leaderboardType)
     
     if (result.success) {
@@ -955,6 +964,9 @@ export class Main {
       this.uiManager.showToast(result.message || '获取排行榜失败')
       this.uiManager.leaderboardData = null
     }
+    
+    // 清除加载状态
+    this.uiManager.leaderboardLoading = false
   }
 
   // 切换排行榜类型

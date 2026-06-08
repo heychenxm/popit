@@ -38,10 +38,9 @@ export class UIManager {
     // 动画状态
     this.animationFrame = 0
     
-    // 按钮布局
-    this.menuButtons = []
-    this.gameButtons = []
-    this.modalButtons = []
+    // 排行榜加载状态
+  this.leaderboardLoading = false
+  this.leaderboardLoadTime = 0
   }
 
   // 更新布局
@@ -1303,7 +1302,28 @@ export class UIManager {
     const top3ContainerH = 140
     const top3ItemW = (modalW - 60) / 3
     
-    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+    // 检查是否需要显示骨架屏
+    const showSkeleton = this.leaderboardLoading || !this.leaderboardData || !this.leaderboardData.leaderboard || this.leaderboardData.leaderboard.length === 0
+    
+    if (showSkeleton) {
+      // 显示骨架屏 - 前三名
+      for (let i = 0; i < 3; i++) {
+        const itemX = modalX + 20 + i * (top3ItemW + 10)
+        const itemY = i === 1 ? top3ContainerY - 10 : top3ContainerY
+        const itemH = i === 1 ? top3ContainerH + 10 : top3ContainerH
+        
+        // 骨架屏背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+        drawRoundRect(ctx, itemX, itemY, top3ItemW, itemH, 16)
+        ctx.fill()
+        
+        // 骨架屏动画（闪烁效果）
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500)
+        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
+        drawRoundRect(ctx, itemX + 5, itemY + 5, top3ItemW - 10, itemH - 10, 12)
+        ctx.fill()
+      }
+    } else {
       const leaderboard = this.leaderboardData.leaderboard
       const top1 = leaderboard[0]
       const top2 = leaderboard[1]
@@ -1348,7 +1368,23 @@ export class UIManager {
     drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
     ctx.fill()
     
-    if (this.leaderboardData && this.leaderboardData.leaderboard) {
+    if (showSkeleton) {
+      // 显示骨架屏 - 列表
+      for (let i = 0; i < 3; i++) {
+        const itemY = listContainerY + listInnerPadding + i * (listItemH + listItemGap)
+        
+        // 骨架屏背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+        drawRoundRect(ctx, listContainerX + listInnerPadding, itemY, listContainerW - listInnerPadding * 2, listItemH, 8)
+        ctx.fill()
+        
+        // 骨架屏动画
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
+        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
+        drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
+        ctx.fill()
+      }
+    } else {
       const leaderboard = this.leaderboardData.leaderboard
       const listStartIndex = 3
       const itemX = listContainerX + listInnerPadding
@@ -1505,18 +1541,37 @@ export class UIManager {
     
     // 前 6 名展示区（2 行 3 列）
     const topContainerY = switchContainerY + switchContainerH + 20
-    const topContainerH = 280
+    const topContainerH = 140
     const topItemW = (modalW - 60) / 3
-    const topItemH = 130
-    const topGap = 15
     
-    if (this.seasonLeaderboardData && this.seasonLeaderboardData.leaderboard) {
+    // 检查是否需要显示骨架屏
+    const showSeasonSkeleton = this.seasonLeaderboardLoading || !this.seasonLeaderboardData || !this.seasonLeaderboardData.leaderboard || this.seasonLeaderboardData.leaderboard.length === 0
+    
+    if (showSeasonSkeleton) {
+      // 显示骨架屏 - 前三名（与普通排行榜一致）
+      for (let i = 0; i < 3; i++) {
+        const itemX = modalX + 20 + i * (topItemW + 10)
+        const itemY = i === 1 ? topContainerY - 10 : topContainerY
+        const itemH = i === 1 ? topContainerH + 10 : topContainerH
+        
+        // 骨架屏背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+        drawRoundRect(ctx, itemX, itemY, topItemW, itemH, 16)
+        ctx.fill()
+        
+        // 骨架屏动画（闪烁效果）
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.3)
+        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
+        drawRoundRect(ctx, itemX + 5, itemY + 5, topItemW - 10, itemH - 10, 12)
+        ctx.fill()
+      }
+    } else {
       const leaderboard = this.seasonLeaderboardData.leaderboard
       
       // 第 1 行：第 2、1、3 名
       if (leaderboard[1]) {
         this.drawSeasonLeaderboardRankCard(
-          modalX + 20, topContainerY, topItemW, topItemH,
+          modalX + 20, topContainerY, topItemW, topContainerH,
           leaderboard[1].rank, leaderboard[1].nickname, leaderboard[1].avatarUrl, leaderboard[1].value,
           2, leaderboard[1].isUser
         )
@@ -1524,7 +1579,7 @@ export class UIManager {
       
       if (leaderboard[0]) {
         this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + topItemW + topGap, topContainerY - 10, topItemW, topItemH + 10,
+          modalX + 20 + topItemW + 10, topContainerY - 10, topItemW, topContainerH + 10,
           leaderboard[0].rank, leaderboard[0].nickname, leaderboard[0].avatarUrl, leaderboard[0].value,
           1, leaderboard[0].isUser, true
         )
@@ -1532,17 +1587,51 @@ export class UIManager {
       
       if (leaderboard[2]) {
         this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + (topItemW + topGap) * 2, topContainerY, topItemW, topItemH,
+          modalX + 20 + (topItemW + 10) * 2, topContainerY, topItemW, topContainerH,
           leaderboard[2].rank, leaderboard[2].nickname, leaderboard[2].avatarUrl, leaderboard[2].value,
           3, leaderboard[2].isUser
         )
       }
+    }
+    
+    // 排行榜列表（4-6 名占满容器宽度，左右等距）
+    const modalPadding = 20
+    const listInnerPadding = 10
+    const listContainerX = modalX + modalPadding
+    const listContainerW = modalW - modalPadding * 2
+    const listContainerY = topContainerY + topContainerH + 10
+    const listContainerH = 160
+    const listItemH = 40
+    const listItemGap = 8
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
+    ctx.fill()
+    
+    if (showSeasonSkeleton) {
+      // 显示骨架屏 - 列表（与普通排行榜一致）
+      for (let i = 0; i < 3; i++) {
+        const itemY = listContainerY + listInnerPadding + i * (listItemH + listItemGap)
+        
+        // 骨架屏背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+        drawRoundRect(ctx, listContainerX + listInnerPadding, itemY, listContainerW - listInnerPadding * 2, listItemH, 8)
+        ctx.fill()
+        
+        // 骨架屏动画
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
+        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
+        drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
+        ctx.fill()
+      }
+    } else {
+      const leaderboard = this.seasonLeaderboardData.leaderboard
       
       // 第 2 行：第 4、5、6 名
       for (let i = 3; i < 6 && i < leaderboard.length; i++) {
         const col = i - 3
         this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + col * (topItemW + topGap), topContainerY + topItemH + topGap + 10, topItemW, topItemH,
+          modalX + 20 + col * (topItemW + topGap), topContainerY + topContainerH + topGap + 10, topItemW, topItemH,
           leaderboard[i].rank, leaderboard[i].nickname, leaderboard[i].avatarUrl, leaderboard[i].value,
           i + 1, leaderboard[i].isUser
         )
@@ -1557,6 +1646,20 @@ export class UIManager {
     ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
     
     ctx.restore()
+  }
+  
+  // 绘制骨架屏动画
+  drawSkeletonScreen(ctx, x, y, w, h, delay = 0) {
+    // 骨架屏背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    drawRoundRect(ctx, x, y, w, h, 8)
+    ctx.fill()
+    
+    // 骨架屏动画（闪烁效果）
+    const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + delay)
+    ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
+    drawRoundRect(ctx, x + 5, y + 5, w - 10, h - 10, 6)
+    ctx.fill()
   }
 
   // 绘制赛季排名卡片
