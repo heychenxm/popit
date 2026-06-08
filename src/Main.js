@@ -81,9 +81,8 @@ export class Main {
     // 绑定游戏生命周期事件
     this.bindLifecycleEvents()
     
-    // 不再自动同步云端数据，完全使用本地数据
-    // 本地数据优先，云端仅作为备份，不主动同步
-    console.log('使用本地数据，云端同步已禁用')
+    // 启动时同步云端数据（本地数据优先，云端作为备份）
+    await this.syncCloudData()
     
     // 开始游戏循环
     this.start()
@@ -93,18 +92,17 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）时不再同步数据
-    // 数据完全保存在本地，不需要主动同步
+    // 游戏隐藏（切换到后台）时同步数据到云端
     wx.onHide(() => {
       if (this.pendingShare) {
         this.pendingShare.sawHide = true
         this.pendingShare.hiddenAt = Date.now()
       }
-      // 不再调用 syncPendingData，数据只保存在本地
+      // 同步待保存的数据到云端
+      this.flushCloudData()
     })
     
-    // 游戏显示（回到前台）时不再自动同步数据
-    // 完全使用本地数据，避免频繁调用云函数
+    // 游戏显示（回到前台）时同步云端数据
     wx.onShow(() => {
       if (this.shareShowTimer) {
         clearTimeout(this.shareShowTimer)
@@ -113,8 +111,8 @@ export class Main {
         this.onSharePanelClosed(false)
       }, 120)
       
-      // 不再自动同步云端数据
-      // 本地数据优先，云端仅作为备份
+      // 回到前台时同步云端数据（确保数据是最新的）
+      this.syncCloudData()
     })
   }
 
@@ -132,6 +130,48 @@ export class Main {
     this.hasTriedInitUserInfo = true
     
     await this.initUserInfo()
+  }
+
+  // 启动时同步云端数据（本地数据优先，云端作为备份）
+  async syncCloudData() {
+    try {
+      // 检查是否有本地数据
+      const hasLocalData = this.gameState.bestWave > 0 || this.gameState.highScore > 0 || this.gameState.coins > 0
+      
+      if (!hasLocalData) {
+        // 本地无数据，从云端同步
+        console.log('本地无数据，从云端同步...')
+        const result = await this.gameState.syncCloudData()
+        if (result && result.success) {
+          console.log('云端数据同步成功')
+        } else if (result && !result.success) {
+          console.log('云端数据同步失败:', result.message)
+        }
+      } else {
+        console.log('本地有数据，跳过启动同步')
+      }
+    } catch (err) {
+      console.warn('启动同步云端数据失败:', err.message)
+    }
+  }
+
+  // 刷新待同步数据到云端（游戏隐藏时调用）
+  async flushCloudData() {
+    try {
+      // 检查是否有待同步数据
+      const pendingUpdates = this.gameState.getPendingCloudUpdates()
+      if (pendingUpdates && Object.keys(pendingUpdates).length > 0) {
+        console.log('有待同步数据，刷新到云端...')
+        const result = await this.gameState.flushCloudData()
+        if (result && result.success) {
+          console.log('云端数据刷新成功')
+        } else {
+          console.log('云端数据刷新失败:', result?.message)
+        }
+      }
+    } catch (err) {
+      console.warn('刷新云端数据失败:', err.message)
+    }
   }
 
   // 初始化用户信息（在用户确认授权后调用）

@@ -674,6 +674,28 @@ export class GameState {
   }
   
   /**
+   * 获取待同步数据
+   * @returns {Object} 待同步数据
+   */
+  getPendingCloudUpdates() {
+    return cloudDataManager.getPendingUpdates()
+  }
+  
+  /**
+   * 刷新待同步数据到云端
+   * @returns {Promise<Object>} 同步结果
+   */
+  async flushCloudData() {
+    const pendingUpdates = cloudDataManager.getPendingUpdates()
+    if (Object.keys(pendingUpdates).length === 0) {
+      return { success: true, message: '无待同步数据' }
+    }
+    
+    const result = await cloudDataManager.flush()
+    return result
+  }
+  
+  /**
    * 初始化赛季信息
    */
   initSeasonInfo() {
