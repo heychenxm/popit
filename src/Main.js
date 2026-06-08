@@ -936,7 +936,7 @@ export class Main {
       this.vibrate('medium')
       this.audioManager.play('success')
       this.uiManager.showToast(
-        `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币 🪙'}`
+        `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币'}`
       )
       return true
     } else {
@@ -1036,7 +1036,7 @@ export class Main {
     
     const leftApp = pending.sawHide
     
-    // 切到微信聊天再返回：可自动发奖
+    // 切到微信聊天再返回：可自动发奖（用户确实进行了分享操作）
     if (leftApp && pending.hiddenAt) {
       const awayMs = Date.now() - pending.hiddenAt
       if (awayMs < 300) {
@@ -1049,9 +1049,15 @@ export class Main {
       return
     }
     
-    // 分享浮层未触发 onHide：需用户点击屏幕确认（避免取消也发奖）
-    if (fromTouch && elapsed >= 600) {
+    // 分享浮层未触发 onHide：需要用户点击屏幕确认，并且离开时间足够长才发奖
+    // 避免用户只是打开分享面板就关闭也发奖
+    if (fromTouch && elapsed >= 1000 && leftApp) {
+      // 只有确实离开过小游戏（触发 onHide）才发奖
       this.applyShareReward(pending.type)
+    } else if (fromTouch) {
+      // 用户点击屏幕但无法确认是否分享，清除状态不发奖
+      console.log('无法确认分享是否成功，不发奖')
+      this.clearShareState()
     }
   }
   
@@ -1073,7 +1079,7 @@ export class Main {
       }
       this.gameState.recordShare()
       this.uiManager.currentScreen = 'menu'
-      this.uiManager.showToast(`分享成功！金币 +${config.rewards.share} 🪙`)
+      this.uiManager.showToast(`分享成功！金币 +${config.rewards.share}`)
       return
     }
     
@@ -1085,7 +1091,7 @@ export class Main {
       }
       this.gameState.claimShareGift()
       this.uiManager.currentScreen = 'menu'
-      this.uiManager.showToast(`分享成功！金币 +${config.rewards.shareGift} 🪙`)
+      this.uiManager.showToast(`分享成功！金币 +${config.rewards.shareGift}`)
     }
   }
 
