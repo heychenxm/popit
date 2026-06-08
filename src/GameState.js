@@ -40,16 +40,6 @@ export class GameState {
     this.lastCheckinDate = getStorage('lastCheckinDate', '')
     this.checkinStreak = getStorage('checkinStreak', 0)
     this.hasCheckedInToday = false  // 当前是否已签到
-    
-    // 签到状态缓存
-    this.checkinStatusCache = {
-      data: null,
-      timestamp: 0
-    }
-    this.checkinCacheDuration = 300000 // 5 分钟缓存
-    
-    // 分享礼包数据
-    this.lastShareGiftDate = getStorage('lastShareGiftDate', '')
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
     // 初始化时检查今天是否已领取
     this.updateShareGiftStatus()
@@ -69,17 +59,17 @@ export class GameState {
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     
-    // 云端数据同步标志
+    // 云端数据同步标志（已移除，不再使用）
     this.cloudSynced = false
     this.cloudAvailable = true
     
-    // 待同步的通关数据（延迟同步优化）
+    // 有待同步的数据标志（用于排行榜同步判断）
     this.pendingCloudSync = false
     
     // 排行榜缓存
     this.leaderboardCache = {
-      score: { data: null, timestamp: 0, expire: 600000 },  // 10 分钟缓存
-      wave: { data: null, timestamp: 0, expire: 600000 }
+      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存（从 600000 改为 1800000）
+      wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
     }
     
     // 用户信息
@@ -88,6 +78,13 @@ export class GameState {
       avatarUrl: getStorage('avatarUrl', ''),
       authorized: getStorage('userInfoAuthorized', false)
     }
+    
+    // 签到状态缓存（5 分钟）
+    this.checkinStatusCache = {
+      data: null,
+      timestamp: 0
+    }
+    this.checkinCacheDuration = 300000 // 5 分钟缓存
   }
 
   // 同步云端数据
@@ -186,16 +183,6 @@ export class GameState {
     this.clearTimer()
   }
 
-  // 重置所有数据（用于数据迁移）
-  resetAllData() {
-    this.highScore = 0
-    this.bestWave = 0
-    this.coins = config.game.initialCoins
-    setStorage('highScore', 0)
-    setStorage('bestWave', 0)
-    setStorage('coins', config.game.initialCoins)
-  }
-
   // 返回主菜单
   resetToMenu() {
     this.clearTimer()
@@ -203,10 +190,7 @@ export class GameState {
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
-    // 同步待同步的通关数据
-    this.syncPendingData().catch(err => {
-      console.error('同步待同步数据失败:', err)
-    })
+    // 不再同步待同步数据，数据只保存在本地
     // 注意：不重置 uiManager.currentScreen，由 Main.js 控制
   }
 
@@ -231,7 +215,7 @@ export class GameState {
   }
 
   // 保存最高分和最高关卡（关卡结束后调用）
-  // 优化：延迟同步，只在游戏结束时同步
+  // 完全本地保存，不同步到云端
   async saveHighScore() {
     let hasUpdate = false
     
@@ -250,32 +234,10 @@ export class GameState {
       hasUpdate = true
     }
     
-    // 标记有待同步的数据（延迟到游戏结束时同步）
+    // 标记有待同步的数据（只在打开排行榜时同步）
     if (hasUpdate) {
       this.pendingCloudSync = true
-      console.log('标记待同步数据，将在游戏结束时同步')
     }
-  }
-  
-  /**
-   * 同步待同步的通关数据（游戏结束时调用）
-   */
-  async syncPendingData() {
-    if (!this.pendingCloudSync) {
-      return
-    }
-    
-    console.log('开始同步待同步数据...')
-    
-    const updates = {
-      highestScore: this.highScore,
-      highestWave: this.bestWave
-    }
-    
-    await this.updateCloudGameData(updates)
-    
-    this.pendingCloudSync = false
-    console.log('待同步数据同步完成')
   }
 
   // 增加金币
@@ -289,13 +251,8 @@ export class GameState {
   // 检查是否可以签到（用于 UI 显示红点）
   canCheckin() {
     const today = getTodayString()
-    // 如果云端已同步，使用云端数据；否则使用本地数据
-    if (this.cloudSynced) {
-      return this.lastCheckinDate !== today
-    } else {
-      // 云端未同步时，保守处理：不显示红点，避免误导
-      return false
-    }
+    // 完全使用本地数据判断
+    return this.lastCheckinDate !== today
   }
 
   // 更新今日是否已签到状态
@@ -360,98 +317,41 @@ export class GameState {
     return { type: 'coin', amount: config.rewards.shareGift }
   }
 
-  // 获取云端签到状态
-  // 优化：添加 5 分钟缓存，使用合并后的 gameData 云函数
-  async checkCloudCheckinStatus() {
-    // 检查缓存
-    const now = Date.now()
-    if (this.checkinStatusCache.data && 
-        (now - this.checkinStatusCache.timestamp) < this.checkinCacheDuration) {
-      return this.checkinStatusCache.data
+  // 执行签到（完全本地处理，不调用云函数）
+  doLocalCheckin() {
+    const today = getTodayString()
+    const yesterday = getYesterdayString()
+    
+    // 检查今天是否已签到
+    if (this.lastCheckinDate === today) {
+      return null // 今天已签到
     }
     
-    try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: { action: 'checkinStatus' }
-      })
-      
-      if (result.result.success && result.result.data.cloudAvailable) {
-        const status = {
-          canCheckin: !result.result.data.isTodayChecked,
-          streak: result.result.data.checkinStreak,
-          todayReward: result.result.data.todayReward,
-          cloudAvailable: true
-        }
-        
-        // 更新缓存
-        this.checkinStatusCache.data = status
-        this.checkinStatusCache.timestamp = now
-        
-        return status
-      } else {
-        throw new Error('云端不可用')
-      }
-    } catch (err) {
-      // 云端不可用时降级到本地检查
-      const status = {
-        canCheckin: this.canCheckin(),
-        streak: this.checkinStreak,
-        todayReward: this.getTodayReward(),
-        cloudAvailable: false
-      }
-      
-      // 也缓存本地结果
-      this.checkinStatusCache.data = status
-      this.checkinStatusCache.timestamp = now
-      
-      return status
+    if (this.lastCheckinDate === yesterday) {
+      // 连续签到
+      this.checkinStreak++
+    } else if (this.lastCheckinDate !== today) {
+      // 中断后重新签到或首次签到
+      this.checkinStreak = 1
     }
-  }
-
-  // 执行云端签到
-  // 优化：使用合并后的 gameData 云函数
-  async doCloudCheckin() {
-    try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: { action: 'doCheckin' }
-      })
-      
-      if (result.result.success && result.result.data.cloudAvailable) {
-        // 更新本地数据
-        this.lastCheckinDate = getTodayString()
-        this.checkinStreak = result.result.data.checkinStreak
-        setStorage('lastCheckinDate', this.lastCheckinDate)
-        setStorage('checkinStreak', this.checkinStreak)
-        
-        // 更新金币/宝石
-        if (result.result.data.reward.type === 'coin') {
-          this.addCoins(result.result.data.reward.amount)
-          // 同步到云端
-          await this.updateCloudGameData({ addCoins: result.result.data.reward.amount })
-        } else {
-          // 宝石逻辑（暂未实现）
-        }
-        
-        return {
-          success: true,
-          reward: result.result.data.reward,
-          streak: result.result.data.checkinStreak
-        }
-      } else {
-        return {
-          success: false,
-          message: result.result.message || '云端不可用'
-        }
-      }
-    } catch (err) {
-      console.error('云端签到失败:', err)
-      return {
-        success: false,
-        message: '网络错误，请稍后重试'
-      }
+    
+    this.lastCheckinDate = today
+    setStorage('lastCheckinDate', today)
+    setStorage('checkinStreak', this.checkinStreak)
+    
+    // 更新今日是否已签到状态
+    this.hasCheckedInToday = true
+    
+    // 根据签到天数给予奖励
+    const reward = this.getTodayReward()
+    
+    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
+    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
+    if (isGem) {
+      return { type: 'gem', amount: reward.amount }
     }
+    this.addCoins(reward.amount)
+    return { type: 'coin', amount: reward.amount }
   }
 
   // 获取当天签到奖励（新规则：纯金币模式）
@@ -476,36 +376,17 @@ export class GameState {
     }
   }
 
-  // 执行签到（本地降级方案，云端不可用时使用）
-  doCheckin() {
+  // 获取签到状态（完全本地判断，不调用云函数）
+  getCheckinStatus() {
     const today = getTodayString()
-    const yesterday = getYesterdayString()
+    const localCanCheckin = (this.lastCheckinDate !== today)
     
-    if (this.lastCheckinDate === yesterday) {
-      // 连续签到
-      this.checkinStreak++
-    } else if (this.lastCheckinDate !== today) {
-      // 中断后重新签到或首次签到
-      this.checkinStreak = 1
+    return {
+      canCheckin: localCanCheckin,
+      streak: this.checkinStreak,
+      todayReward: this.getTodayReward(),
+      cloudAvailable: false  // 使用本地数据
     }
-    
-    this.lastCheckinDate = today
-    setStorage('lastCheckinDate', today)
-    setStorage('checkinStreak', this.checkinStreak)
-    
-    // 更新今日是否已签到状态
-    this.hasCheckedInToday = true
-    
-    // 根据签到天数给予奖励（新规则）
-    const reward = this.getTodayReward()
-    
-    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
-    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
-    if (isGem) {
-      return { type: 'gem', amount: reward.amount }
-    }
-    this.addCoins(reward.amount)
-    return { type: 'coin', amount: reward.amount }
   }
 
   // 购买生命
@@ -613,7 +494,7 @@ export class GameState {
     const cache = this.leaderboardCache[type]
     const now = Date.now()
     
-    // 检查缓存是否有效
+    // 检查缓存是否有效（30 分钟）
     if (cache && cache.data && (now - cache.timestamp) < cache.expire) {
       console.log(`使用排行榜缓存 (${type})`)
       return {
@@ -623,6 +504,7 @@ export class GameState {
       }
     }
     
+    // 缓存无效，调用云端获取最新数据
     try {
       const result = await wx.cloud.callFunction({
         name: 'getLeaderboard',
@@ -646,6 +528,16 @@ export class GameState {
       }
     } catch (err) {
       console.error('获取排行榜失败:', err)
+      // 如果缓存存在但过期，返回缓存数据作为降级
+      if (cache && cache.data) {
+        console.log('返回过期缓存数据')
+        return {
+          success: true,
+          data: cache.data,
+          fromCache: true,
+          expired: true
+        }
+      }
       return {
         success: false,
         message: '获取排行榜失败，请稍后重试'
@@ -716,27 +608,35 @@ export class GameState {
     }
   }
 
-  // 更新云端用户游戏数据（添加昵称和头像）
-  // 优化：使用合并后的 gameData 云函数 + CloudDataManager 批量更新
+  // 更新云端用户游戏数据（完全本地优先，不自动同步）
+  // 数据只保存在本地，不主动同步到云端
   async updateCloudGameData(updateData) {
     // 添加用户信息到更新数据中
     const dataWithUserInfo = {
-      action: 'update',
       ...updateData,
       nickname: this.userInfo.nickname,
       avatarUrl: this.userInfo.avatarUrl
     }
     
-    // 使用 CloudDataManager 批量更新
+    // 只保存到本地，不自动同步
     cloudDataManager.addUpdate(dataWithUserInfo)
     
+    // 返回成功，但不执行实际同步
     return true
   }
   
   /**
-   * 强制同步云端数据（用于游戏退出等关键场景）
+   * 手动同步数据到云端（只在需要时调用，如打开排行榜前）
+   * @returns {Promise<Object>} 同步结果
    */
-  async forceSyncCloudData() {
-    await cloudDataManager.forceSync()
+  async syncToCloud() {
+    // 检查是否有待同步数据
+    const pendingUpdates = cloudDataManager.getPendingUpdates()
+    if (Object.keys(pendingUpdates).length === 0) {
+      return { success: true, message: '无待同步数据' }
+    }
+    
+    const result = await cloudDataManager.flush()
+    return result
   }
 }

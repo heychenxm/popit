@@ -14,15 +14,17 @@ export class Main {
     // 初始化微信 API
     wechatAPI.init()
     
-    // 初始化云开发（根据环境自动选择云环境 ID）
+    // 初始化云开发（可选功能，失败不影响游戏）
     try {
       wx.cloud.init({
         env: config.cloudEnv,
         traceUser: true
       })
-      console.log(`云开发初始化成功 (环境: ${config.env})`)
+      console.log(`云开发初始化成功 (环境：${config.env})`)
+      this.cloudInitialized = true
     } catch (err) {
-      console.error('云开发初始化失败:', err)
+      console.warn('云开发初始化失败，使用纯本地模式:', err.message)
+      this.cloudInitialized = false
     }
     
     // 获取 canvas
@@ -79,16 +81,9 @@ export class Main {
     // 绑定游戏生命周期事件
     this.bindLifecycleEvents()
     
-    // 同步云端数据（异步，不阻塞游戏启动）
-    this.gameState.syncCloudData().then(() => {
-      console.log('云端数据同步完成')
-      // 更新分享礼包状态
-      this.gameState.updateShareGiftStatus()
-    }).catch(err => {
-      console.error('云端数据同步失败:', err)
-      // 即使云端同步失败，也要更新本地状态
-      this.gameState.updateShareGiftStatus()
-    })
+    // 不再自动同步云端数据，完全使用本地数据
+    // 本地数据优先，云端仅作为备份，不主动同步
+    console.log('使用本地数据，云端同步已禁用')
     
     // 开始游戏循环
     this.start()
@@ -98,27 +93,18 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 记录上次同步时间
-    let lastSyncTime = 0
-    const syncInterval = 60000 // 1 分钟内不重复同步
-    
-    // 游戏隐藏（切换到后台）时强制同步数据
+    // 游戏隐藏（切换到后台）时不再同步数据
+    // 数据完全保存在本地，不需要主动同步
     wx.onHide(() => {
       if (this.pendingShare) {
         this.pendingShare.sawHide = true
         this.pendingShare.hiddenAt = Date.now()
       }
-      
-      // 先同步待同步的通关数据
-      this.gameState.syncPendingData().then(() => {
-        // 再强制同步所有数据
-        return this.gameState.forceSyncCloudData()
-      }).catch(err => {
-        console.error('强制同步失败:', err)
-      })
+      // 不再调用 syncPendingData，数据只保存在本地
     })
     
-    // 游戏显示（回到前台）时刷新数据
+    // 游戏显示（回到前台）时不再自动同步数据
+    // 完全使用本地数据，避免频繁调用云函数
     wx.onShow(() => {
       if (this.shareShowTimer) {
         clearTimeout(this.shareShowTimer)
@@ -127,18 +113,8 @@ export class Main {
         this.onSharePanelClosed(false)
       }, 120)
       
-      if (this.pendingShare?.armed) {
-        return
-      }
-      
-      const now = Date.now()
-      // 如果距离上次同步超过 1 分钟，才同步
-      if (now - lastSyncTime > syncInterval) {
-        lastSyncTime = now
-        this.gameState.syncCloudData().catch(err => {
-          console.error('刷新数据失败:', err)
-        })
-      }
+      // 不再自动同步云端数据
+      // 本地数据优先，云端仅作为备份
     })
   }
 
@@ -851,13 +827,27 @@ export class Main {
     }
   }
 
-  // 显示排行榜
+  // 显示排行榜（先同步数据，再获取排名）
   async showLeaderboard() {
     this.audioManager.play('click')
     this.vibrate('light')
     
     // 切换到排行榜界面
     this.uiManager.currentScreen = 'leaderboard'
+    
+    // 检查云开发是否已初始化
+    if (!this.cloudInitialized) {
+      console.warn('云开发未初始化，无法获取排行榜')
+      this.uiManager.showToast('云开发未初始化')
+      this.uiManager.leaderboardData = null
+      return
+    }
+    
+    // 先同步本地数据到云端（5 分钟最多同步 1 次）
+    const syncResult = await this.gameState.syncToCloud()
+    if (!syncResult.success) {
+      console.log('数据同步跳过:', syncResult.message)
+    }
     
     // 获取排行榜数据（默认最高分）
     this.uiManager.leaderboardType = 'score'
@@ -870,6 +860,10 @@ export class Main {
     
     if (result.success) {
       this.uiManager.leaderboardData = result.data
+      // 显示同步状态
+      if (result.fromCache) {
+        console.log('使用缓存的排行榜数据')
+      }
     } else {
       this.uiManager.showToast(result.message || '获取排行榜失败')
       this.uiManager.leaderboardData = null
@@ -933,32 +927,21 @@ export class Main {
     this.uiManager.currentScreen = 'checkin'
   }
 
-  // 执行签到（在签到弹窗中点击按钮时调用）
+  // 执行签到（完全本地处理，不调用云函数）
   async doCheckin() {
-    // 获取云端签到状态
-    const status = await this.gameState.checkCloudCheckinStatus()
+    // 使用本地签到逻辑
+    const result = this.gameState.doLocalCheckin()
     
-    if (status.canCheckin) {
-      // 执行云端签到
-      const result = await this.gameState.doCloudCheckin()
-      if (result.success) {
-        this.vibrate('medium')
-        this.audioManager.play('success')
-        this.uiManager.showToast(
-          `签到成功！领取 ${result.reward.amount} 金币`
-        )
-        // 更新签到状态，让 UI 显示已签到
-        this.gameState.hasCheckedInToday = true
-        // 签到成功后不关闭弹窗，用户手动关闭
-        return true
-      } else {
-        this.vibrate('light')
-        this.uiManager.showToast(result.message)
-        return false
-      }
+    if (result) {
+      this.vibrate('medium')
+      this.audioManager.play('success')
+      this.uiManager.showToast(
+        `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币 🪙'}`
+      )
+      return true
     } else {
       this.vibrate('light')
-      this.uiManager.showToast('今天已经签到过了！')
+      this.uiManager.showToast('签到失败')
       return false
     }
   }

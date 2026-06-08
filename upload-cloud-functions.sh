@@ -15,7 +15,7 @@ if [ ! -d "cloudfunctions" ]; then
 fi
 
 # 云函数列表
-CLOUD_FUNCTIONS=("checkin" "getLeaderboard" "saveUserProfile" "syncData" "updateGameData")
+CLOUD_FUNCTIONS=("gameData" "getLeaderboard" "saveUserProfile")
 
 echo "需要上传的云函数："
 for func in "${CLOUD_FUNCTIONS[@]}"; do

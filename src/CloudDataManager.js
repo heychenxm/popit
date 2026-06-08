@@ -1,23 +1,17 @@
 /**
- * 云数据管理器 - 优化云函数调用次数
+ * 云数据管理器 - 手动控制同步
  * 
  * 优化策略：
- * 1. 批量更新：将多个更新操作合并为一次调用
- * 2. 防抖机制：延迟同步，合并多次更新为一次
- * 3. 本地优先：先更新本地，定期或达到条件再同步云端
- * 4. 关键节点同步：只在重要时刻同步数据
+ * 1. 完全本地优先，不自动同步
+ * 2. 只在需要时手动触发同步（如打开排行榜）
+ * 3. 批量更新：将多个更新操作合并为一次调用
+ * 4. 频率限制：控制同步频率，避免频繁调用
  */
 
 export class CloudDataManager {
   constructor() {
     // 待同步的数据缓存
     this.pendingUpdates = {}
-    
-    // 防抖定时器
-    this.debounceTimer = null
-    
-    // 同步间隔（毫秒）- 默认 10 秒（增加间隔以减少调用次数）
-    this.syncInterval = 10000
     
     // 是否正在同步
     this.isSyncing = false
@@ -28,70 +22,50 @@ export class CloudDataManager {
     // 最大失败次数（超过后停止自动同步）
     this.maxFailCount = 3
     
-    // 是否启用自动同步
-    this.autoSyncEnabled = true
-    
     // 上次同步时间
     this.lastSyncTime = 0
     
-    // 最小同步间隔（毫秒）- 避免频繁同步
-    this.minSyncInterval = 3000
+    // 最小同步间隔（毫秒）- 5 分钟内不重复同步
+    this.minSyncInterval = 300000
   }
   
   /**
-   * 添加待同步的数据
+   * 添加待同步的数据（不自动同步，需要手动调用 flush）
    * @param {Object} data - 要同步的数据
    */
   addUpdate(data) {
-    if (!this.autoSyncEnabled) {
-      return
-    }
-    
     // 合并数据（后面的覆盖前面的）
     this.pendingUpdates = { ...this.pendingUpdates, ...data }
-    
-    // 清除之前的防抖定时器
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-    }
-    
-    // 设置新的防抖定时器
-    this.debounceTimer = setTimeout(() => {
-      this.flush()
-    }, this.syncInterval)
   }
   
   /**
-   * 立即同步（清除缓存并执行同步）
+   * 手动触发同步（需要外部主动调用）
    */
   async flush() {
     // 如果没有待同步的数据，直接返回
     if (Object.keys(this.pendingUpdates).length === 0) {
-      return
+      return { success: true, message: '无待同步数据' }
     }
     
     // 如果正在同步，等待同步完成
     if (this.isSyncing) {
-      return
+      return { success: false, message: '正在同步中' }
     }
     
     // 检查最小同步间隔
     const now = Date.now()
     if (now - this.lastSyncTime < this.minSyncInterval) {
-      // 重新设置定时器
-      if (this.debounceTimer) {
-        clearTimeout(this.debounceTimer)
+      const waitTime = Math.ceil((this.minSyncInterval - (now - this.lastSyncTime)) / 60000)
+      return { 
+        success: false, 
+        message: `同步过于频繁，请${waitTime}分钟后再试`,
+        waitTime: waitTime
       }
-      this.debounceTimer = setTimeout(() => {
-        this.flush()
-      }, this.minSyncInterval - (now - this.lastSyncTime))
-      return
     }
     
     // 检查失败次数
     if (this.failCount >= this.maxFailCount) {
-      this.autoSyncEnabled = false
-      return
+      return { success: false, message: '同步失败次数过多，已禁用' }
     }
     
     this.isSyncing = true
@@ -109,6 +83,8 @@ export class CloudDataManager {
       
       if (result.result.success) {
         this.failCount = 0  // 重置失败计数
+        this.isSyncing = false
+        return { success: true, message: '同步成功' }
       } else {
         throw new Error(result.result.message)
       }
@@ -117,45 +93,27 @@ export class CloudDataManager {
       
       // 将未同步的数据重新加入缓存
       this.pendingUpdates = { ...this.pendingUpdates, ...updates }
-      
-      // 如果失败次数过多，禁用自动同步
-      if (this.failCount >= this.maxFailCount) {
-        this.autoSyncEnabled = false
-      }
-    } finally {
       this.isSyncing = false
+      
+      return { 
+        success: false, 
+        message: '同步失败：' + err.message 
+      }
     }
   }
   
   /**
-   * 强制立即同步（不等待防抖）
-   * 用于游戏退出等关键场景
+   * 获取待同步数据
    */
-  async forceSync() {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
-    }
-    await this.flush()
+  getPendingUpdates() {
+    return this.pendingUpdates
   }
   
   /**
-   * 启用自动同步
+   * 获取上次同步时间
    */
-  enableAutoSync() {
-    this.autoSyncEnabled = true
-    this.failCount = 0
-  }
-  
-  /**
-   * 禁用自动同步
-   */
-  disableAutoSync() {
-    this.autoSyncEnabled = false
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
-    }
+  getLastSyncTime() {
+    return this.lastSyncTime
   }
   
   /**
@@ -166,19 +124,22 @@ export class CloudDataManager {
       pendingUpdates: this.pendingUpdates,
       isSyncing: this.isSyncing,
       failCount: this.failCount,
-      autoSyncEnabled: this.autoSyncEnabled,
-      lastSyncTime: this.lastSyncTime
+      lastSyncTime: this.lastSyncTime,
+      canSync: (now - this.lastSyncTime) >= this.minSyncInterval
     }
+  }
+  
+  /**
+   * 重置失败计数
+   */
+  resetFailCount() {
+    this.failCount = 0
   }
   
   /**
    * 销毁管理器
    */
   destroy() {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
-    }
     this.pendingUpdates = {}
     this.isSyncing = false
   }

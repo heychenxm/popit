@@ -7,6 +7,7 @@
  * - update: 更新数据（通关、分享等）
  * - checkinStatus: 获取签到状态
  * - doCheckin: 执行签到
+ * - checkinAndReward: 签到并领取奖励（合并操作，减少调用次数）
  */
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -51,6 +52,8 @@ exports.main = async (event, context) => {
         return await handleCheckinStatus(openid)
       case 'doCheckin':
         return await handleDoCheckin(openid)
+      case 'checkinAndReward':
+        return await handleCheckinAndReward(openid)
       default:
         return {
           success: false,
@@ -392,6 +395,102 @@ async function handleDoCheckin(openid) {
         isTodayChecked: true
       },
       cloudAvailable: true
+    }
+    
+  } catch (err) {
+    await transaction.abort()
+    throw err
+  }
+}
+
+/**
+ * 签到并领取奖励（合并操作，减少云函数调用次数）
+ * 一次性完成：检查状态 + 执行签到 + 返回奖励
+ */
+async function handleCheckinAndReward(openid) {
+  const today = getTodayString()
+  const yesterday = getYesterdayString()
+  
+  const transaction = await db.startTransaction()
+  
+  try {
+    // 查询签到数据
+    const signinResult = await transaction.collection('user_signin')
+      .where({ openid })
+      .get()
+    
+    let newStreak
+    let reward
+    
+    if (signinResult.data.length === 0) {
+      // 首次签到
+      newStreak = 1
+      reward = getDayReward(newStreak)
+      
+      await transaction.collection('user_signin').add({
+        data: {
+          openid,
+          lastCheckinDate: today,
+          checkinStreak: newStreak,
+          totalCheckinDays: 1,
+          lastUpdateTime: Date.now()
+        }
+      })
+    } else {
+      const signinData = signinResult.data[0]
+      
+      // 今天已签到
+      if (signinData.lastCheckinDate === today) {
+        await transaction.abort()
+        return {
+          success: false,
+          message: '今天已经签到过了',
+          data: {
+            isTodayChecked: true,
+            lastCheckinDate: today,
+            checkinStreak: signinData.checkinStreak,
+            todayReward: getDayReward(signinData.checkinStreak + 1)
+          },
+          cloudAvailable: true
+        }
+      }
+      
+      // 计算连续签到天数
+      if (signinData.lastCheckinDate === yesterday) {
+        newStreak = signinData.checkinStreak + 1
+      } else {
+        newStreak = 1
+      }
+      
+      reward = getDayReward(newStreak)
+      
+      // 更新签到数据
+      await transaction.collection('user_signin')
+        .where({ openid })
+        .update({
+          data: {
+            lastCheckinDate: today,
+            checkinStreak: newStreak,
+            totalCheckinDays: _.inc(1),
+            lastUpdateTime: Date.now()
+          }
+        })
+    }
+    
+    // 发放奖励
+    await addReward(transaction, openid, reward)
+    
+    await transaction.commit()
+    
+    return {
+      success: true,
+      message: '签到成功',
+      data: {
+        reward,
+        checkinStreak: newStreak,
+        isTodayChecked: true,
+        cloudAvailable: true
+      }
     }
     
   } catch (err) {
