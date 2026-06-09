@@ -276,6 +276,11 @@ export class GameState {
     // 标记有待同步的数据（只在打开排行榜时同步）
     if (hasUpdate) {
       this.pendingCloudSync = true
+      // 🔧 修复：标记有待同步的数据
+      cloudDataManager.addUpdate({
+        highestWave: this.bestWave,
+        highestScore: this.highScore
+      })
     }
   }
 
@@ -285,6 +290,9 @@ export class GameState {
     this.coins = Number(this.coins) + delta
     this.sessionCoins += delta
     setStorage('coins', this.coins)
+    
+    // 🔧 修复：标记有待同步的数据
+    cloudDataManager.addUpdate({ coins: this.coins })
   }
 
   // 检查是否可以签到（用于 UI 显示红点）
@@ -446,6 +454,10 @@ export class GameState {
       this.lives++
       this.purchaseCount++
       setStorage('coins', this.coins)
+      
+      // 🔧 修复：标记有待同步的数据
+      cloudDataManager.addUpdate({ coins: this.coins })
+      
       return true
     }
     return false

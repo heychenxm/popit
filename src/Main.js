@@ -149,6 +149,13 @@ export class Main {
         }
       } else {
         console.log('本地有数据，跳过启动同步')
+        // 🔧 修复：本地有数据时，也同步一次到云端（作为备份）
+        // 但只在数据有变化时才同步（通过 CloudDataManager 判断）
+        const pendingUpdates = this.gameState.getPendingCloudUpdates()
+        if (pendingUpdates && Object.keys(pendingUpdates).length > 0) {
+          console.log('有待同步数据，启动时同步到云端...')
+          this.forceSyncToCloud()
+        }
       }
     } catch (err) {
       console.warn('启动同步云端数据失败:', err.message)
@@ -171,6 +178,48 @@ export class Main {
       }
     } catch (err) {
       console.warn('刷新云端数据失败:', err.message)
+    }
+  }
+  
+  /**
+   * 强制同步数据到云端（游戏结束时调用）
+   * 绕过"本地优先"策略，直接将本地数据同步到云端
+   */
+  async forceSyncToCloud() {
+    try {
+      // 检查云开发是否已初始化
+      if (!this.cloudInitialized) {
+        console.log('云开发未初始化，跳过强制同步')
+        return
+      }
+      
+      // 🔧 优化：限制同步频率，至少间隔 2 分钟
+      const now = Date.now()
+      const lastSyncTime = this.lastForceSyncTime || 0
+      if (now - lastSyncTime < 120000) {  // 2 分钟
+        console.log('强制同步过于频繁，跳过')
+        return
+      }
+      this.lastForceSyncTime = now
+      
+      console.log('强制同步数据到云端...')
+      
+      // 直接调用 gameData 云函数的 update 操作
+      const { callCloudFunction } = await import('./utils.js')
+      const result = await callCloudFunction('gameData', {
+        action: 'update',
+        highestWave: this.gameState.bestWave,
+        highestScore: this.gameState.highScore,
+        coins: this.gameState.coins
+      })
+      
+      if (result.result && result.result.success) {
+        console.log('强制同步成功')
+      } else {
+        console.warn('强制同步失败:', result.result?.message)
+      }
+    } catch (err) {
+      console.warn('强制同步云端数据失败:', err.message)
     }
   }
 
@@ -813,6 +862,9 @@ export class Main {
       this.gameState.hasShownRecordBreakModal = true
     }
     
+    // 🔧 修复：胜利时也强制同步数据到云端
+    this.forceSyncToCloud()
+    
     if (modalType) {
       // 显示胜利弹窗（传递弹窗类型）
       this.uiManager.winModalType = modalType
@@ -864,9 +916,13 @@ export class Main {
       console.error('批量更新赛季数据失败:', err)
     })
     
+    // 保存最高分
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
     })
+    
+    // 🔧 修复：游戏结束时强制同步数据到云端，防止清除缓存后数据丢失
+    this.forceSyncToCloud()
   }
 
   // 处理游戏结束

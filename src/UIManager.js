@@ -817,7 +817,9 @@ export class UIManager {
     const cellHeight = 95
     const gap = 15
     
-    const todayIndex = gameState.checkinStreak + 1
+    // 🔧 修复：高亮逻辑
+    const signedDays = gameState.checkinStreak
+    const canCheckin = gameState.canCheckin()
     
     // 绘制第 1-6 天
     for (let day = 1; day <= 6; day++) {
@@ -826,8 +828,13 @@ export class UIManager {
       const cellX = gridStartX + col * (cellWidth + gap)
       const cellY = gridStartY + row * (cellHeight + gap)
       
-      const isToday = (day === todayIndex)
-      const isSigned = (day < todayIndex) || (isToday && !gameState.canCheckin())
+      // 🔧 修复：高亮 = 今天应该签到的天数
+      // 未签到时：高亮下一天 (signedDays + 1)
+      // 已签到后：高亮最后一次签到的天数 (signedDays)
+      const isToday = canCheckin ? (day === signedDays + 1) : (day === signedDays)
+      
+      // 🔧 修复：已签到的天数显示"已获得"（去掉 !canCheckin 条件）
+      const isSigned = (day <= signedDays)
       
       this.drawCheckinCell(ctx, cellX, cellY, cellWidth, cellHeight, day, isToday, isSigned)
       
@@ -838,8 +845,8 @@ export class UIManager {
     // 第 7 天
     const day7X = gridStartX
     const day7Y = gridStartY + 2 * (cellHeight + gap)
-    const isDay7Today = (7 === todayIndex)
-    const isDay7Signed = (7 < todayIndex) || (isDay7Today && !gameState.canCheckin())
+    const isDay7Today = canCheckin ? (7 === signedDays + 1) : (7 === signedDays)
+    const isDay7Signed = (7 <= signedDays)
     
     this.drawCheckinCell(ctx, day7X, day7Y, cellWidth, cellHeight, 7, isDay7Today, isDay7Signed)
     const day7Reward = gameState.getTodayReward(7)
