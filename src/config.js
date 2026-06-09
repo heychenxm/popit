@@ -32,7 +32,7 @@ export const config = {
   env: env,
   
   // 云环境 ID
-  cloudEnv: CLOUD_ENV_CONFIG[env] || CLOUD_ENV_CONFIG.develop,
+  cloudEnv: 'cloud1-d2gbhgc8abb1ab532',  // 请替换为你的实际云环境 ID
   
   // 游戏配置
   game: {

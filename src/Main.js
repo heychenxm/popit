@@ -94,24 +94,13 @@ export class Main {
   bindLifecycleEvents() {
     // 游戏隐藏（切换到后台）时同步数据到云端
     wx.onHide(() => {
-      if (this.pendingShare) {
-        this.pendingShare.sawHide = true
-        this.pendingShare.hiddenAt = Date.now()
-      }
-      // 同步待保存的数据到云端
+      console.log('游戏隐藏，同步数据到云端...')
       this.flushCloudData()
     })
     
     // 游戏显示（回到前台）时同步云端数据
     wx.onShow(() => {
-      if (this.shareShowTimer) {
-        clearTimeout(this.shareShowTimer)
-      }
-      this.shareShowTimer = setTimeout(() => {
-        this.onSharePanelClosed(false)
-      }, 120)
-      
-      // 回到前台时同步云端数据（确保数据是最新的）
+      console.log('游戏显示，同步云端数据...')
       this.syncCloudData()
     })
   }
@@ -135,8 +124,10 @@ export class Main {
   // 启动时同步云端数据（本地数据优先，云端作为备份）
   async syncCloudData() {
     try {
-      // 检查是否有本地数据
-      const hasLocalData = this.gameState.bestWave > 0 || this.gameState.highScore > 0 || this.gameState.coins > 0
+      // 检查是否有本地数据（初始金币不算）
+      const hasLocalData = this.gameState.bestWave > 0 || 
+                          this.gameState.highScore > 0 || 
+                          this.gameState.coins > config.game.initialCoins
       
       if (!hasLocalData) {
         // 本地无数据，从云端同步
@@ -144,18 +135,16 @@ export class Main {
         const result = await this.gameState.syncCloudData()
         if (result && result.success) {
           console.log('云端数据同步成功')
+          console.log('同步后的数据:', {
+            coins: this.gameState.coins,
+            highScore: this.gameState.highScore,
+            bestWave: this.gameState.bestWave
+          })
         } else if (result && !result.success) {
           console.log('云端数据同步失败:', result.message)
         }
       } else {
         console.log('本地有数据，跳过启动同步')
-        // 🔧 修复：本地有数据时，也同步一次到云端（作为备份）
-        // 但只在数据有变化时才同步（通过 CloudDataManager 判断）
-        const pendingUpdates = this.gameState.getPendingCloudUpdates()
-        if (pendingUpdates && Object.keys(pendingUpdates).length > 0) {
-          console.log('有待同步数据，启动时同步到云端...')
-          this.forceSyncToCloud()
-        }
       }
     } catch (err) {
       console.warn('启动同步云端数据失败:', err.message)
@@ -165,16 +154,12 @@ export class Main {
   // 刷新待同步数据到云端（游戏隐藏时调用）
   async flushCloudData() {
     try {
-      // 检查是否有待同步数据
-      const pendingUpdates = this.gameState.getPendingCloudUpdates()
-      if (pendingUpdates && Object.keys(pendingUpdates).length > 0) {
-        console.log('有待同步数据，刷新到云端...')
-        const result = await this.gameState.flushCloudData()
-        if (result && result.success) {
-          console.log('云端数据刷新成功')
-        } else {
-          console.log('云端数据刷新失败:', result?.message)
-        }
+      // 直接调用 gameState.flushCloudData()
+      const result = await this.gameState.flushCloudData()
+      if (result && result.success) {
+        console.log('云端数据刷新成功')
+      } else {
+        console.log('云端数据刷新失败:', result?.message)
       }
     } catch (err) {
       console.warn('刷新云端数据失败:', err.message)
@@ -204,12 +189,12 @@ export class Main {
       
       console.log('强制同步数据到云端...')
       
-      // 直接调用 gameData 云函数的 update 操作
+      // 直接调用 gameData 云函数的 sync 操作
       const { callCloudFunction } = await import('./utils.js')
       const result = await callCloudFunction('gameData', {
-        action: 'update',
-        highestWave: this.gameState.bestWave,
-        highestScore: this.gameState.highScore,
+        action: 'sync',
+        bestWave: this.gameState.bestWave,
+        highScore: this.gameState.highScore,
         coins: this.gameState.coins
       })
       
@@ -538,11 +523,6 @@ export class Main {
     if (buttonId) {
       this.audioManager.play('click')
       this.vibrate()
-      
-      // ✅ 优化：批量更新赛季数据到云端
-      this.gameState.flushSeasonDataToCloud().catch(err => {
-        console.error('批量更新赛季数据失败:', err)
-      })
       
       switch (buttonId) {
         case 'home':
@@ -911,18 +891,13 @@ export class Main {
     this.setGameState('FAIL', 'fail')
     this.uiManager.showToast(`本局得分：${this.gameState.score}`)
     
-    // ✅ 优化：批量更新赛季数据到云端
-    this.gameState.flushSeasonDataToCloud().catch(err => {
-      console.error('批量更新赛季数据失败:', err)
-    })
-    
     // 保存最高分
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
     })
     
-    // 🔧 修复：游戏结束时强制同步数据到云端，防止清除缓存后数据丢失
-    this.forceSyncToCloud()
+    // 游戏结束时同步数据到云端
+    this.flushCloudData()
   }
 
   // 处理游戏结束
@@ -987,9 +962,13 @@ export class Main {
   }
 
   // 返回主菜单
-  navigateToMenu() {
+  async navigateToMenu() {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
+    
+    // 返回首页前同步数据到云端
+    await this.flushCloudData()
+    
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
   }
