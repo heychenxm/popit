@@ -1,7 +1,6 @@
-import { getStorage, setStorage, callCloudFunction } from './utils.js'
+import { getStorage, setStorage } from './utils.js'
 import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
 import { config } from './config.js'
-import { cloudDataManager } from './CloudDataManager.js'
 import { getSeasonCycle, getSeasonTimeRemaining, formatSeasonCountdown } from './seasonUtils.js'
 
 /**
@@ -60,21 +59,13 @@ export class GameState {
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     
-    // 云端数据同步标志
-    this.cloudSynced = false
-    this.cloudAvailable = true
-    this.pendingCloudUpdates = {}  // 待同步的数据
-    
-    // 有待同步的数据标志（用于排行榜同步判断）
-    this.pendingCloudSync = false
-    
     // 排行榜缓存
     this.leaderboardCache = {
-      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存（从 600000 改为 1800000）
+      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存
       wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
     }
     
-    // ✅ 优化：赛季排名缓存（30 分钟）
+    // 赛季排名缓存（30 分钟）
     this.seasonLeaderboardCache = {
       score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存
       wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
@@ -117,178 +108,6 @@ export class GameState {
     
     // 初始化赛季信息
     this.initSeasonInfo()
-  }
-
-  // 同步云端数据
-  // ✅ 优化：本地优先策略，本地数据完整时跳过同步
-  async syncCloudData() {
-    console.log('=== 开始云端数据同步 ===')
-    console.log('当前本地数据:', {
-      bestWave: this.bestWave,
-      highScore: this.highScore,
-      coins: this.coins,
-      initialCoins: config.game.initialCoins
-    })
-    
-    // ✅ 检查本地数据是否完整（初始金币不算）
-    const hasLocalData = this.bestWave > 0 || this.highScore > 0 || this.coins > config.game.initialCoins
-    
-    console.log('本地数据是否完整:', hasLocalData)
-    
-    // 如果本地数据完整，跳过同步（减少云函数调用）
-    if (hasLocalData) {
-      console.log('本地数据完整，跳过启动同步')
-      // 初始化赛季信息（不需要云端数据）
-      this.initSeasonInfo()
-      return { success: true, message: '使用本地数据' }
-    }
-    
-    console.log('本地数据不完整，尝试从云端同步...')
-    
-    try {
-      console.log('调用云函数 gameData (action: get)...')
-      const result = await callCloudFunction('gameData', {
-        action: 'get'  // 改为 get 操作，获取云端数据
-      })
-      
-      console.log('云函数返回结果:', JSON.stringify(result, null, 2))
-      
-      if (result && result.result && result.result.success && result.result.data) {
-        const cloudData = result.result.data
-        
-        console.log('云端数据:', cloudData)
-        
-        // 本地优先策略：只在本地数据为空或等于初始值时才使用云端数据
-        if (cloudData.highScore && (this.highScore === 0 || this.highScore < cloudData.highScore)) {
-          console.log('同步云端最高分:', cloudData.highScore, '(本地:', this.highScore, ')')
-          this.highScore = cloudData.highScore
-          setStorage('highScore', this.highScore)
-        }
-        if (cloudData.bestWave && (this.bestWave === 0 || this.bestWave < cloudData.bestWave)) {
-          console.log('同步云端最高关卡:', cloudData.bestWave, '(本地:', this.bestWave, ')')
-          this.bestWave = cloudData.bestWave
-          setStorage('bestWave', this.bestWave)
-        }
-        if (cloudData.coins && (this.coins === 0 || this.coins === config.game.initialCoins)) {
-          console.log('同步云端金币:', cloudData.coins, '(本地:', this.coins, ')')
-          this.coins = cloudData.coins
-          setStorage('coins', this.coins)
-        }
-        
-        // 签到数据：本地优先，云端作为备份
-        if (cloudData.lastCheckinDate && !this.lastCheckinDate) {
-          this.lastCheckinDate = cloudData.lastCheckinDate
-          setStorage('lastCheckinDate', this.lastCheckinDate)
-        }
-        if (cloudData.checkinStreak && this.checkinStreak === 0) {
-          this.checkinStreak = cloudData.checkinStreak
-          setStorage('checkinStreak', this.checkinStreak)
-        }
-        if (cloudData.achievedCheckin && !this.achievedCheckin) {
-          this.achievedCheckin = cloudData.achievedCheckin
-          setStorage('achievedCheckin', this.achievedCheckin)
-        }
-        
-        // 分享礼包数据
-        if (cloudData.lastShareGiftDate && !this.lastShareGiftDate) {
-          this.lastShareGiftDate = cloudData.lastShareGiftDate
-          setStorage('lastShareGiftDate', this.lastShareGiftDate)
-        }
-        if (cloudData.totalShareGifts && !this.totalShareGifts) {
-          this.totalShareGifts = cloudData.totalShareGifts
-          setStorage('totalShareGifts', this.totalShareGifts)
-        }
-        
-        console.log('云端数据同步成功:', {
-          highScore: this.highScore,
-          bestWave: this.bestWave,
-          coins: this.coins
-        })
-      } else {
-        console.log('云端无数据或返回格式错误')
-      }
-      
-      // 初始化赛季信息
-      this.initSeasonInfo()
-      
-      this.cloudSynced = true
-      this.cloudAvailable = true
-      
-      return { success: true, message: '同步成功' }
-    } catch (err) {
-      console.warn('云端同步失败，使用本地数据:', err.message)
-      console.error('错误堆栈:', err.stack)
-      this.cloudAvailable = false
-      this.cloudSynced = true
-      
-      // 初始化赛季信息
-      this.initSeasonInfo()
-      
-      return {
-        success: false,
-        message: '云端同步失败，使用本地数据',
-        cloudAvailable: false
-      }
-    }
-  }
-
-  /**
-   * 刷新待同步数据到云端
-   */
-  async flushCloudData() {
-    console.log('=== 开始刷新云端数据 ===')
-    console.log('当前待同步数据:', this.pendingCloudUpdates)
-    
-    try {
-      // 检查是否有待同步数据
-      const pendingUpdates = this.getPendingCloudUpdates()
-      console.log('获取到的待同步数据:', pendingUpdates)
-      
-      if (Object.keys(pendingUpdates).length === 0) {
-        console.log('无待同步数据')
-        return { success: true, message: '无待同步数据' }
-      }
-      
-      console.log('有待同步数据，刷新到云端...', pendingUpdates)
-      console.log('调用云函数 gameData (action: sync)...')
-      
-      // 调用云函数同步数据
-      const result = await callCloudFunction('gameData', {
-        action: 'sync',
-        ...pendingUpdates
-      })
-      
-      console.log('云函数返回结果:', JSON.stringify(result, null, 2))
-      
-      if (result && result.result && result.result.success) {
-        console.log('云端数据刷新成功')
-        return { success: true, message: '同步成功' }
-      } else {
-        console.log('云端数据刷新失败:', result?.result?.message)
-        return { success: false, message: result?.result?.message || '同步失败' }
-      }
-    } catch (err) {
-      console.warn('刷新云端数据失败:', err.message)
-      console.error('错误堆栈:', err.stack)
-      return { success: false, message: err.message }
-    }
-  }
-
-  /**
-   * 获取待同步数据
-   */
-  getPendingCloudUpdates() {
-    const updates = { ...this.pendingCloudUpdates }
-    this.pendingCloudUpdates = {}
-    return updates
-  }
-
-  /**
-   * 标记待同步数据
-   */
-  markForCloudSync(key, value) {
-    this.pendingCloudUpdates[key] = value
-    console.log('标记待同步数据:', key, value)
   }
 
   // 重置游戏状态（开始新游戏）
@@ -345,7 +164,6 @@ export class GameState {
   }
 
   // 保存最高分和最高关卡（关卡结束后调用）
-  // 保存最高分和最高关卡
   async saveHighScore() {
     let hasUpdate = false
     
@@ -353,7 +171,6 @@ export class GameState {
     if (Number(this.score) > Number(this.highScore)) {
       this.highScore = Number(this.score)
       setStorage('highScore', this.highScore)
-      this.markForCloudSync('highScore', this.highScore)
       hasUpdate = true
     }
     
@@ -361,7 +178,6 @@ export class GameState {
     if (this.phase === 'WIN' && this.wave > this.bestWave) {
       this.bestWave = this.wave
       setStorage('bestWave', this.bestWave)
-      this.markForCloudSync('bestWave', this.bestWave)
       hasUpdate = true
     }
     
@@ -372,10 +188,6 @@ export class GameState {
   addCoins(amount) {
     const delta = Number(amount) || 0
     this.coins = Number(this.coins) + delta
-    
-    // 标记金币变化需要同步
-    this.markForCloudSync('coins', this.coins)
-    
     setStorage('coins', this.coins)
   }
 
@@ -538,10 +350,6 @@ export class GameState {
       this.lives++
       this.purchaseCount++
       setStorage('coins', this.coins)
-      
-      // 🔧 修复：标记有待同步的数据
-      cloudDataManager.addUpdate({ coins: this.coins })
-      
       return true
     }
     return false
@@ -624,56 +432,18 @@ export class GameState {
     // 注意：purchaseCount 不在这里重置，它在整个游戏会话中累计
   }
 
-  // 获取排行榜数据（带缓存）
+  // 获取排行榜数据（本地版本，无云端数据）
   async getLeaderboard(type = 'score') {
-    const cache = this.leaderboardCache[type]
-    const now = Date.now()
-    
-    // 检查缓存是否有效（30 分钟）
-    if (cache && cache.data && (now - cache.timestamp) < cache.expire) {
-      console.log(`使用排行榜缓存 (${type})`)
-      return {
-        success: true,
-        data: cache.data,
-        fromCache: true
-      }
-    }
-    
-    // 缓存无效，调用云端获取最新数据
-    try {
-      const result = await callCloudFunction('getLeaderboard', { type })
-      
-      if (result.result.success) {
-        // 更新缓存
-        if (cache) {
-          cache.data = result.result.data
-          cache.timestamp = now
-        }
-        
-        return {
-          success: true,
-          data: result.result.data,
-          fromCache: false
-        }
-      } else {
-        throw new Error(result.result.message)
-      }
-    } catch (err) {
-      console.error('获取排行榜失败:', err)
-      // 如果缓存存在但过期，返回缓存数据作为降级
-      if (cache && cache.data) {
-        console.log('返回过期缓存数据')
-        return {
-          success: true,
-          data: cache.data,
-          fromCache: true,
-          expired: true
-        }
-      }
-      return {
-        success: false,
-        message: '获取排行榜失败，请稍后重试'
-      }
+    // 纯本地模式，返回空排行榜
+    return {
+      success: true,
+      data: {
+        type,
+        leaderboard: [],
+        userRank: 0,
+        userValue: 0
+      },
+      fromCache: false
     }
   }
   
@@ -703,94 +473,17 @@ export class GameState {
     })
   }
 
-  // 保存用户信息到云端
-  async saveUserProfileToCloud(nickname, avatarUrl) {
-    try {
-      const result = await callCloudFunction('saveUserProfile', {
-        nickname,
-        avatarUrl
-      })
-      
-      if (result.result.success) {
-        // 保存到本地
-        this.userInfo.nickname = nickname
-        this.userInfo.avatarUrl = avatarUrl
-        this.userInfo.authorized = true
-        
-        setStorage('nickname', nickname)
-        setStorage('avatarUrl', avatarUrl)
-        setStorage('userInfoAuthorized', true)
-        
-        return {
-          success: true,
-          message: '用户资料保存成功'
-        }
-      } else {
-        throw new Error(result.result.message)
-      }
-    } catch (err) {
-      console.error('保存用户资料失败:', err)
-      return {
-        success: false,
-        message: '保存失败，请稍后重试'
-      }
-    }
+  // 保存用户信息到本地
+  saveUserProfileLocally(nickname, avatarUrl) {
+    this.userInfo.nickname = nickname
+    this.userInfo.avatarUrl = avatarUrl
+    this.userInfo.authorized = true
+    
+    setStorage('nickname', nickname)
+    setStorage('avatarUrl', avatarUrl)
+    setStorage('userInfoAuthorized', true)
   }
 
-  // 更新云端用户游戏数据（完全本地优先，不自动同步）
-  // 数据只保存在本地，不主动同步到云端
-  async updateCloudGameData(updateData) {
-    // 添加用户信息到更新数据中
-    const dataWithUserInfo = {
-      ...updateData,
-      nickname: this.userInfo.nickname,
-      avatarUrl: this.userInfo.avatarUrl
-    }
-    
-    // 只保存到本地，不自动同步
-    cloudDataManager.addUpdate(dataWithUserInfo)
-    
-    // 返回成功，但不执行实际同步
-    return true
-  }
-  
-  /**
-   * 手动同步数据到云端（只在需要时调用，如打开排行榜前）
-   * @returns {Promise<Object>} 同步结果
-   */
-  async syncToCloud() {
-    // 检查是否有待同步数据
-    const pendingUpdates = cloudDataManager.getPendingUpdates()
-    if (Object.keys(pendingUpdates).length === 0) {
-      return { success: true, message: '无待同步数据' }
-    }
-    
-    const result = await cloudDataManager.flush()
-    return result
-  }
-  
-  /**
-   * 获取待同步数据
-   * @returns {Object} 待同步数据
-   */
-  getPendingCloudUpdates() {
-    return cloudDataManager.getPendingUpdates()
-  }
-  
-  /**
-   * 刷新待同步数据到云端
-   * @returns {Promise<Object>} 同步结果
-   */
-  async flushCloudData() {
-    const pendingUpdates = cloudDataManager.getPendingUpdates()
-    if (Object.keys(pendingUpdates).length === 0) {
-      return { success: true, message: '无待同步数据' }
-    }
-    
-    const result = await cloudDataManager.flush()
-    return result
-  }
-  
   /**
    * 初始化赛季信息
    */
@@ -805,162 +498,45 @@ export class GameState {
   }
   
   /**
-   * 获取赛季数据（带缓存）
+   * 获取赛季数据（本地版本，无云端数据）
    * @param {string} type - 数据类型：'score' 或 'wave'
    * @returns {Promise<Object>} 赛季数据
    */
   async getSeasonData(type = 'score') {
-    const cache = this.seasonLeaderboardCache[type]
-    const now = Date.now()
-    
-    // ✅ 检查缓存是否有效（30 分钟）
-    if (cache && cache.data && (now - cache.timestamp) < cache.expire) {
-      console.log(`使用赛季排名缓存 (${type})`)
-      return {
-        success: true,
-        data: cache.data,
-        fromCache: true
-      }
-    }
-    
-    try {
-      const result = await callCloudFunction('seasonLeaderboard', { type })
-      
-      if (result.result.success) {
-        // ✅ 更新缓存
-        if (cache) {
-          cache.data = result.result.data
-          cache.timestamp = now
+    // 纯本地模式，返回空赛季数据
+    return {
+      success: true,
+      data: {
+        type,
+        seasonId: this.seasonInfo.currentSeasonId,
+        seasonStartTime: this.seasonInfo.seasonStartTime,
+        seasonEndTime: this.seasonInfo.seasonEndTime,
+        leaderboard: [],
+        userRank: 0,
+        userValue: 0,
+        userStats: {
+          totalGames: 0,
+          totalClears: 0,
+          bestStreak: 0
         }
-        
-        // 更新赛季信息
-        this.seasonInfo = {
-          currentSeasonId: result.result.data.seasonId,
-          seasonStartTime: result.result.data.seasonStartTime,
-          seasonEndTime: result.result.data.seasonEndTime,
-          timeRemaining: result.result.data.seasonEndTime - Date.now()
-        }
-        
-        // 更新用户赛季数据
-        if (result.result.data.userStats) {
-          this.seasonData = {
-            ...this.seasonData,
-            ...result.result.data.userStats,
-            userRank: result.result.data.userRank,
-            seasonScore: result.result.data.userValue
-          }
-        }
-        
-        return {
-          success: true,
-          data: result.result.data,
-          fromCache: false
-        }
-      } else {
-        throw new Error(result.result.message)
-      }
-    } catch (err) {
-      console.error('获取赛季数据失败:', err)
-      // 如果缓存存在但过期，返回缓存数据作为降级
-      if (cache && cache.data) {
-        console.log('返回过期缓存数据')
-        return {
-          success: true,
-          data: cache.data,
-          fromCache: true,
-          expired: true
-        }
-      }
-      return {
-        success: false,
-        message: '获取赛季数据失败，请稍后重试'
-      }
+      },
+      fromCache: false
     }
   }
   
   /**
-   * 更新赛季数据（本地更新，不立即同步到云端）
+   * 更新赛季数据（本地更新）
    * @param {number} score - 当前得分
    * @param {number} wave - 当前关卡
    * @param {number} clears - 通关次数
    * @param {number} streak - 连胜次数
    */
   updateSeasonDataLocal(score, wave, clears, streak) {
-    // 只更新本地数据，不调用云函数
+    // 只更新本地数据
     this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore, score)
     this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave, wave)
     this.seasonData.totalClears = (this.seasonData.totalClears || 0) + (clears || 0)
     this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak, streak || 0)
-    
-    // 标记需要刷新到云端
-    this.seasonData.pendingFlush = true
-  }
-  
-  /**
-   * 将赛季数据批量刷新到云端（在游戏结束时调用）
-   * @returns {Promise<boolean>} 是否成功
-   */
-  async flushSeasonDataToCloud() {
-    // 检查是否需要刷新
-    if (!this.seasonData.pendingFlush) {
-      return true
-    }
-    
-    try {
-      const result = await wx.cloud.callFunction({
-        name: 'gameData',
-        data: {
-          action: 'updateSeasonData',
-          seasonScore: this.seasonData.seasonScore,
-          seasonWave: this.seasonData.seasonWave,
-          totalClears: this.seasonData.totalClears,
-          bestStreak: this.seasonData.bestStreak
-        }
-      })
-      
-      if (result.result.success) {
-        // 清除刷新标记
-        this.seasonData.pendingFlush = false
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error('批量更新赛季数据失败:', err)
-      return false
-    }
-  }
-  
-  /**
-   * 更新赛季数据（立即同步到云端，用于需要实时性的场景）
-   * @param {number} score - 当前得分
-   * @param {number} wave - 当前关卡
-   * @param {number} clears - 通关次数
-   * @param {number} streak - 连胜次数
-   * @returns {Promise<boolean>} 是否成功
-   */
-  async updateSeasonData(score, wave, clears, streak) {
-    try {
-      const result = await callCloudFunction('gameData', {
-        action: 'updateSeasonData',
-        seasonScore: score,
-        seasonWave: wave,
-        totalClears: clears,
-        bestStreak: streak
-      })
-      
-      if (result.result.success) {
-        // 更新本地赛季数据
-        this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore, score)
-        this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave, wave)
-        this.seasonData.totalClears = (this.seasonData.totalClears || 0) + (clears || 0)
-        this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak, streak || 0)
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error('更新赛季数据失败:', err)
-      return false
-    }
   }
   
   /**

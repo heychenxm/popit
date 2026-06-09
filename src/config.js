@@ -1,39 +1,8 @@
 /**
  * 游戏配置文件
- * 根据环境自动选择对应的云环境 ID
  */
 
-// 检测当前环境
-function getEnv() {
-  try {
-    // 微信小游戏环境
-    if (typeof wx !== 'undefined' && wx.getAccountInfoSync) {
-      const accountInfo = wx.getAccountInfoSync()
-      // miniProgram.envVersion: 'develop' | 'trial' | 'release'
-      return accountInfo.miniProgram?.envVersion || 'develop'
-    }
-  } catch (e) {
-    // 获取失败，默认为开发环境
-  }
-  return 'develop'
-}
-
-// 云环境配置
-const CLOUD_ENV_CONFIG = {
-  develop: 'cloud1-d2gbhgc8abb1ab532',  // 开发环境（替换为你的开发环境 ID）
-  trial: 'cloud1-d2gbhgc8abb1ab532',    // 体验环境（替换为你的体验环境 ID）
-  release: 'cloud1-d2gbhgc8abb1ab532'   // 正式环境（替换为你的正式环境 ID）
-}
-
-const env = getEnv()
-
 export const config = {
-  // 当前环境
-  env: env,
-  
-  // 云环境 ID
-  cloudEnv: 'cloud1-d2gbhgc8abb1ab532',  // 请替换为你的实际云环境 ID
-  
   // 游戏配置
   game: {
     initialCoins: 1000,        // 初始金币

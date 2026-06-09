@@ -14,19 +14,6 @@ export class Main {
     // 初始化微信 API
     wechatAPI.init()
     
-    // 初始化云开发（可选功能，失败不影响游戏）
-    try {
-      wx.cloud.init({
-        env: config.cloudEnv,
-        traceUser: true
-      })
-      console.log(`云开发初始化成功 (环境：${config.env})`)
-      this.cloudInitialized = true
-    } catch (err) {
-      console.warn('云开发初始化失败，使用纯本地模式:', err.message)
-      this.cloudInitialized = false
-    }
-    
     // 获取 canvas
     this.canvas = wx.createCanvas()
     this.ctx = this.canvas.getContext('2d')
@@ -81,9 +68,6 @@ export class Main {
     // 绑定游戏生命周期事件
     this.bindLifecycleEvents()
     
-    // 启动时同步云端数据（本地数据优先，云端作为备份）
-    await this.syncCloudData()
-    
     // 开始游戏循环
     this.start()
   }
@@ -92,16 +76,14 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）时同步数据到云端
+    // 游戏隐藏（切换到后台）
     wx.onHide(() => {
-      console.log('游戏隐藏，同步数据到云端...')
-      this.flushCloudData()
+      console.log('游戏隐藏')
     })
     
-    // 游戏显示（回到前台）时同步云端数据
+    // 游戏显示（回到前台）
     wx.onShow(() => {
-      console.log('游戏显示，同步云端数据...')
-      this.syncCloudData()
+      console.log('游戏显示')
     })
   }
 
@@ -121,93 +103,6 @@ export class Main {
     await this.initUserInfo()
   }
 
-  // 启动时同步云端数据（本地数据优先，云端作为备份）
-  async syncCloudData() {
-    try {
-      // 检查是否有本地数据（初始金币不算）
-      const hasLocalData = this.gameState.bestWave > 0 || 
-                          this.gameState.highScore > 0 || 
-                          this.gameState.coins > config.game.initialCoins
-      
-      if (!hasLocalData) {
-        // 本地无数据，从云端同步
-        console.log('本地无数据，从云端同步...')
-        const result = await this.gameState.syncCloudData()
-        if (result && result.success) {
-          console.log('云端数据同步成功')
-          console.log('同步后的数据:', {
-            coins: this.gameState.coins,
-            highScore: this.gameState.highScore,
-            bestWave: this.gameState.bestWave
-          })
-        } else if (result && !result.success) {
-          console.log('云端数据同步失败:', result.message)
-        }
-      } else {
-        console.log('本地有数据，跳过启动同步')
-      }
-    } catch (err) {
-      console.warn('启动同步云端数据失败:', err.message)
-    }
-  }
-
-  // 刷新待同步数据到云端（游戏隐藏时调用）
-  async flushCloudData() {
-    try {
-      // 直接调用 gameState.flushCloudData()
-      const result = await this.gameState.flushCloudData()
-      if (result && result.success) {
-        console.log('云端数据刷新成功')
-      } else {
-        console.log('云端数据刷新失败:', result?.message)
-      }
-    } catch (err) {
-      console.warn('刷新云端数据失败:', err.message)
-    }
-  }
-  
-  /**
-   * 强制同步数据到云端（游戏结束时调用）
-   * 绕过"本地优先"策略，直接将本地数据同步到云端
-   */
-  async forceSyncToCloud() {
-    try {
-      // 检查云开发是否已初始化
-      if (!this.cloudInitialized) {
-        console.log('云开发未初始化，跳过强制同步')
-        return
-      }
-      
-      // 🔧 优化：限制同步频率，至少间隔 2 分钟
-      const now = Date.now()
-      const lastSyncTime = this.lastForceSyncTime || 0
-      if (now - lastSyncTime < 120000) {  // 2 分钟
-        console.log('强制同步过于频繁，跳过')
-        return
-      }
-      this.lastForceSyncTime = now
-      
-      console.log('强制同步数据到云端...')
-      
-      // 直接调用 gameData 云函数的 sync 操作
-      const { callCloudFunction } = await import('./utils.js')
-      const result = await callCloudFunction('gameData', {
-        action: 'sync',
-        bestWave: this.gameState.bestWave,
-        highScore: this.gameState.highScore,
-        coins: this.gameState.coins
-      })
-      
-      if (result.result && result.result.success) {
-        console.log('强制同步成功')
-      } else {
-        console.warn('强制同步失败:', result.result?.message)
-      }
-    } catch (err) {
-      console.warn('强制同步云端数据失败:', err.message)
-    }
-  }
-
   // 初始化用户信息（在用户确认授权后调用）
   async initUserInfo() {
     // 如果已经授权过，直接使用本地数据
@@ -221,25 +116,16 @@ export class Main {
       const userInfo = await this.gameState.getUserProfile()
       console.log('获取用户信息成功:', userInfo)
       
-      // 保存到云端
-      const result = await this.gameState.saveUserProfileToCloud(
-        userInfo.nickName,
-        userInfo.avatarUrl
-      )
-      
-      if (result.success) {
-        console.log('用户资料保存成功')
-        return true
-      } else {
-        console.error('用户资料保存失败:', result.message)
-        return false
-      }
+      // 保存到本地
+      this.gameState.saveUserProfileLocally(userInfo.nickName, userInfo.avatarUrl)
+      console.log('用户资料保存成功')
+      return true
     } catch (err) {
       // 用户拒绝授权，使用默认头像
       console.log('用户拒绝授权，使用默认头像')
       // 生成默认昵称
       const defaultNickname = `玩家${wx.getSystemInfoSync().SDKVersion || 'default'}`
-      await this.gameState.saveUserProfileToCloud(defaultNickname, '')
+      this.gameState.saveUserProfileLocally(defaultNickname, '')
       return false
     }
   }
@@ -376,14 +262,6 @@ export class Main {
     
     // 切换到赛季排名界面
     this.uiManager.currentScreen = 'season_leaderboard'
-    
-    // 检查云开发是否已初始化
-    if (!this.cloudInitialized) {
-      console.warn('云开发未初始化，无法获取赛季排名')
-      this.uiManager.showToast('云开发未初始化')
-      this.uiManager.seasonLeaderboardData = null
-      return
-    }
     
     // 获取赛季排名数据（默认最高分）
     this.uiManager.seasonLeaderboardType = 'score'
@@ -842,9 +720,6 @@ export class Main {
       this.gameState.hasShownRecordBreakModal = true
     }
     
-    // 🔧 修复：胜利时也强制同步数据到云端
-    this.forceSyncToCloud()
-    
     if (modalType) {
       // 显示胜利弹窗（传递弹窗类型）
       this.uiManager.winModalType = modalType
@@ -895,9 +770,6 @@ export class Main {
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
     })
-    
-    // 游戏结束时同步数据到云端
-    this.flushCloudData()
   }
 
   // 处理游戏结束
@@ -966,9 +838,6 @@ export class Main {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
-    // 返回首页前同步数据到云端
-    await this.flushCloudData()
-    
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
   }
@@ -1005,27 +874,13 @@ export class Main {
     }
   }
 
-  // 显示排行榜（先同步数据，再获取排名）
+  // 显示排行榜
   async showLeaderboard() {
     this.audioManager.play('click')
     this.vibrate('light')
     
     // 切换到排行榜界面
     this.uiManager.currentScreen = 'leaderboard'
-    
-    // 检查云开发是否已初始化
-    if (!this.cloudInitialized) {
-      console.warn('云开发未初始化，无法获取排行榜')
-      this.uiManager.showToast('云开发未初始化')
-      this.uiManager.leaderboardData = null
-      return
-    }
-    
-    // 先同步本地数据到云端（5 分钟最多同步 1 次）
-    const syncResult = await this.gameState.syncToCloud()
-    if (!syncResult.success) {
-      console.log('数据同步跳过:', syncResult.message)
-    }
     
     // 获取排行榜数据（默认最高分）
     this.uiManager.leaderboardType = 'score'
@@ -1347,4 +1202,13 @@ export class Main {
     // 渲染 UI
     this.uiManager.render(this.gameState)
   }
+}
+
+
+// 在 Main.js 中导入测试
+import { testWithMockData } from '../test-sync-logic.js'
+
+// 在开发环境运行测试
+if (config.env === 'develop') {
+  testWithMockData()
 }
