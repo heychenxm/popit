@@ -1405,7 +1405,7 @@ export class UIManager {
       const itemX = listContainerX + listInnerPadding
       const itemW = listContainerW - listInnerPadding * 2
       
-      leaderboard.slice(listStartIndex).forEach((user, index) => {
+      leaderboard.slice(listStartIndex, listStartIndex + 3).forEach((user, index) => {
         const itemY = listContainerY + listInnerPadding + index * (listItemH + listItemGap)
         const isHighlight = user.isUser || (user.rank <= 3)
         
@@ -1641,16 +1641,20 @@ export class UIManager {
       }
     } else {
       const leaderboard = this.seasonLeaderboardData.leaderboard
+      const listStartIndex = 3
+      const itemX = listContainerX + listInnerPadding
+      const itemW = listContainerW - listInnerPadding * 2
       
-      // 第 2 行：第 4、5、6 名
-      for (let i = 3; i < 6 && i < leaderboard.length; i++) {
-        const col = i - 3
-        this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + col * (topItemW + topGap), topContainerY + topContainerH + topGap + 10, topItemW, topItemH,
-          leaderboard[i].rank, leaderboard[i].nickname, leaderboard[i].avatarUrl, leaderboard[i].value,
-          i + 1, leaderboard[i].isUser
+      leaderboard.slice(listStartIndex, listStartIndex + 3).forEach((user, index) => {
+        const itemY = listContainerY + listInnerPadding + index * (listItemH + listItemGap)
+        const isHighlight = user.isUser || (user.rank <= 3)
+        
+        this.drawLeaderboardListItem(
+          itemX, itemY, itemW, listItemH,
+          user.rank, user.nickname, user.avatarUrl, user.value,
+          isHighlight, user.isUser
         )
-      }
+      })
     }
     
     // 底部提示

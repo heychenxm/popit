@@ -434,7 +434,28 @@ export class GameState {
 
   // 获取排行榜数据（本地版本，无云端数据）
   async getLeaderboard(type = 'score') {
-    // 纯本地模式，返回空排行榜
+    // 尝试从缓存读取
+    const cacheKey = `leaderboard_${type}_cache`
+    try {
+      const cached = wx.getStorageSync(cacheKey)
+      if (cached) {
+        const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached
+        const now = Date.now()
+        // 检查缓存是否过期（30 分钟）
+        if (parsed.timestamp && (now - parsed.timestamp) < parsed.expire) {
+          console.log(`使用缓存的排行榜数据: ${type}`)
+          return {
+            success: true,
+            data: parsed.data,
+            fromCache: true
+          }
+        }
+      }
+    } catch (e) {
+      console.log('读取排行榜缓存失败:', e)
+    }
+    
+    // 无缓存或缓存过期，返回空排行榜
     return {
       success: true,
       data: {
@@ -503,7 +524,28 @@ export class GameState {
    * @returns {Promise<Object>} 赛季数据
    */
   async getSeasonData(type = 'score') {
-    // 纯本地模式，返回空赛季数据
+    // 尝试从缓存读取
+    const cacheKey = `season_leaderboard_${type}_cache`
+    try {
+      const cached = wx.getStorageSync(cacheKey)
+      if (cached) {
+        const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached
+        const now = Date.now()
+        // 检查缓存是否过期（30 分钟）
+        if (parsed.timestamp && (now - parsed.timestamp) < parsed.expire) {
+          console.log(`使用缓存的赛季排行榜数据: ${type}`)
+          return {
+            success: true,
+            data: parsed.data,
+            fromCache: true
+          }
+        }
+      }
+    } catch (e) {
+      console.log('读取赛季排行榜缓存失败:', e)
+    }
+    
+    // 无缓存或缓存过期，返回空赛季数据
     return {
       success: true,
       data: {
