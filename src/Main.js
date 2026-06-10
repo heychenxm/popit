@@ -37,9 +37,6 @@ export class Main {
     this.bubbleGrid = new BubbleGrid(this.canvas, { pixelRatio: this.pixelRatio })
     this.uiManager = new UIManager(this.canvas, { pixelRatio: this.pixelRatio })
     
-    // 创建 UI 缓存（优化：批量绘制）
-    this.uiManager.createMenuCache()
-    
     // 游戏循环
     this.lastTime = 0
     this.isRunning = false
@@ -74,8 +71,34 @@ export class Main {
     // 从云端加载数据（异步，不阻塞游戏启动）
     this.gameState.loadCloudData()
     
-    // 开始游戏循环
+    // 阶段 1：立即创建必要的缓存（背景）
+    this.bubbleGrid.createBgCache()
+    
+    // 开始游戏循环（先启动，保证快速响应）
     this.start()
+    
+    // 阶段 2：延迟创建非必要的缓存（使用 requestIdleCallback 或 setTimeout）
+    this.createDeferredCaches()
+  }
+  
+  // 延迟创建缓存（在空闲时执行）
+  createDeferredCaches() {
+    // 使用 requestIdleCallback（如果可用）或 setTimeout
+    const scheduleTask = typeof requestIdleCallback === 'function'
+      ? requestIdleCallback
+      : (cb) => setTimeout(cb, 100)
+    
+    scheduleTask(() => {
+      // 创建玻璃框网格缓存
+      this.bubbleGrid.createGlassGridCache()
+      console.log('玻璃框网格缓存创建完成')
+    })
+    
+    scheduleTask(() => {
+      // 创建 UI 缓存
+      this.uiManager.createMenuCache()
+      console.log('UI 缓存创建完成')
+    }, 50)
   }
   
   /**

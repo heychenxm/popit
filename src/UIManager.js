@@ -88,10 +88,17 @@ export class UIManager {
   
   // 创建主菜单缓存
   createMenuCache() {
+    // 如果缓存已存在，直接标记为需要更新（避免重复创建）
+    if (this.menuCache && this.menuCtx) {
+      this.menuNeedsUpdate = true
+      return
+    }
+    
     try {
       if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
         this.menuCache = wx.createOffscreenCanvas(this.width, this.height)
         this.menuCtx = this.menuCache.getContext('2d')
+        this.menuNeedsUpdate = true
       }
     } catch (e) {
       console.warn('离屏 Canvas 不可用，使用降级方案')

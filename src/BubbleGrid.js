@@ -96,11 +96,23 @@ export class BubbleGrid {
 
   // 设置网格大小
   setGridSize(cols, rows) {
+    const sizeChanged = (this.cols !== cols || this.rows !== rows)
     this.cols = cols
     this.rows = rows
     this.totalBubbles = this.cols * this.rows
-    this.updateLayout()
-    this.initBubbles()
+    
+    // 只在尺寸变化时更新布局和重建缓存
+    if (sizeChanged) {
+      this.updateLayout()
+      this.initBubbles()
+      // 标记所有缓存需要更新
+      this.bgNeedsUpdate = true
+      this.glassCellNeedsUpdate = true
+      this.glassGridNeedsUpdate = true
+    } else {
+      // 尺寸未变化，只重置泡泡状态
+      this.resetBubbles()
+    }
   }
 
   // 更新布局
