@@ -751,9 +751,14 @@ export class BubbleGrid {
 
   // 根据触摸位置获取泡泡索引
   getBubbleIndexAtPoint(x, y) {
+    // 优化：使用更大的点击区域（提升点击灵敏度）
+    const clickRadiusBonus = 4  // 额外增加 4px 点击区域
+    
     for (let i = 0; i < this.bubbles.length; i++) {
       const bubble = this.bubbles[i]
-      if (isPointInCircle(x, y, bubble.x, bubble.y, bubble.radius * bubble.scale)) {
+      // 使用泡泡半径 + 额外区域，并考虑缩放
+      const clickRadius = bubble.radius * bubble.scale + clickRadiusBonus
+      if (isPointInCircle(x, y, bubble.x, bubble.y, clickRadius)) {
         return i
       }
     }
