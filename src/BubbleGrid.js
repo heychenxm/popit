@@ -59,11 +59,12 @@ export class BubbleGrid {
     
     // 泡泡状态
     this.bubbles = []
+    this.activeBubbles = []  // 优化：只包含激活状态的泡泡，减少 update 遍历
     this.gridX = 0
     this.gridY = 0
     this.gridSize = 0
     this.cellSize = 0
-    this.gap = 12
+    this.gap = 8  // 减小网格间距：从 12 改为 8
     
     // 动画状态
     this.animationFrame = 0
@@ -71,6 +72,19 @@ export class BubbleGrid {
     
     // 预创建背景渐变（优化：避免每帧创建）
     this.bgGradient = null
+    
+    // 预创建玻璃框渐变（优化：避免每帧创建）
+    this.glassGradient = null
+    this.glassHighlightGradient = null
+    
+    // 离屏 Canvas 缓存背景（优化：避免每帧重绘静态背景）
+    this.bgCanvas = null
+    this.bgCtx = null
+    this.bgNeedsUpdate = true
+    
+    // 离屏 Canvas 缓存玻璃框（优化：避免每帧重绘玻璃框）
+    this.glassCellCache = null
+    this.glassCellNeedsUpdate = true
     
     this.updateLayout()
     this.initBubbles()
@@ -101,6 +115,114 @@ export class BubbleGrid {
     this.bgGradient.addColorStop(0, '#0d0926')
     this.bgGradient.addColorStop(0.6, '#17113a')
     this.bgGradient.addColorStop(1, '#2b185d')
+    
+    // 预创建玻璃框渐变（使用固定尺寸，因为所有玻璃框大小相同）
+    const halfSize = this.cellSize / 2
+    this.glassGradient = this.ctx.createLinearGradient(-halfSize, -halfSize, halfSize, halfSize)
+    this.glassGradient.addColorStop(0, 'rgba(25, 27, 44, 0.6)')
+    this.glassGradient.addColorStop(1, 'rgba(14, 15, 28, 0.8)')
+    
+    this.glassHighlightGradient = this.ctx.createLinearGradient(-halfSize, -halfSize, halfSize, halfSize)
+    this.glassHighlightGradient.addColorStop(0, 'rgba(25, 25, 255, 0.14)')
+    this.glassHighlightGradient.addColorStop(0.45, 'rgba(255, 255, 255, 0.02)')
+    this.glassHighlightGradient.addColorStop(0.5, 'transparent')
+    this.glassHighlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0.04)')
+    
+    // 创建离屏 Canvas
+    this.createBgCache()
+    this.createGlassCellCache()
+    
+    // 标记背景需要更新
+    this.bgNeedsUpdate = true
+    this.glassCellNeedsUpdate = true
+  }
+  
+  // 创建离屏 Canvas 缓存
+  createBgCache() {
+    try {
+      if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
+        this.bgCanvas = wx.createOffscreenCanvas(this.width, this.height)
+        this.bgCtx = this.bgCanvas.getContext('2d')
+      }
+    } catch (e) {
+      console.warn('离屏 Canvas 不可用，使用降级方案')
+      this.bgCanvas = null
+      this.bgCtx = null
+    }
+  }
+  
+  // 创建玻璃框单元格缓存
+  createGlassCellCache() {
+    try {
+      if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
+        // 创建单个玻璃框的缓存（所有玻璃框大小相同）
+        this.glassCellCache = wx.createOffscreenCanvas(this.cellSize, this.cellSize)
+        this.glassCellCtx = this.glassCellCache.getContext('2d')
+      }
+    } catch (e) {
+      console.warn('离屏 Canvas 不可用，使用降级方案')
+      this.glassCellCache = null
+      this.glassCellCtx = null
+    }
+  }
+  
+  // 绘制玻璃框到缓存
+  drawGlassCellToCache() {
+    if (!this.glassCellCtx) return
+    
+    const ctx = this.glassCellCtx
+    const halfSize = this.cellSize / 2
+    const cellRadius = 16
+    const frameSize = halfSize - 1
+    
+    ctx.clearRect(0, 0, this.cellSize, this.cellSize)
+    ctx.save()
+    ctx.translate(halfSize, halfSize)
+    
+    // 使用预创建的玻璃框渐变
+    ctx.fillStyle = this.glassGradient
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.13)'
+    ctx.lineWidth = 1.5
+    
+    // 绘制圆角矩形
+    this.drawRoundedRect(ctx, -frameSize, -frameSize, frameSize * 2, frameSize * 2, cellRadius)
+    ctx.fill()
+    ctx.stroke()
+    
+    // 使用预创建的高光渐变
+    ctx.fillStyle = this.glassHighlightGradient
+    this.drawRoundedRect(ctx, -frameSize, -frameSize, frameSize * 2, frameSize * 2, cellRadius)
+    ctx.fill()
+    
+    // 内圈轮廓
+    const innerFrame = frameSize - 2
+    const innerRadius = cellRadius - 2
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
+    ctx.lineWidth = 1
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
+    ctx.shadowBlur = 6
+    
+    this.drawRoundedRect(ctx, -innerFrame, -innerFrame, innerFrame * 2, innerFrame * 2, innerRadius)
+    ctx.stroke()
+    
+    ctx.restore()
+  }
+  
+  // 绘制背景到离屏Canvas
+  drawBackgroundToCache() {
+    if (!this.bgCtx) return
+    
+    const ctx = this.bgCtx
+    
+    // 渐变背景
+    ctx.fillStyle = this.bgGradient
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 霓虹网格背景
+    this.drawNeonGridToCtx(ctx)
+    
+    // 星星粒子（静态位置，不闪烁）
+    this.drawStarsToCtx(ctx, false)
   }
 
   // 初始化泡泡
@@ -192,25 +314,43 @@ export class BubbleGrid {
       bubble.activeColor = null
       bubble.clicked = false
     })
+    // 清空激活列表
+    this.activeBubbles = []
   }
 
   // 设置泡泡状态（观察阶段专用 - 会闪动）
   setBubbleStateForObserving(index, color = 'purple') {
     if (index >= 0 && index < this.bubbles.length) {
-      this.bubbles[index].state = color
-      this.bubbles[index].activeColor = color
-      this.bubbles[index].clicked = false  // 观察阶段，不标记为已点击，保持闪动
+      const bubble = this.bubbles[index]
+      bubble.state = color
+      bubble.activeColor = color
+      bubble.clicked = false  // 观察阶段，不标记为已点击，保持闪动
+      // 添加到激活列表
+      if (!this.activeBubbles.includes(bubble)) {
+        this.activeBubbles.push(bubble)
+      }
     }
   }
   
   // 设置泡泡状态
   setBubbleState(index, state, color = 'purple') {
     if (index >= 0 && index < this.bubbles.length) {
-      this.bubbles[index].state = state
-      this.bubbles[index].activeColor = color
+      const bubble = this.bubbles[index]
+      bubble.state = state
+      bubble.activeColor = color
       // 如果是点击后的激活状态，标记为已点击（停止闪动）
       if (state === 'pink' || state === 'purple' || state === 'blue') {
-        this.bubbles[index].clicked = true
+        bubble.clicked = true
+        // 添加到激活列表
+        if (!this.activeBubbles.includes(bubble)) {
+          this.activeBubbles.push(bubble)
+        }
+      } else {
+        // 从激活列表移除
+        const idx = this.activeBubbles.indexOf(bubble)
+        if (idx >= 0) {
+          this.activeBubbles.splice(idx, 1)
+        }
       }
     }
   }
@@ -219,20 +359,30 @@ export class BubbleGrid {
   drawBackground() {
     const ctx = this.ctx
     
-    // 使用预创建的背景渐变
-    ctx.fillStyle = this.bgGradient
-    ctx.fillRect(0, 0, this.width, this.height)
-    
-    // 霓虹网格背景
-    this.drawNeonGrid()
-    
-    // 星星粒子
-    this.drawStars()
+    // 使用离屏Canvas缓存（如果可用）
+    if (this.bgCanvas && this.bgCtx) {
+      // 标记需要更新
+      if (this.bgNeedsUpdate) {
+        this.drawBackgroundToCache()
+        this.bgNeedsUpdate = false
+      }
+      // 直接复制缓存
+      ctx.drawImage(this.bgCanvas, 0, 0)
+      
+      // 星星闪烁效果（动态层）
+      this.drawStars(ctx, true)
+    } else {
+      // 降级方案：直接绘制
+      ctx.fillStyle = this.bgGradient
+      ctx.fillRect(0, 0, this.width, this.height)
+      this.drawNeonGrid(ctx)
+      this.drawStars(ctx, true)
+    }
   }
 
-  // 绘制霓虹网格
-  drawNeonGrid() {
-    const ctx = this.ctx
+  // 绘制霓虹网格（支持传入ctx）
+  drawNeonGrid(ctx) {
+    ctx = ctx || this.ctx
     const gridHeight = this.height * 0.3
     const gridY = this.height - gridHeight
     
@@ -245,28 +395,35 @@ export class BubbleGrid {
     const cols = Math.ceil(this.width / gridSize)
     const rows = Math.ceil(gridHeight / gridSize)
     
+    // 优化：合并路径减少stroke调用
+    ctx.beginPath()
     for (let i = 0; i <= cols; i++) {
       const x = i * gridSize
-      ctx.beginPath()
       ctx.moveTo(x, gridY)
       ctx.lineTo(x, this.height)
-      ctx.stroke()
     }
+    ctx.stroke()
     
+    ctx.beginPath()
     for (let i = 0; i <= rows; i++) {
       const y = gridY + i * gridSize
-      ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(this.width, y)
-      ctx.stroke()
     }
+    ctx.stroke()
     
     ctx.restore()
   }
+  
+  // 绘制霓虹网格到指定ctx（用于缓存）
+  drawNeonGridToCtx(ctx) {
+    this.drawNeonGrid(ctx)
+  }
 
-  // 绘制星星粒子
-  drawStars() {
-    const ctx = this.ctx
+  // 绘制星星粒子（支持传入ctx和是否闪烁）
+  drawStars(ctx, animate) {
+    ctx = ctx || this.ctx
+    animate = animate !== undefined ? animate : true
     ctx.save()
     
     for (let i = 0; i < 30; i++) {
@@ -274,8 +431,14 @@ export class BubbleGrid {
       const x = ((seed * 7) % this.width)
       const y = ((seed * 13) % (this.height * 0.7))
       const size = ((seed * 3) % 2) + 1
-      const twinkle = Math.sin(this.animationFrame * 0.02 + i) * 0.4 + 0.6
-      ctx.globalAlpha = twinkle * 0.8
+      
+      let alpha = 0.8
+      if (animate) {
+        const twinkle = Math.sin(this.animationFrame * 0.02 + i) * 0.4 + 0.6
+        alpha = twinkle * 0.8
+      }
+      
+      ctx.globalAlpha = alpha
       ctx.fillStyle = Colors.white
       ctx.beginPath()
       ctx.arc(x, y, size, 0, Math.PI * 2)
@@ -283,6 +446,11 @@ export class BubbleGrid {
     }
     
     ctx.restore()
+  }
+  
+  // 绘制星星到指定ctx（用于缓存）
+  drawStarsToCtx(ctx, animate) {
+    this.drawStars(ctx, animate)
   }
 
   // 绘制玻璃框网格容器
@@ -296,10 +464,10 @@ export class BubbleGrid {
     ctx.fillStyle = 'rgba(88, 28, 135, 0.2)'
     
     const radius = 24
-    const x = this.gridX - 8
-    const y = this.gridY - 8
-    const w = this.gridSize + 16
-    const h = this.gridSize + 16
+    const x = this.gridX
+    const y = this.gridY
+    const w = this.gridSize
+    const h = this.gridSize
     
     ctx.beginPath()
     ctx.moveTo(x + radius, y)
@@ -323,17 +491,13 @@ export class BubbleGrid {
     const ctx = this.ctx
     const halfSize = size / 2
     const cellRadius = 16
-    const frameSize = halfSize - 2
+    const frameSize = halfSize - 1  // 减小间距：从 -2 改为 -1
     
     ctx.save()
     ctx.translate(x, y)
     
-    // 玻璃框背景
-    const gradient = ctx.createLinearGradient(-halfSize, -halfSize, halfSize, halfSize)
-    gradient.addColorStop(0, 'rgba(25, 27, 44, 0.6)')
-    gradient.addColorStop(1, 'rgba(14, 15, 28, 0.8)')
-    
-    ctx.fillStyle = gradient
+    // 使用预创建的玻璃框渐变
+    ctx.fillStyle = this.glassGradient
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.13)'
     ctx.lineWidth = 1.5
     
@@ -342,20 +506,14 @@ export class BubbleGrid {
     ctx.fill()
     ctx.stroke()
     
-    // 玻璃高光
-    const highlightGradient = ctx.createLinearGradient(-frameSize, -frameSize, frameSize, frameSize)
-    highlightGradient.addColorStop(0, 'rgba(25, 25, 255, 0.14)')
-    highlightGradient.addColorStop(0.45, 'rgba(255, 255, 255, 0.02)')
-    highlightGradient.addColorStop(0.5, 'transparent')
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0.04)')
-    
-    ctx.fillStyle = highlightGradient
+    // 使用预创建的高光渐变
+    ctx.fillStyle = this.glassHighlightGradient
     this.drawRoundedRect(ctx, -frameSize, -frameSize, frameSize * 2, frameSize * 2, cellRadius)
     ctx.fill()
     
     // 内圈轮廓
-    const innerFrame = frameSize - 3
-    const innerRadius = cellRadius - 3
+    const innerFrame = frameSize - 2  // 从 -3 改为 -2，保持相对间距
+    const innerRadius = cellRadius - 2  // 从 -3 改为 -2
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
     ctx.lineWidth = 1
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
@@ -396,15 +554,10 @@ export class BubbleGrid {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    // 顶部月牙形高光
+    // 优化：合并高光和反光到同一路径
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
     ctx.beginPath()
     ctx.ellipse(x - radius * 0.25, y - radius * 0.3, radius * 0.3, radius * 0.2, -0.4, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 右下角弱反光
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.09)'
-    ctx.beginPath()
     ctx.arc(x + radius * 0.3, y + radius * 0.3, radius * 0.22, 0, Math.PI * 2)
     ctx.fill()
   }
@@ -486,8 +639,23 @@ export class BubbleGrid {
     
     // 绘制每个单元格和泡泡
     this.bubbles.forEach(bubble => {
-      // 绘制玻璃框
-      this.drawGlassCell(bubble.x, bubble.y, this.cellSize)
+      // 使用缓存的玻璃框（如果可用）
+      if (this.glassCellCache && this.glassCellCtx) {
+        // 首次或尺寸变化时重新绘制缓存
+        if (this.glassCellNeedsUpdate) {
+          this.drawGlassCellToCache()
+          this.glassCellNeedsUpdate = false
+        }
+        // 直接复制缓存
+        ctx.drawImage(
+          this.glassCellCache,
+          bubble.x - this.cellSize / 2,
+          bubble.y - this.cellSize / 2
+        )
+      } else {
+        // 降级方案：直接绘制
+        this.drawGlassCell(bubble.x, bubble.y, this.cellSize)
+      }
       
       // 绘制泡泡
       if (bubble.state === 'normal') {
@@ -507,14 +675,10 @@ export class BubbleGrid {
     this.animationFrame++
     this.glowPhase += deltaTime * 0.005
     
-    // 只更新激活泡泡的缩放（优化：避免遍历所有泡泡）
-    for (let i = 0; i < this.bubbles.length; i++) {
-      const bubble = this.bubbles[i]
-      if (bubble.state === 'pink' || bubble.state === 'purple' || bubble.state === 'blue') {
-        bubble.scale = Math.sin(this.glowPhase) * 0.04 + 1
-      } else if (bubble.scale !== 1) {
-        bubble.scale = 1
-      }
+    // 优化：只更新激活泡泡的缩放（避免遍历所有泡泡）
+    for (let i = 0; i < this.activeBubbles.length; i++) {
+      const bubble = this.activeBubbles[i]
+      bubble.scale = Math.sin(this.glowPhase) * 0.04 + 1
     }
   }
 

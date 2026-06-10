@@ -46,12 +46,61 @@ export class UIManager {
     this.logoImage = null
     this.logoImageLoaded = false
     this._loadLogoImage()
+    
+    // 缓存常用字体设置（优化：避免每帧重复设置）
+    this.cachedFonts = {
+      bold18: null,
+      bold11_2: null,
+      normal10: null,
+      bold16: null
+    }
+    
+    // 缓存文字测量结果（优化：避免重复测量）
+    this.textMeasureCache = new Map()
+    
+    // 预计算常用数值宽度（优化：避免重复 measureText）
+    this.numberWidths = []
+    this._precomputeNumberWidths()
+  }
+  
+  // 预计算数值宽度
+  _precomputeNumberWidths() {
+    const testCtx = this.ctx
+    testCtx.font = 'bold 11.2px sans-serif'  // 金币字体
+    for (let i = 0; i <= 9999; i++) {
+      this.numberWidths[i] = testCtx.measureText(i.toString()).width
+    }
   }
 
   // 更新布局
   updateLayout() {
     this.width = this.canvas.width / this.pixelRatio
     this.height = this.canvas.height / this.pixelRatio
+  }
+  
+  // 设置字体（带缓存）
+  setFont(fontKey) {
+    const fontMap = {
+      'bold18': 'bold 18px sans-serif',
+      'bold11_2': 'bold 11.2px sans-serif',
+      'normal10': '10px sans-serif',
+      'bold16': 'bold 16px sans-serif'
+    }
+    const font = fontMap[fontKey]
+    if (font && this.ctx.font !== font) {
+      this.ctx.font = font
+    }
+  }
+  
+  // 测量文字宽度（带缓存）
+  measureText(text) {
+    const cacheKey = `${text}_${this.ctx.font}`
+    let cached = this.textMeasureCache.get(cacheKey)
+    if (cached === undefined) {
+      cached = this.ctx.measureText(text).width
+      this.textMeasureCache.set(cacheKey, cached)
+    }
+    return cached
   }
 
   // 绘制主菜单
@@ -128,11 +177,12 @@ export class UIManager {
     
     ctx.save()
     
-    // 设置字体并测量文字宽度（字体也缩小 30%）
-    ctx.font = 'bold 11.2px sans-serif'  // 16 * 0.7 = 11.2
+    // 使用缓存的字体设置
+    this.setFont('bold11_2')
     ctx.textBaseline = 'middle'
     const coinsText = gameState.coins.toString()
-    const textWidth = ctx.measureText(coinsText).width
+    // 使用预计算的数值宽度
+    const textWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
     
     // 计算徽章总宽度 = 左边距 + 图标 + 间距 + 文字 + 右边距
     const badgeWidth = leftPadding + iconSize + iconGap + textWidth + rightPadding
@@ -621,7 +671,7 @@ export class UIManager {
     const waveX = this.width / 2
     const waveY = topPadding + 10
     
-    ctx.font = 'bold 18px sans-serif'
+    this.setFont('bold18')
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -693,13 +743,13 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = '10px sans-serif'
+    this.setFont('normal10')
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.gray400
     ctx.fillText(label, x + w / 2, y + 14)
     
-    ctx.font = 'bold 16px sans-serif'
+    this.setFont('bold16')
     ctx.fillStyle = valueColor
     ctx.fillText(value, x + w / 2, y + h - 14)
     
@@ -718,7 +768,7 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = '10px sans-serif'
+    this.setFont('normal10')
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.gray400
