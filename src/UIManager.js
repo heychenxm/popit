@@ -1113,7 +1113,7 @@ export class UIManager {
     ctx.font = 'bold 12px sans-serif'
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'left'
-    ctx.fillText('来挑战 POPIT 记忆大师！', gameIconX + gameIconSize + 10, previewContentY + 12)
+    ctx.fillText('来挑战泡泡大师！', gameIconX + gameIconSize + 10, previewContentY + 12)
     
     // 游戏描述
     ctx.font = '11px sans-serif'
@@ -2275,9 +2275,9 @@ export class UIManager {
     ctx.shadowBlur = 4
     ctx.fillText('失败！', this.width / 2, titleY + 22)
     
-    // 骷髅图标（使用 Canvas 路径绘制）
+    // 哭泣泡泡图标（使用 Canvas 路径绘制）
     ctx.shadowBlur = 0
-    this.drawSkullIcon(ctx, this.width / 2, titleY + 60, 48, Colors.gray400)
+    this.drawCryingBubbleIcon(ctx, this.width / 2, titleY + 60, 48)
     
     // 关卡
     ctx.font = '14px sans-serif'
@@ -2839,58 +2839,102 @@ export class UIManager {
     return `#${f(0)}${f(8)}${f(4)}`
   }
 
-  // 绘制骷髅图标
-  drawSkullIcon(ctx, x, y, size, color) {
+  // 绘制哭泣泡泡图标
+  drawCryingBubbleIcon(ctx, x, y, size) {
     ctx.save()
     ctx.translate(x, y)
     
-    const halfSize = size / 2
+    const r = size / 2
     
-    ctx.fillStyle = color
-    ctx.strokeStyle = color
+    // 泡泡渐变
+    const bubbleGrad = ctx.createRadialGradient(0, -r * 0.1, r * 0.1, 0, 0, r)
+    bubbleGrad.addColorStop(0, '#a78bfa')
+    bubbleGrad.addColorStop(1, '#4c1d95')
+    
+    // 泪滴渐变
+    const tearGrad = ctx.createLinearGradient(0, 0, 0, r)
+    tearGrad.addColorStop(0, '#38bdf8')
+    tearGrad.addColorStop(1, '#0284c7')
+    
+    // 外圈泡泡形状
+    ctx.fillStyle = bubbleGrad
+    ctx.strokeStyle = '#f472b6'
     ctx.lineWidth = 2
-    
-    // 头部（圆形）
+    ctx.setLineDash([4, 2])
     ctx.beginPath()
-    ctx.arc(0, -halfSize * 0.2, halfSize * 0.7, 0, Math.PI * 2)
+    ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2)
     ctx.fill()
+    ctx.stroke()
+    ctx.setLineDash([])
     
-    // 下巴（矩形）
-    ctx.fillRect(-halfSize * 0.3, halfSize * 0.2, halfSize * 0.6, halfSize * 0.5)
-    
-    // 眼睛（两个圆形）
-    ctx.fillStyle = '#03040c'
+    // 内圈发光
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+    ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.arc(-halfSize * 0.25, -halfSize * 0.2, halfSize * 0.15, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(halfSize * 0.25, -halfSize * 0.2, halfSize * 0.15, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 鼻子（小三角形）
-    ctx.fillStyle = '#03040c'
-    ctx.beginPath()
-    ctx.moveTo(0, halfSize * 0.05)
-    ctx.lineTo(-halfSize * 0.08, halfSize * 0.15)
-    ctx.lineTo(halfSize * 0.08, halfSize * 0.15)
-    ctx.closePath()
-    ctx.fill()
-    
-    // 嘴巴（线条）
-    ctx.strokeStyle = '#03040c'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(-halfSize * 0.2, halfSize * 0.35)
-    ctx.lineTo(halfSize * 0.2, halfSize * 0.35)
+    ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2)
     ctx.stroke()
     
-    // 牙齿（小竖线）
-    for (let i = -1; i <= 1; i++) {
-      ctx.beginPath()
-      ctx.moveTo(i * halfSize * 0.1, halfSize * 0.3)
-      ctx.lineTo(i * halfSize * 0.1, halfSize * 0.4)
-      ctx.stroke()
-    }
+    // 悲伤哭泣的眼睛
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 3.5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.arc(-r * 0.35, -r * 0.1, r * 0.15, Math.PI * 0.1, Math.PI * 0.9)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(r * 0.35, -r * 0.1, r * 0.15, Math.PI * 0.1, Math.PI * 0.9)
+    ctx.stroke()
+    
+    // 蓝色泪滴
+    ctx.fillStyle = tearGrad
+    // 左泪滴
+    ctx.beginPath()
+    ctx.moveTo(-r * 0.5, r * 0.05)
+    ctx.quadraticCurveTo(-r * 0.5, r * 0.35, -r * 0.6, r * 0.45)
+    ctx.quadraticCurveTo(-r * 0.65, r * 0.55, -r * 0.55, r * 0.55)
+    ctx.quadraticCurveTo(-r * 0.45, r * 0.55, -r * 0.5, r * 0.35)
+    ctx.quadraticCurveTo(-r * 0.5, r * 0.15, -r * 0.5, r * 0.05)
+    ctx.fill()
+    // 右泪滴
+    ctx.beginPath()
+    ctx.moveTo(r * 0.5, r * 0.05)
+    ctx.quadraticCurveTo(r * 0.5, r * 0.35, r * 0.6, r * 0.45)
+    ctx.quadraticCurveTo(r * 0.65, r * 0.55, r * 0.55, r * 0.55)
+    ctx.quadraticCurveTo(r * 0.45, r * 0.55, r * 0.5, r * 0.35)
+    ctx.quadraticCurveTo(r * 0.5, r * 0.15, r * 0.5, r * 0.05)
+    ctx.fill()
+    
+    // 悲伤下弯的嘴巴
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 3.5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(-r * 0.2, r * 0.35)
+    ctx.quadraticCurveTo(0, r * 0.2, r * 0.2, r * 0.35)
+    ctx.stroke()
+    
+    // 红色创可贴（表示泡泡被戳破的伤痕）
+    ctx.strokeStyle = '#f43f5e'
+    ctx.lineWidth = 3
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(r * 0.35, -r * 0.55)
+    ctx.lineTo(r * 0.55, -r * 0.35)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(r * 0.55, -r * 0.55)
+    ctx.lineTo(r * 0.35, -r * 0.35)
+    ctx.stroke()
+    
+    // 左上角光泽高光
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.save()
+    ctx.translate(-r * 0.25, -r * 0.45)
+    ctx.rotate(-Math.PI / 6)
+    ctx.beginPath()
+    ctx.ellipse(0, 0, r * 0.15, r * 0.06, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
     
     ctx.restore()
   }

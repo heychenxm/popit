@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>泡泡大师</title>
+    <title>泡泡大师 POPIT - 记忆爆破</title>
     <!-- Tailwind CSS for modern layouts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tailwind custom setup for themed colors and animations -->
@@ -448,7 +448,7 @@
             };
         </script>
 
-        <!-- ==================== SCREEN 1: MAIN MENU (ChatGPT_Image_2026年6月1日_16_24_39.png) ==================== -->
+        <!-- ==================== SCREEN 1: MAIN MENU ==================== -->
         <div id="screen-home" class="w-full h-full flex flex-col justify-between pt-24 pb-6 px-6 z-10">
             <!-- Share Gift Box Floating Icon at top-right -->
             <div class="absolute right-4 top-24 flex flex-col items-center z-20">
@@ -468,180 +468,142 @@
 
             <!-- Header Branding Logo Area -->
             <div class="flex flex-col items-center mt-2">
-                <!-- ==================== 1:1 精确还原双行鼓囊气泡 3D 贴纸 Logo ==================== -->
-                <!-- 第一行：泡泡大师，第二行：POPIT，充满果冻晶莹反光与贴纸充气白边 -->
-                <div class="w-80 h-44 flex items-center justify-center filter drop-shadow-[0_12px_20px_rgba(0,0,0,0.7)] select-none">
-                    <svg viewBox="0 0 460 250" class="w-full h-full font-black" xmlns="http://www.w3.org/2000/svg">
+                <!-- ==================== 1:1 双行超拟真立体气泡 Logo ==================== -->
+                <div class="w-80 h-44 flex items-center justify-center filter drop-shadow-[0_10px_16px_rgba(0,0,0,0.65)] select-none">
+                    <svg viewBox="0 0 460 260" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
                         <defs>
-                            <!-- 字母 & 汉字果冻渐变色 -->
-                            <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#ff607b"/><stop offset="30%" stop-color="#fc3655"/><stop offset="100%" stop-color="#ca001c"/>
+                            <!-- 渐变配置 -->
+                            <!-- Row 1: 泡泡大师 Gradient -->
+                            <linearGradient id="cnRed" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#ff758c"/><stop offset="100%" stop-color="#ff3b30"/>
                             </linearGradient>
-                            <linearGradient id="gYellow" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#fffb44"/><stop offset="45%" stop-color="#ffcf00"/><stop offset="100%" stop-color="#e26a00"/>
+                            <linearGradient id="cnYellow" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#ffea00"/><stop offset="100%" stop-color="#ff9500"/>
                             </linearGradient>
-                            <linearGradient id="gGreen" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#a4f325"/><stop offset="40%" stop-color="#76da08"/><stop offset="100%" stop-color="#199400"/>
+                            <linearGradient id="cnGreen" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#4cd964"/><stop offset="100%" stop-color="#28cd41"/>
                             </linearGradient>
-                            <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#4ce5ff"/><stop offset="35%" stop-color="#14a3ff"/><stop offset="100%" stop-color="#004fcb"/>
-                            </linearGradient>
-                            <linearGradient id="gPurple" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#da8aff"/><stop offset="35%" stop-color="#ad45ff"/><stop offset="100%" stop-color="#5500b8"/>
-                            </linearGradient>
-                            <linearGradient id="gPink" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#ff7ee1"/><stop offset="30%" stop-color="#ec4899"/><stop offset="100%" stop-color="#ad115b"/>
+                            <linearGradient id="cnBlue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#5ac8fa"/><stop offset="100%" stop-color="#007aff"/>
                             </linearGradient>
 
-                            <!-- 水滴小气泡渐变 -->
-                            <linearGradient id="dOrange" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#fff01a"/><stop offset="100%" stop-color="#f27400"/>
+                            <!-- Row 2: POPIT Gradient -->
+                            <linearGradient id="enPink" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#ff2d55"/><stop offset="100%" stop-color="#d3003b"/>
                             </linearGradient>
-                            <linearGradient id="dRed" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#ff5d75"/><stop offset="100%" stop-color="#cc0022"/>
+                            <linearGradient id="enYellow" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#ffcc00"/><stop offset="100%" stop-color="#e0a300"/>
                             </linearGradient>
-                            <linearGradient id="dBlue" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#3de2ff"/><stop offset="100%" stop-color="#005df5"/>
+                            <linearGradient id="enGreen" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#a4eb34"/><stop offset="100%" stop-color="#6db300"/>
                             </linearGradient>
-                            <linearGradient id="dGreen" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#aff71a"/><stop offset="100%" stop-color="#199400"/>
+                            <linearGradient id="enBlue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#34a8eb"/><stop offset="100%" stop-color="#006bb3"/>
+                            </linearGradient>
+                            <linearGradient id="enPurple" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#af52de"/><stop offset="100%" stop-color="#7a1fa2"/>
                             </linearGradient>
                         </defs>
 
-                        <!-- ==================== 第一部分：厚实圆润的整体外侧白色充气贴纸大包裹底 ==================== -->
+                        <!-- ==================== 第一行：泡泡大师 Sticker Background ==================== -->
                         <g stroke-linejoin="round" stroke-linecap="round">
-                            <!-- 最底层深紫描边阴影，提供物理贴纸的厚度和贴地质感 -->
-                            <g stroke="#eae5f7" stroke-width="28" fill="#eae5f7">
-                                <!-- 第一行：“泡泡大师”四字占位贴纸 -->
-                                <rect x="50" y="35" width="360" height="90" rx="45"/>
-                                <!-- 第二行：“POPIT”五字占位贴纸 -->
-                                <rect x="80" y="110" width="300" height="95" rx="47"/>
-                                <!-- 交会处粘连包裹 -->
-                                <rect x="90" y="80" width="280" height="60"/>
-                                <!-- 左上 3 喷射水滴 -->
-                                <path d="M 52,38 C 40,20 75,10 70,38 Z" />
-                                <path d="M 85,30 C 80,0 105,0 100,30 Z" />
-                                <path d="M 118,38 C 110,10 140,20 128,38 Z" />
-                                <!-- 右下 3 倾斜水滴 -->
-                                <path d="M 372,215 C 362,200 392,190 384,215 Z" />
-                                <path d="M 398,220 C 394,200 416,200 412,220 Z" />
-                                <path d="M 425,212 C 418,190 445,200 435,212 Z" />
+                            <!-- 深紫色描边阴影 (3D浮雕立体投影) -->
+                            <g stroke="#321e78" stroke-width="26" fill="#321e78">
+                                <text x="80" y="105" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                                <text x="175" y="92" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                                <text x="270" y="98" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">大</text>
+                                <text x="365" y="105" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">师</text>
                             </g>
-
-                            <!-- 中层纯白色大贴纸，展现鲜艳明亮的外描边 -->
-                            <g stroke="#ffffff" stroke-width="20" fill="#ffffff">
-                                <rect x="50" y="35" width="360" height="90" rx="45"/>
-                                <rect x="80" y="110" width="300" height="95" rx="47"/>
-                                <rect x="90" y="80" width="280" height="60"/>
-                                <path d="M 52,38 C 40,20 75,10 70,38 Z" />
-                                <path d="M 85,30 C 80,0 105,0 100,30 Z" />
-                                <path d="M 118,38 C 110,10 140,20 128,38 Z" />
-                                <path d="M 372,215 C 362,200 392,190 384,215 Z" />
-                                <path d="M 398,220 C 394,200 416,200 412,220 Z" />
-                                <path d="M 425,212 C 418,190 445,200 435,212 Z" />
-                            </g>
-
-                            <!-- 淡淡的高亮立体浅紫凹槽阴影 -->
-                            <g stroke="#e2dbf5" stroke-width="3" fill="none">
-                                <rect x="50" y="35" width="360" height="90" rx="45"/>
-                                <rect x="80" y="110" width="300" height="95" rx="47"/>
+                            <!-- 纯白边缘 Sticker -->
+                            <g stroke="#ffffff" stroke-width="18" fill="#ffffff">
+                                <text x="80" y="105" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                                <text x="175" y="92" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                                <text x="270" y="98" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">大</text>
+                                <text x="365" y="105" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">师</text>
                             </g>
                         </g>
 
-                        <!-- ==================== 第二部分：3D 鼓囊汉字 “泡泡大师” (第一行) ==================== -->
+                        <!-- ==================== 第一行：泡泡大师 彩色主体与高光 ==================== -->
                         <g>
-                            <!-- 泡 (gRed) -->
-                            <g>
-                                <text x="100" y="90" font-family="'Microsoft YaHei', sans-serif" font-size="64" font-weight="900" fill="url(#gRed)">泡</text>
-                                <!-- 立体果冻高光点 -->
-                                <ellipse cx="85" cy="65" rx="8" ry="4" fill="#ffffff" opacity="0.65" transform="rotate(-15 85 65)"/>
-                                <ellipse cx="112" cy="70" rx="4" ry="2" fill="#ffffff" opacity="0.5"/>
+                            <!-- 泡 (红) -->
+                            <text x="80" y="105" fill="url(#cnRed)" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                            <ellipse cx="62" cy="65" rx="12" ry="5" fill="#ffffff" opacity="0.65" transform="rotate(-15 62 65)" />
+                            
+                            <!-- 泡 (黄) -->
+                            <text x="175" y="92" fill="url(#cnYellow)" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">泡</text>
+                            <ellipse cx="157" cy="52" rx="12" ry="5" fill="#ffffff" opacity="0.65" transform="rotate(-15 157 52)" />
+                            
+                            <!-- 大 (绿) -->
+                            <text x="270" y="98" fill="url(#cnGreen)" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">大</text>
+                            <ellipse cx="252" cy="58" rx="12" ry="5" fill="#ffffff" opacity="0.6" transform="rotate(-15 252 58)" />
+                            
+                            <!-- 师 (蓝) -->
+                            <text x="365" y="105" fill="url(#cnBlue)" font-size="78" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle">师</text>
+                            <ellipse cx="347" cy="65" rx="12" ry="5" fill="#ffffff" opacity="0.6" transform="rotate(-15 347 65)" />
+                        </g>
+
+                        <!-- ==================== 第二行：POPIT Sticker Background ==================== -->
+                        <g stroke-linejoin="round" stroke-linecap="round">
+                            <!-- 深紫色描边阴影 -->
+                            <g stroke="#321e78" stroke-width="22" fill="#321e78">
+                                <text x="125" y="195" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                                <text x="180" y="200" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">O</text>
+                                <text x="235" y="193" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                                <text x="285" y="196" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">I</text>
+                                <text x="330" y="201" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">T</text>
                             </g>
-                            <!-- 泡 (gYellow) -->
-                            <g>
-                                <text x="180" y="90" font-family="'Microsoft YaHei', sans-serif" font-size="64" font-weight="900" fill="url(#gYellow)">泡</text>
-                                <ellipse cx="165" cy="65" rx="8" ry="4" fill="#ffffff" opacity="0.65" transform="rotate(-15 165 65)"/>
-                                <ellipse cx="192" cy="70" rx="4" ry="2" fill="#ffffff" opacity="0.5"/>
-                            </g>
-                            <!-- 大 (gGreen) -->
-                            <g>
-                                <text x="260" y="90" font-family="'Microsoft YaHei', sans-serif" font-size="64" font-weight="900" fill="url(#gGreen)">大</text>
-                                <ellipse cx="250" cy="62" rx="7" ry="3" fill="#ffffff" opacity="0.65" transform="rotate(-10 250 62)"/>
-                            </g>
-                            <!-- 师 (gBlue) -->
-                            <g>
-                                <text x="340" y="90" font-family="'Microsoft YaHei', sans-serif" font-size="64" font-weight="900" fill="url(#gBlue)">师</text>
-                                <ellipse cx="325" cy="65" rx="8" ry="4" fill="#ffffff" opacity="0.65" transform="rotate(-15 325 65)"/>
-                                <ellipse cx="352" cy="70" rx="4" ry="2" fill="#ffffff" opacity="0.5"/>
+                            <!-- 纯白边缘 Sticker -->
+                            <g stroke="#ffffff" stroke-width="14" fill="#ffffff">
+                                <text x="125" y="195" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                                <text x="180" y="200" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">O</text>
+                                <text x="235" y="193" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                                <text x="285" y="196" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">I</text>
+                                <text x="330" y="201" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">T</text>
                             </g>
                         </g>
 
-                        <!-- ==================== 第三部分：3D 饱满果冻英文 “POPIT” (第二行) ==================== -->
-                        <g transform="translate(0, 15)">
-                            <!-- P (gPink) -->
-                            <g>
-                                <path d="M 120,135 C 120,105 150,105 150,127 C 150,144 137,151 137,157 L 137,185 C 137,189 133,190 128,190 C 123,190 120,189 120,185 Z" fill="url(#gPink)" />
-                                <path d="M 120,135 L 120,157 L 133,157 C 140,157 150,151 150,131 C 150,114 133,111 120,135 Z" fill="url(#gPink)" />
-                                <circle cx="132" cy="132" r="8" fill="#ffffff" />
-                                <path d="M 123,117 C 128,110 141,110 145,119 C 141,114 130,113 124,121 Z" fill="#ffffff" opacity="0.65" />
-                            </g>
-                            <!-- O (gYellow) -->
-                            <g>
-                                <circle cx="185" cy="148" r="33" fill="url(#gYellow)" />
-                                <circle cx="185" cy="148" r="11" fill="#ffffff" />
-                                <circle cx="185" cy="148" r="12" fill="none" stroke="#d56c00" stroke-width="2" opacity="0.5" />
-                                <path d="M 163,135 C 168,122 189,119 203,129 C 188,122 171,125 166,141 Z" fill="#ffffff" opacity="0.75" />
-                            </g>
-                            <!-- P (gGreen) -->
-                            <g>
-                                <path d="M 235,135 C 235,105 265,105 265,127 C 265,144 252,151 252,157 L 252,185 C 252,189 248,190 243,190 C 238,190 235,189 235,185 Z" fill="url(#gGreen)" />
-                                <path d="M 235,135 L 235,157 L 248,157 C 255,157 265,151 265,131 C 265,114 248,111 235,135 Z" fill="url(#gGreen)" />
-                                <circle cx="247" cy="132" r="8" fill="#ffffff" />
-                                <path d="M 238,117 C 243,110 256,110 260,119 C 256,114 245,113 239,121 Z" fill="#ffffff" opacity="0.65" />
-                            </g>
-                            <!-- I (gBlue) -->
-                            <g>
-                                <rect x="288" y="112" width="22" height="78" rx="11" fill="url(#gBlue)" />
-                                <ellipse cx="299" cy="120" rx="6" ry="3" fill="#ffffff" opacity="0.75" />
-                                <ellipse cx="293" cy="148" rx="2.5" ry="20" fill="#ffffff" opacity="0.3" />
-                            </g>
-                            <!-- T (gPurple) -->
-                            <g>
-                                <path d="M 326,115 L 382,115 C 385,115 386,117 384,120 L 376,129 C 374,131 371,132 369,132 L 366,132 L 366,180 C 366,185 362,187 356,187 C 350,187 346,180 346,180 L 346,132 L 339,132 C 336,132 333,131 331,129 L 323,120 C 321,117 322,115 326,115 Z" fill="url(#gPurple)" />
-                                <path d="M 332,119 L 376,119 C 379,119 380,121 378,122 L 374,126 C 372,128 370,128 368,128 L 340,128 C 338,128 335,128 333,126 L 329,122 C 327,121 328,119 332,119 Z" fill="#ffffff" opacity="0.6" />
-                            </g>
-                        </g>
-
-                        <!-- ==================== 第四部分：顶部三颗喷洒水珠 ==================== -->
+                        <!-- ==================== 第二行：POPIT 彩色主体与高光 ==================== -->
                         <g>
-                            <path d="M 54,36 C 44,22 72,13 68,36 Z" fill="url(#dOrange)" />
-                            <ellipse cx="59" cy="28" rx="2" ry="4" fill="#ffffff" opacity="0.6" transform="rotate(-15 59 28)" />
+                            <!-- P (红粉) -->
+                            <text x="125" y="195" fill="url(#enPink)" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                            <ellipse cx="114" cy="167" rx="8" ry="3.5" fill="#ffffff" opacity="0.7" transform="rotate(-20 114 167)" />
 
-                            <path d="M 86,28 C 82,3 102,3 98,28 Z" fill="url(#dRed)" />
-                            <ellipse cx="90" cy="14" rx="1.5" ry="5" fill="#ffffff" opacity="0.7" />
+                            <!-- O (黄) -->
+                            <text x="180" y="200" fill="url(#enYellow)" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">O</text>
+                            <ellipse cx="169" cy="172" rx="8" ry="3.5" fill="#ffffff" opacity="0.7" transform="rotate(-20 169 172)" />
 
-                            <path d="M 116,36 C 109,13 136,21 125,36 Z" fill="url(#dBlue)" />
-                            <ellipse cx="119" cy="27" rx="2" ry="4" fill="#ffffff" opacity="0.6" transform="rotate(25 119 27)" />
+                            <!-- P (绿) -->
+                            <text x="235" y="193" fill="url(#enGreen)" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">P</text>
+                            <ellipse cx="224" cy="165" rx="8" ry="3.5" fill="#ffffff" opacity="0.7" transform="rotate(-20 224 165)" />
+
+                            <!-- I (蓝) -->
+                            <text x="285" y="196" fill="url(#enBlue)" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">I</text>
+                            <ellipse cx="277" cy="168" rx="5" ry="2.5" fill="#ffffff" opacity="0.7" transform="rotate(-20 277 168)" />
+
+                            <!-- T (紫) -->
+                            <text x="330" y="201" fill="url(#enPurple)" font-size="54" font-family="'Inter', system-ui, sans-serif" font-weight="900" text-anchor="middle">T</text>
+                            <ellipse cx="319" cy="173" rx="8" ry="3" fill="#ffffff" opacity="0.7" transform="rotate(-20 319 173)" />
                         </g>
 
-                        <!-- ==================== 第五部分：右下角三颗倾斜水珠 ==================== -->
-                        <g transform="translate(0, 15)">
-                            <path d="M 374,198 C 365,186 389,178 383,198 Z" fill="url(#dOrange)" />
-                            <ellipse cx="377" cy="191" rx="1.5" ry="3" fill="#ffffff" opacity="0.6" transform="rotate(-15 377 191)" />
+                        <!-- 左上与右下小喷溅水滴装饰 (彩色小水滴点缀) -->
+                        <g>
+                            <!-- 左上三颗 -->
+                            <path d="M 45,55 C 38,40 58,35 52,55 Z" fill="#ffea00" />
+                            <path d="M 60,42 C 55,20 75,20 70,42 Z" fill="#ff3b30" />
+                            <path d="M 82,48 C 75,30 95,35 88,48 Z" fill="#007aff" />
 
-                            <path d="M 399,203 C 395,186 413,186 409,203 Z" fill="url(#dBlue)" />
-                            <ellipse cx="403" cy="194" rx="1" ry="4" fill="#ffffff" opacity="0.7" />
-
-                            <path d="M 423,195 C 417,176 441,184 432,195 Z" fill="url(#dGreen)" />
-                            <ellipse cx="426" cy="188" rx="1.5" ry="3" fill="#ffffff" opacity="0.6" transform="rotate(25 426 188)" />
+                            <!-- 右下三颗 -->
+                            <path d="M 370,195 C 362,180 382,175 376,195 Z" fill="#ffea00" />
+                            <path d="M 388,205 C 384,185 404,185 400,205 Z" fill="#007aff" />
+                            <path d="M 412,198 C 405,180 425,185 418,198 Z" fill="#4cd964" />
                         </g>
                     </svg>
                 </div>
 
                 <!-- Record Level & Hearts (matching ChatGPT_Image_2026年6月1日_16_24_39.png) -->
-                <p class="text-yellow-400 font-semibold tracking-wider text-sm mt-1">最高关卡: <span class="text-white font-black" id="best-wave-display">28</span> | 最高分: <span class="text-white font-black">2450</span></p>
+                <p class="text-yellow-400 font-semibold tracking-wider text-sm mt-3">最高关卡: <span class="text-white font-black" id="best-wave-display">28</span> | 最高分: <span class="text-white font-black">2450</span></p>
                 
-                <div class="flex gap-2 mt-2">
+                <div class="flex gap-2 mt-3">
                     <span class="text-rose-500 text-xl animate-pulse">❤️</span>
                     <span class="text-rose-500 text-xl animate-pulse">❤️</span>
                     <span class="text-rose-500 text-xl animate-pulse">❤️</span>
@@ -657,7 +619,7 @@
                 </button>
             </div>
 
-            <!-- Bottom Row Navigation Buttons (matching ChatGPT_Image_2026年6月1日_16_24_39.png) -->
+            <!-- Bottom Row Navigation Buttons -->
             <div class="flex flex-col gap-5 w-full mt-auto">
                 <div class="grid grid-cols-4 gap-4 px-2">
                     <!-- Leaderboard Button -->
@@ -722,7 +684,7 @@
                         </div>
                         <div class="text-left">
                             <h4 class="text-xs font-extrabold text-yellow-300">新赛季开启</h4>
-                            <p class="text-[10px] text-gray-300">每周五24:00结算排行榜</p>
+                            <p class="text-[10px] text-gray-300">每周五 24:00 结算排行榜</p>
                         </div>
                     </div>
                     <button onclick="openLeaderboard()" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-[11px] font-bold text-white px-3 py-1.5 rounded-full hover:opacity-90 active:scale-95 shadow">
@@ -732,7 +694,7 @@
             </div>
         </div>
 
-        <!-- ==================== SCREEN 2: GAMEPLAY (ChatGPT_Image_2026年6月1日_16_36_17.png) ==================== -->
+        <!-- ==================== SCREEN 2: GAMEPLAY ==================== -->
         <div id="screen-game" class="hidden w-full h-full flex flex-col justify-between pt-24 pb-6 px-5 z-10">
             <!-- Top HUD metrics -->
             <div class="flex flex-col gap-3 w-full">
@@ -801,7 +763,7 @@
                 </div>
             </div>
 
-            <!-- Countdown Progress Bar (Matches bottom bar of screenshot 2) -->
+            <!-- Countdown Progress Bar -->
             <div class="w-full flex flex-col items-center mt-auto gap-2">
                 <!-- Clock timer details -->
                 <div class="flex items-center gap-1 text-sm font-semibold text-yellow-300">
@@ -854,7 +816,7 @@
 
         <!-- ==================== POPUP OVERLAYS & MODALS ==================== -->
 
-        <!-- 1. VICTORY WIN PANEL (ChatGPT_Image_2026年6月2日_09_55_17.png) -->
+        <!-- 1. VICTORY WIN PANEL -->
         <div id="modal-win" class="hidden absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-6">
             <div class="panel-win w-full max-w-[340px] rounded-3xl p-6 flex flex-col items-center relative overflow-hidden animate-bounce-slow">
                 <!-- Festive Confetti Background Pattern -->
@@ -912,7 +874,7 @@
             </div>
         </div>
 
-        <!-- 2. DEFEAT FAIL PANEL (ChatGPT_Image_2026年6月2日_09_55_17.png) -->
+        <!-- 2. DEFEAT FAIL PANEL -->
         <div id="modal-fail" class="hidden absolute inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-6">
             <div class="panel-fail w-full max-w-[340px] rounded-3xl p-6 flex flex-col items-center relative overflow-hidden">
                 <!-- "失败！" gothic header banner -->
@@ -920,8 +882,35 @@
                     <h2 class="text-3xl font-extrabold text-white tracking-widest text-center" style="text-shadow: 0 4px 6px rgba(0,0,0,0.8);">失败！</h2>
                 </div>
 
-                <!-- Sad Icon matching -->
-                <span class="text-5xl my-2 filter drop-shadow">💀</span>
+                <!-- Cute Crying Popped Bubble SVG Icon -->
+                <svg class="w-20 h-20 my-3 filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] animate-bounce-slow" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="sadBubbleGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#a78bfa" />
+                            <stop offset="100%" stop-color="#4c1d95" />
+                        </linearGradient>
+                        <linearGradient id="tearGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#38bdf8" />
+                            <stop offset="100%" stop-color="#0284c7" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Outer shadow ring representing the cute bubble shape -->
+                    <circle cx="32" cy="32" r="24" fill="url(#sadBubbleGrad)" stroke="#f472b6" stroke-width="2" stroke-dasharray="4 2" />
+                    <!-- Inner glow ring -->
+                    <circle cx="32" cy="32" r="22" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+                    <!-- Sad crying eyes -->
+                    <path d="M21 28 C23 25, 25 25, 27 28" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" fill="none" />
+                    <path d="M37 28 C39 25, 41 25, 43 28" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" fill="none" />
+                    <!-- Dropping blue liquid tears -->
+                    <path d="M21 30 C21 36, 19 38, 19 41 C17 41, 17 36, 19 30 Z" fill="url(#tearGrad)" />
+                    <path d="M43 30 C43 36, 45 38, 45 41 C47 41, 47 36, 43 30 Z" fill="url(#tearGrad)" />
+                    <!-- Sad cute down-curved mouth -->
+                    <path d="M28 39 C31 36, 33 36, 36 39" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" fill="none" />
+                    <!-- Red band-aid showing the pop-pop damage -->
+                    <path d="M42 16 L48 22 M48 16 L42 22" stroke="#f43f5e" stroke-width="3" stroke-linecap="round" />
+                    <!-- Glossy light reflection highlight on the top-left -->
+                    <ellipse cx="24" cy="18" rx="6" ry="2.5" fill="#ffffff" opacity="0.6" transform="rotate(-30 24 18)" />
+                </svg>
 
                 <p class="text-gray-400 text-sm font-bold mt-1">第 <span id="fail-level-label">28</span> 关</p>
                 <div class="w-full h-[1px] bg-white/10 my-3"></div>
@@ -963,7 +952,7 @@
             </div>
         </div>
 
-        <!-- 3. WECHAT LEADERBOARD POPUP (High fidelity WeChat style with gorgeous custom SVG avatars) -->
+        <!-- 3. WECHAT LEADERBOARD POPUP (High fidelity WeChat style) -->
         <div id="modal-leaderboard" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
             <div class="bg-gradient-to-b from-indigo-950 to-purple-950 w-full max-w-[360px] rounded-3xl border-2 border-indigo-400 p-5 flex flex-col items-center relative max-h-[80%] shadow-2xl">
                 <!-- Close Button -->
@@ -976,18 +965,8 @@
                     <!-- #2 -->
                     <div class="bg-indigo-900/40 p-2.5 rounded-2xl border border-indigo-500/20 flex flex-col items-center">
                         <span class="text-xs font-bold text-gray-300">第 2 名</span>
-                        <!-- Cute 3D Pink Girl SVG Avatar -->
-                        <div class="w-12 h-12 rounded-full border-2 border-pink-400 bg-gradient-to-tr from-pink-500 to-rose-400 my-1 flex items-center justify-center shadow-inner overflow-hidden">
-                            <svg viewBox="0 0 100 100" class="w-10 h-10">
-                                <circle cx="50" cy="48" r="18" fill="#fbcfe8" /> <!-- Face -->
-                                <path d="M50,15 C34,15 32,32 32,44 C32,46 34,48 34,48 L30,55 L35,55 L38,48 C38,48 42,32 50,32 C58,32 62,48 62,48 L65,55 L70,55 L66,48 C66,48 68,46 68,44 C68,32 66,15 50,15 Z" fill="#475569" /> <!-- Hair -->
-                                <circle cx="43" cy="46" r="2.5" fill="#1e293b" /> <!-- Left Eye -->
-                                <circle cx="57" cy="46" r="2.5" fill="#1e293b" /> <!-- Right Eye -->
-                                <path d="M46,55 Q50,59 54,55" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" fill="none" /> <!-- Smile -->
-                                <circle cx="38" cy="50" r="3" fill="#f472b6" opacity="0.6" /> <!-- Blush L -->
-                                <circle cx="62" cy="50" r="3" fill="#f472b6" opacity="0.6" /> <!-- Blush R -->
-                                <rect x="36" y="66" width="28" height="20" rx="6" fill="#f43f5e" /> <!-- Body -->
-                            </svg>
+                        <div class="w-10 h-10 rounded-full border-2 border-gray-400 bg-slate-600 my-1 overflow-hidden">
+                            <img src="https://placehold.co/100x100/312e81/ffffff?text=User2" alt="Avatar">
                         </div>
                         <span class="text-[10px] text-white font-semibold truncate w-16">元气少女</span>
                         <span class="text-xs font-black text-indigo-300">2320</span>
@@ -995,26 +974,8 @@
                     <!-- #1 -->
                     <div class="bg-indigo-900/60 p-2.5 rounded-2xl border-2 border-yellow-400 flex flex-col items-center transform -translate-y-2">
                         <span class="text-xs font-bold text-yellow-400">🏆 第 1 名</span>
-                        <!-- Royal Gold Lion SVG Avatar with Golden Crown -->
-                        <div class="w-14 h-14 rounded-full border-2 border-yellow-400 bg-gradient-to-tr from-amber-500 to-yellow-300 my-1 flex items-center justify-center shadow-inner overflow-hidden relative">
-                            <svg viewBox="0 0 100 100" class="w-12 h-12">
-                                <!-- Mane (Background) -->
-                                <path d="M50,14 C30,14 20,28 20,48 C20,68 32,84 50,84 C68,84 80,68 80,48 C80,28 70,14 50,14 Z" fill="#ea580c" />
-                                <circle cx="50" cy="50" r="24" fill="#fbbf24" /> <!-- Face -->
-                                <circle cx="36" cy="30" r="8" fill="#d97706" /> <!-- Left Ear -->
-                                <circle cx="64" cy="30" r="8" fill="#d97706" /> <!-- Right Ear -->
-                                <circle cx="36" cy="30" r="4" fill="#fbbf24" /> 
-                                <circle cx="64" cy="30" r="4" fill="#fbbf24" /> 
-                                <ellipse cx="42" cy="46" rx="2.5" ry="4" fill="#1e293b" /> <!-- Eyes -->
-                                <ellipse cx="58" cy="46" rx="2.5" ry="4" fill="#1e293b" />
-                                <ellipse cx="50" cy="54" rx="14" ry="10" fill="#fef08a" /> <!-- Snout -->
-                                <polygon points="46,51 54,51 50,56" fill="#1e293b" /> <!-- Nose -->
-                                <path d="M46,59 Q50,62 54,59" stroke="#1e293b" stroke-width="2" stroke-linecap="round" fill="none" /> <!-- Mouth -->
-                                <circle cx="32" cy="54" r="3" fill="#f43f5e" opacity="0.6" /> <!-- Blush -->
-                                <circle cx="68" cy="54" r="3" fill="#f43f5e" opacity="0.6" />
-                            </svg>
-                            <!-- Crown Badge overlaid -->
-                            <span class="absolute -top-1 right-0 text-sm select-none">👑</span>
+                        <div class="w-12 h-12 rounded-full border-2 border-yellow-400 bg-slate-600 my-1 overflow-hidden relative">
+                            <img src="https://placehold.co/100x100/1e1b4b/ffffff?text=King" alt="Avatar">
                         </div>
                         <span class="text-[10px] text-yellow-300 font-extrabold truncate w-16">无敌泡泡王</span>
                         <span class="text-sm font-black text-yellow-300">2450</span>
@@ -1022,18 +983,8 @@
                     <!-- #3 -->
                     <div class="bg-indigo-900/40 p-2.5 rounded-2xl border border-indigo-500/20 flex flex-col items-center">
                         <span class="text-xs font-bold text-amber-600">第 3 名</span>
-                        <!-- Sly Fox Violet SVG Avatar -->
-                        <div class="w-12 h-12 rounded-full border-2 border-indigo-400 bg-gradient-to-tr from-indigo-500 to-purple-400 my-1 flex items-center justify-center shadow-inner overflow-hidden">
-                            <svg viewBox="0 0 100 100" class="w-10 h-10">
-                                <path d="M50,15 L25,42 L32,58 L50,82 L68,58 L75,42 Z" fill="#ea580c" /> <!-- Head Base -->
-                                <path d="M50,15 L25,42 L35,42 Z" fill="#9a3412" /> <!-- Left Ear shadow -->
-                                <path d="M50,15 L75,42 L65,42 Z" fill="#9a3412" /> <!-- Right Ear shadow -->
-                                <polygon points="25,42 50,56 32,58" fill="#ffffff" /> <!-- Cheek L -->
-                                <polygon points="75,42 50,56 68,58" fill="#ffffff" /> <!-- Cheek R -->
-                                <polygon points="46,55 54,55 50,60" fill="#1e293b" /> <!-- Nose -->
-                                <circle cx="38" cy="45" r="3" fill="#1e293b" /> <!-- Left Eye -->
-                                <circle cx="62" cy="45" r="3" fill="#1e293b" /> <!-- Right Eye -->
-                            </svg>
+                        <div class="w-10 h-10 rounded-full border-2 border-amber-700 bg-slate-600 my-1 overflow-hidden">
+                            <img src="https://placehold.co/100x100/4c1d95/ffffff?text=User3" alt="Avatar">
                         </div>
                         <span class="text-[10px] text-white font-semibold truncate w-16">快乐星球</span>
                         <span class="text-xs font-black text-indigo-300">1980</span>
@@ -1046,47 +997,21 @@
                     <div class="flex justify-between items-center bg-indigo-900/20 p-2.5 rounded-xl border border-indigo-500/10">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-indigo-300 w-4">4</span>
-                            <!-- Cute Cat Emerald SVG Avatar -->
-                            <div class="w-8 h-8 rounded-full border border-emerald-400 bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-inner overflow-hidden">
-                                <svg viewBox="0 0 100 100" class="w-7 h-7">
-                                    <circle cx="50" cy="54" r="26" fill="#f97316" /> <!-- Face -->
-                                    <polygon points="22,38 34,16 46,38" fill="#ea580c" /> <!-- Left Ear -->
-                                    <polygon points="78,38 66,16 54,38" fill="#ea580c" /> <!-- Right Ear -->
-                                    <polygon points="26,35 32,23 38,35" fill="#fecdd3" /> <!-- Inner Ear L -->
-                                    <polygon points="74,35 68,23 62,35" fill="#fecdd3" /> <!-- Inner Ear R -->
-                                    <circle cx="38" cy="48" r="3" fill="#1e293b" /> <!-- Left Eye -->
-                                    <circle cx="62" cy="48" r="3" fill="#1e293b" /> <!-- Right Eye -->
-                                    <polygon points="46,55 54,55 50,59" fill="#1e293b" /> <!-- Nose -->
-                                    <path d="M44,61 Q50,65 56,61" stroke="#1e293b" stroke-width="1.5" stroke-linecap="round" fill="none" /> <!-- Mouth -->
-                                    <line x1="24" y1="52" x2="12" y2="49" stroke="#cbd5e1" stroke-width="1.5" /> <!-- Whiskers L -->
-                                    <line x1="24" y1="56" x2="10" y2="56" stroke="#cbd5e1" stroke-width="1.5" />
-                                    <line x1="76" y1="52" x2="88" y2="49" stroke="#cbd5e1" stroke-width="1.5" /> <!-- Whiskers R -->
-                                    <line x1="76" y1="56" x2="90" y2="56" stroke="#cbd5e1" stroke-width="1.5" />
-                                </svg>
+                            <div class="w-8 h-8 rounded-full bg-slate-600 overflow-hidden">
+                                <img src="https://placehold.co/80x80/065f46/ffffff?text=A4" alt="Avatar">
                             </div>
                             <span class="text-xs text-white font-medium">摸鱼达人</span>
                         </div>
                         <span class="text-xs font-black text-indigo-300">1540</span>
                     </div>
-                    <!-- Item 5 (User self - HIGHLIGHTED) -->
+                    <!-- Item 5 (User self) -->
                     <div class="flex justify-between items-center bg-indigo-500/20 p-2.5 rounded-xl border border-indigo-400">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-yellow-300 w-4">5</span>
-                            <!-- Special Sky Blue Panda SVG Avatar (Player) -->
-                            <div class="w-8 h-8 rounded-full border border-sky-400 bg-gradient-to-tr from-sky-500 to-blue-400 flex items-center justify-center shadow-inner overflow-hidden">
-                                <svg viewBox="0 0 100 100" class="w-7 h-7">
-                                    <circle cx="50" cy="50" r="28" fill="#ffffff" /> <!-- White Head -->
-                                    <circle cx="26" cy="26" r="9" fill="#1e293b" /> <!-- Left Ear -->
-                                    <circle cx="74" cy="26" r="9" fill="#1e293b" /> <!-- Right Ear -->
-                                    <ellipse cx="36" cy="46" rx="7" ry="11" fill="#1e293b" transform="rotate(-15 36 46)" /> <!-- Black Eye L -->
-                                    <ellipse cx="64" cy="46" rx="7" ry="11" fill="#1e293b" transform="rotate(15 64 46)" /> <!-- Black Eye R -->
-                                    <circle cx="36" cy="44" r="2" fill="#ffffff" /> <!-- Eye pupils -->
-                                    <circle cx="64" cy="44" r="2" fill="#ffffff" />
-                                    <ellipse cx="50" cy="58" rx="6" ry="4" fill="#1e293b" /> <!-- Nose -->
-                                    <path d="M45,64 Q50,68 55,64" stroke="#1e293b" stroke-width="1.5" fill="none" stroke-linecap="round" /> <!-- Mouth -->
-                                </svg>
+                            <div class="w-8 h-8 rounded-full bg-slate-500 overflow-hidden">
+                                <img src="https://placehold.co/80x80/1e293b/ffffff?text=You" alt="Avatar">
                             </div>
-                            <span class="text-xs text-yellow-300 font-extrabold">我 (泡泡大师新手)</span>
+                            <span class="text-xs text-yellow-300 font-extrabold">我 (泡泡大师)</span>
                         </div>
                         <span class="text-xs font-black text-yellow-300" id="leaderboard-user-score">1240</span>
                     </div>
@@ -1094,20 +1019,8 @@
                     <div class="flex justify-between items-center bg-indigo-900/20 p-2.5 rounded-xl border border-indigo-500/10">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-indigo-300 w-4">6</span>
-                            <!-- Playful Frog Crimson SVG Avatar -->
-                            <div class="w-8 h-8 rounded-full border border-rose-400 bg-gradient-to-tr from-rose-500 to-red-400 flex items-center justify-center shadow-inner overflow-hidden">
-                                <svg viewBox="0 0 100 100" class="w-7 h-7">
-                                    <circle cx="50" cy="56" r="24" fill="#22c55e" /> <!-- Face -->
-                                    <circle cx="34" cy="36" r="10" fill="#22c55e" /> <!-- Left Eye Socket -->
-                                    <circle cx="66" cy="36" r="10" fill="#22c55e" /> <!-- Right Eye Socket -->
-                                    <circle cx="34" cy="36" r="6" fill="#ffffff" /> <!-- Eye White L -->
-                                    <circle cx="66" cy="36" r="6" fill="#ffffff" /> <!-- Eye White R -->
-                                    <circle cx="34" cy="36" r="3" fill="#1e293b" /> <!-- Pupil L -->
-                                    <circle cx="66" cy="36" r="3" fill="#1e293b" /> <!-- Pupil R -->
-                                    <path d="M36,60 Q50,72 64,60" stroke="#166534" stroke-width="2.5" fill="none" stroke-linecap="round" /> <!-- Big Smile -->
-                                    <circle cx="28" cy="58" r="3.5" fill="#f43f5e" opacity="0.6" /> <!-- Rosy cheek -->
-                                    <circle cx="72" cy="58" r="3.5" fill="#f43f5e" opacity="0.6" />
-                                </svg>
+                            <div class="w-8 h-8 rounded-full bg-slate-600 overflow-hidden">
+                                <img src="https://placehold.co/80x80/991b1b/ffffff?text=A6" alt="Avatar">
                             </div>
                             <span class="text-xs text-white font-medium">气泡狙击手</span>
                         </div>
@@ -1119,7 +1032,7 @@
             </div>
         </div>
 
-        <!-- 4. CHECK-IN SIGN-IN MODAL (ChatGPT_Image_2026年6月1日_16_24_39.png - 签到) -->
+        <!-- 4. CHECK-IN SIGN-IN MODAL -->
         <div id="modal-checkin" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
             <div class="bg-gradient-to-b from-slate-900 to-indigo-950 w-full max-w-[340px] rounded-3xl border-2 border-emerald-400 p-5 flex flex-col items-center relative shadow-2xl">
                 <!-- Close Button -->
@@ -1180,7 +1093,7 @@
 
                 <!-- Footer button controls inside Share pop -->
                 <div class="grid grid-cols-2 gap-3 w-full mt-4">
-                    <button onclick="downloadShareImage()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-115 active:scale-95 text-white font-black py-2.5 rounded-xl text-xs shadow flex items-center justify-center gap-1">
+                    <button onclick="downloadShareImage()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 active:scale-95 text-white font-black py-2.5 rounded-xl text-xs shadow flex items-center justify-center gap-1">
                         📥 保存至相册
                     </button>
                     <button onclick="mockWechatShareAction()" class="bg-green-500 hover:bg-green-600 text-white font-black py-2.5 rounded-xl text-xs flex justify-center items-center gap-1 active:scale-95 transition-all">
@@ -1329,7 +1242,7 @@
             document.getElementById('modal-checkin').classList.remove('hidden');
         }
 
-        // ==================== 1:1 双行 3D 泡泡 Logo HTML5 Canvas 绘制引擎 ====================
+        // ==================== 1:1 分享页面 HTML5 Canvas 双行 Logo 绘制引擎 ====================
         function drawShareCover() {
             const canvas = document.getElementById('share-canvas');
             if (!canvas) return;
@@ -1351,9 +1264,10 @@
             ctx.lineWidth = 1.5;
             
             // 绘制网格线
-            const gridYStart = h * 0.72;
+            const gridYStart = h * 0.7;
             const lineCount = 14;
             for(let i = 0; i <= lineCount; i++) {
+                // 辐射纵向线
                 const xTop = w/2 + (i - lineCount/2) * 12;
                 const xBottom = w/2 + (i - lineCount/2) * 45;
                 ctx.beginPath();
@@ -1384,48 +1298,140 @@
             }
             ctx.globalAlpha = 1.0;
 
-            // 4. 绘制双行 3D 泡泡充气大白贴纸背景
+            // 4. 绘制白色贴纸背景框 (Logo 贴纸外框包络线)
             ctx.save();
             ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
             ctx.shadowBlur = 15;
             ctx.shadowOffsetY = 8;
             ctx.fillStyle = '#ffffff';
             ctx.strokeStyle = '#eae5f7';
-            ctx.lineWidth = 10;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            
-            // 绘制白色包围底
+            ctx.lineWidth = 9;
             ctx.beginPath();
-            // 第一行背景块
-            ctx.roundRect ? ctx.roundRect(40, 30, 295, 65, 32) : ctx.rect(40, 30, 295, 65);
-            // 第二行背景块
-            ctx.roundRect ? ctx.roundRect(70, 80, 235, 65, 32) : ctx.rect(70, 80, 235, 65);
-            // 连接重合填充
-            ctx.rect(80, 60, 215, 40);
+            
+            const rectW = 295;
+            const rectH = 140;
+            const rectX = (w - rectW) / 2;
+            const rectY = 35;
+            const r = 26;
+            
+            ctx.moveTo(rectX + r, rectY);
+            ctx.arcTo(rectX + rectW, rectY, rectX + rectW, rectY + rectH, r);
+            ctx.arcTo(rectX + rectW, rectY + rectH, rectX, rectY + rectH, r);
+            ctx.arcTo(rectX, rectY + rectH, rectX, rectY, r);
+            ctx.arcTo(rectX, rectY, rectX + rectW, rectY, r);
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
             ctx.restore();
 
-            // 5. 绘制第一行汉字：“泡泡大师”
-            const startX = w / 2;
-            drawJellyText(ctx, startX - 105, 65, '泡', '#ff5f78', '#ca001c', true);
-            drawJellyText(ctx, startX - 35, 65, '泡', '#fffb33', '#ea7a00', true);
-            drawJellyText(ctx, startX + 35, 65, '大', '#9cf020', '#199c00', true);
-            drawJellyText(ctx, startX + 105, 65, '师', '#4be3ff', '#004fcb', true);
-
-            // 6. 绘制第二行英文：“POPIT”
-            const engY = 115;
-            drawJellyText(ctx, startX - 80, engY, 'P', '#ff7ee1', '#ad115b', false);
-            drawJellyText(ctx, startX - 40, engY, 'O', '#fffb33', '#ea7a00', false);
-            drawJellyText(ctx, startX, engY, 'P', '#9cf020', '#199c00', false);
-            drawJellyText(ctx, startX + 40, engY, 'I', '#4be3ff', '#004fcb', false);
-            drawJellyText(ctx, startX + 80, engY, 'T', '#da8aff', '#5500b8', false);
-
-            // 7. 绘制玩家当前的璀璨成就展示框
-            const cardY = 175;
+            // 5. 绘制 "泡泡大师" + "POPIT" 鼓囊气泡字
+            const centerX = w / 2;
+            
+            // 第一行：泡泡大师 中文字符
             ctx.save();
-            ctx.fillStyle = 'rgba(23, 17, 58, 0.8)';
+            ctx.font = '900 42px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const cnChars = [
+                { char: '泡', x: centerX - 82, y: 76, gradColors: ['#ff758c', '#ff3b30'], shadow: '#321e78' },
+                { char: '泡', x: centerX - 28, y: 68, gradColors: ['#ffea00', '#ff9500'], shadow: '#321e78' },
+                { char: '大', x: centerX + 26, y: 72, gradColors: ['#4cd964', '#28cd41'], shadow: '#321e78' },
+                { char: '师', x: centerX + 80, y: 76, gradColors: ['#5ac8fa', '#007aff'], shadow: '#321e78' }
+            ];
+
+            // 绘制中文字符厚立体影和渐变气泡色
+            cnChars.forEach(item => {
+                // 浮雕浅紫色暗色投影
+                ctx.fillStyle = item.shadow;
+                ctx.fillText(item.char, item.x, item.y + 5);
+
+                // 粗白底
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 10;
+                ctx.strokeText(item.char, item.x, item.y);
+
+                // 填充渐变色
+                let gradient = ctx.createLinearGradient(item.x, item.y - 20, item.x, item.y + 20);
+                gradient.addColorStop(0, item.gradColors[0]);
+                gradient.addColorStop(1, item.gradColors[1]);
+                ctx.fillStyle = gradient;
+                ctx.fillText(item.char, item.x, item.y);
+
+                // 25度角半透明晶莹高光反射弧
+                ctx.save();
+                ctx.globalAlpha = 0.65;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(item.x - 10, item.y - 12, 7, 3, -Math.PI/12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+            ctx.restore();
+
+            // 第二行：POPIT (高度缩小，下方正中对齐)
+            ctx.save();
+            ctx.font = '900 32px "Inter", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const enLetters = [
+                { char: 'P', x: centerX - 62, y: 125, gradColors: ['#ff2d55', '#d3003b'], shadow: '#321e78' },
+                { char: 'O', x: centerX - 30, y: 129, gradColors: ['#ffcc00', '#e0a300'], shadow: '#321e78' },
+                { char: 'P', x: centerX + 2, y: 122, gradColors: ['#a4eb34', '#6db300'], shadow: '#321e78' },
+                { char: 'I', x: centerX + 30, y: 125, gradColors: ['#34a8eb', '#006bb3'], shadow: '#321e78' },
+                { char: 'T', x: centerX + 56, y: 130, gradColors: ['#af52de', '#7a1fa2'], shadow: '#321e78' }
+            ];
+
+            // 绘制英文字母与立体反光
+            enLetters.forEach(item => {
+                ctx.fillStyle = item.shadow;
+                ctx.fillText(item.char, item.x, item.y + 4);
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 8;
+                ctx.strokeText(item.char, item.x, item.y);
+
+                let gradient = ctx.createLinearGradient(item.x, item.y - 12, item.x, item.y + 12);
+                gradient.addColorStop(0, item.gradColors[0]);
+                gradient.addColorStop(1, item.gradColors[1]);
+                ctx.fillStyle = gradient;
+                ctx.fillText(item.char, item.x, item.y);
+
+                // 精美气泡亮面高光
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(item.x - 5, item.y - 8, 4, 1.8, -Math.PI/10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+            ctx.restore();
+
+            // 绘制左上和右下点缀小水滴
+            ctx.save();
+            // 左上水滴
+            ctx.fillStyle = '#ffea00';
+            ctx.beginPath(); ctx.arc(centerX - 105, 52, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ff3b30';
+            ctx.beginPath(); ctx.arc(centerX - 120, 42, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#007aff';
+            ctx.beginPath(); ctx.arc(centerX - 138, 48, 4, 0, Math.PI * 2); ctx.fill();
+            // 右下水滴
+            ctx.fillStyle = '#ffea00';
+            ctx.beginPath(); ctx.arc(centerX + 110, 125, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#007aff';
+            ctx.beginPath(); ctx.arc(centerX + 125, 132, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#4cd964';
+            ctx.beginPath(); ctx.arc(centerX + 138, 122, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // 6. 绘制玩家当前的璀璨成就展示框
+            const cardY = 195;
+            ctx.save();
+            // 半透明紫黑背景盒
+            ctx.fillStyle = 'rgba(23, 17, 58, 0.75)';
             ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -1445,10 +1451,10 @@
             ctx.textBaseline = 'middle';
             
             // 当前波次关卡
-            ctx.font = 'bold 18px "Microsoft YaHei", system-ui';
+            ctx.font = 'bold 18px "SF Pro Display", system-ui';
             ctx.fillStyle = '#ffffff';
             ctx.fillText('已挑战至关卡:', cardX + 80, cardY + 32);
-            ctx.font = 'black 26px "Microsoft YaHei", Arial';
+            ctx.font = 'black 26px "SF Pro Display", Arial';
             ctx.fillStyle = '#ffdf1c';
             ctx.fillText(`第 ${GameState.wave} 波`, cardX + 80, cardY + 58);
 
@@ -1478,7 +1484,7 @@
             ctx.fillText(`🪙 ${headerCoins}`, cardX + 175, cardY + 130);
             ctx.restore();
 
-            // 8. 绘制玻璃气泡装点 (装饰)
+            // 7. 绘制一排玻璃气泡装点 (装饰)
             ctx.save();
             const bubbleRowY = h - 130;
             const bubbleCount = 4;
@@ -1487,6 +1493,7 @@
             
             for(let k = 0; k < bubbleCount; k++) {
                 const bX = startBubbleX + k * gap;
+                // 绘制玻璃框
                 ctx.fillStyle = 'rgba(25, 27, 44, 0.6)';
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.lineWidth = 1.5;
@@ -1495,6 +1502,7 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // 绘制泡泡球
                 let colors = ['#ec4899', '#3b82f6', '#a855f7', '#10b981'];
                 let ballGrad = ctx.createRadialGradient(bX - 4, bubbleRowY - 4, 1, bX, bubbleRowY, 12);
                 ballGrad.addColorStop(0, '#ffffff');
@@ -1508,7 +1516,7 @@
             }
             ctx.restore();
 
-            // 9. 扫码高亮挑战信息栏
+            // 8. 绘制经典的带扫码高亮挑战信息栏
             ctx.save();
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 14px system-ui';
@@ -1523,6 +1531,7 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(qrX, qrY, qrSize, qrSize);
             
+            // 绘制模拟二维码细节图案
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(qrX + 3, qrY + 3, 10, 10);
             ctx.fillRect(qrX + qrSize - 13, qrY + 3, 10, 10);
@@ -1534,53 +1543,19 @@
             ctx.restore();
         }
 
-        // 统一双行绘制 3D 汉字/英文果冻质感字体方法
-        function drawJellyText(ctx, x, y, char, colorStart, colorEnd, isChinese = false) {
-            ctx.save();
-            if (isChinese) {
-                ctx.font = '900 42px "Microsoft YaHei", sans-serif';
-            } else {
-                ctx.font = 'black 48px "SF Pro Display", Arial, sans-serif';
-            }
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            // 3D 底部厚度阴影
-            ctx.fillStyle = colorEnd;
-            ctx.fillText(char, x, y + 4);
-
-            // 3D 前景充气渐变
-            let textGrad = ctx.createLinearGradient(x, y - 20, x, y + 20);
-            textGrad.addColorStop(0, colorStart);
-            textGrad.addColorStop(1, colorEnd);
-            ctx.fillStyle = textGrad;
-            ctx.fillText(char, x, y);
-
-            // 顶层白色月牙反光
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            if (isChinese) {
-                // 汉字采用微扁小反光椭圆球
-                ctx.beginPath();
-                ctx.ellipse(x - 8, y - 12, 6, 2.5, -Math.PI / 10, 0, Math.PI * 2);
-                ctx.fill();
-            } else {
-                // 英文字母顶部高亮弧
-                ctx.font = 'bold 15px system-ui';
-                ctx.fillText('^', x - 1, y - 12);
-            }
-            ctx.restore();
-        }
-
-        // 保存生成的分享封面
+        // 保存/下载生成的分享封面
         function downloadShareImage() {
             AudioSynth.playClick();
             const canvas = document.getElementById('share-canvas');
             if (!canvas) return;
 
             try {
+                // 将 Canvas 转换为 Base64 格式
                 const dataUrl = canvas.toDataURL('image/png');
+                
+                // 模拟标准点击下载
                 const link = document.createElement('a');
-                link.download = `泡泡大师_分享图_关卡${GameState.wave}.png`;
+                link.download = `POPIT_记忆爆破_分享封面_关卡${GameState.wave}.png`;
                 link.href = dataUrl;
                 document.body.appendChild(link);
                 link.click();
@@ -1588,6 +1563,7 @@
 
                 triggerToast("封面生成成功，正在存入手机相册！");
             } catch (err) {
+                // 发生跨域环境异常时的兼容友好提示
                 triggerToast("图片正在输出中，请长按屏幕保存！");
             }
         }
@@ -1596,6 +1572,7 @@
         function triggerShareGift() {
             AudioSynth.playClick();
             document.getElementById('modal-share').classList.remove('hidden');
+            // 利用微秒级延迟确保 DOM 与 Canvas 上下文完全渲染
             setTimeout(drawShareCover, 100);
         }
 
@@ -1691,7 +1668,7 @@
             startNewWave();
         }
 
-        // 返回主界面
+        // Navigate back to Main screen
         function navigateHome() {
             AudioSynth.playClick();
             clearInterval(GameState.timerInterval);
@@ -1725,7 +1702,7 @@
                 }
             }
 
-            // Adjust Observe timers according to waves (faster on higher levels)
+            // Adjust Observe timers according to waves
             GameState.observeDuration = Math.max(1000, 2000 - (GameState.wave * 100));
             GameState.playDuration = Math.max(2500, 4500 - (GameState.wave * 150));
 

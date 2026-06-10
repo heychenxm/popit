@@ -140,7 +140,7 @@ export class Main {
     // 监听分享
     wx.onShareAppMessage(() => {
       return {
-        title: '来挑战 POPIT 记忆大师！',
+        title: '来挑战泡泡大师！',
         query: `score=${this.gameState.score}&wave=${this.gameState.wave}`
       }
     })
@@ -1034,7 +1034,7 @@ export class Main {
     }
     
     wx.shareAppMessage({
-      title: '来挑战 POPIT 记忆大师！',
+      title: '来挑战泡泡大师！',
       query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
     })
     

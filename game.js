@@ -1,5 +1,5 @@
 /**
- * POPIT 记忆泡泡爆破 - 微信小游戏
+ * 泡泡大师 - 微信小游戏
  * 主入口文件
  */
 
@@ -20,7 +20,7 @@ let game = null
 
 try {
   game = new Main()
-  console.log('POPIT 记忆泡泡爆破 - 游戏启动成功！')
+  console.log('泡泡大师 - 游戏启动成功！')
 } catch (error) {
   console.error('游戏启动失败:', error)
 }

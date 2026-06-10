@@ -36,7 +36,7 @@ export class WechatAPI {
   shareToChat(options = {}) {
     return new Promise((resolve, reject) => {
       wx.shareAppMessage({
-        title: options.title || '来挑战 POPIT 记忆大师！',
+        title: options.title || '来挑战泡泡大师！',
         imageUrl: options.imageUrl || '',
         query: options.query || '',
         success: (res) => {
@@ -53,7 +53,7 @@ export class WechatAPI {
   shareToTimeline(options = {}) {
     return new Promise((resolve, reject) => {
       wx.shareTimeline({
-        title: options.title || '来挑战 POPIT 记忆大师！',
+        title: options.title || '来挑战泡泡大师！',
         query: options.query || '',
         success: (res) => {
           resolve(res)
