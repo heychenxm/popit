@@ -61,6 +61,11 @@ export class UIManager {
     // 预计算常用数值宽度（优化：避免重复 measureText）
     this.numberWidths = []
     this._precomputeNumberWidths()
+    
+    // 离屏 Canvas 缓存静态 UI（优化：批量绘制，减少 draw call）
+    this.menuCache = null
+    this.menuCtx = null
+    this.menuNeedsUpdate = true
   }
   
   // 预计算数值宽度
@@ -76,6 +81,56 @@ export class UIManager {
   updateLayout() {
     this.width = this.canvas.width / this.pixelRatio
     this.height = this.canvas.height / this.pixelRatio
+    
+    // 布局变化时标记 UI 需要重新缓存
+    this.menuNeedsUpdate = true
+  }
+  
+  // 创建主菜单缓存
+  createMenuCache() {
+    try {
+      if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
+        this.menuCache = wx.createOffscreenCanvas(this.width, this.height)
+        this.menuCtx = this.menuCache.getContext('2d')
+      }
+    } catch (e) {
+      console.warn('离屏 Canvas 不可用，使用降级方案')
+      this.menuCache = null
+      this.menuCtx = null
+    }
+  }
+  
+  // 绘制主菜单到缓存
+  drawMenuToCache(gameState) {
+    if (!this.menuCtx) return
+    
+    const ctx = this.menuCtx
+    ctx.clearRect(0, 0, this.width, this.height)
+    
+    // 调用原有的绘制方法
+    this.drawMenuToCtx(ctx, gameState)
+  }
+  
+  // 绘制主菜单到指定 ctx（用于缓存）
+  drawMenuToCtx(ctx, gameState) {
+    // 临时保存当前 ctx
+    const originalCtx = this.ctx
+    this.ctx = ctx
+    
+    // 调用原有绘制逻辑
+    this.buttons.length = 0
+    this.drawTopCoins(gameState)
+    this.drawLogo()
+    this.drawBestScore(gameState)
+    this.drawStartButton()
+    this.drawBottomButtons(gameState)
+    this.drawSeasonBanner(gameState)
+    if (gameState.canShareGift()) {
+      this.drawShareGiftIcon()
+    }
+    
+    // 恢复 ctx
+    this.ctx = originalCtx
   }
   
   // 设置字体（带缓存）
@@ -107,30 +162,30 @@ export class UIManager {
   drawMenu(gameState) {
     const ctx = this.ctx
     
-    // 清空按钮数组
-    this.buttons.length = 0
-    
-    // 顶部金币余额
-    this.drawTopCoins(gameState)
-    
-    // LOGO 区域
-    this.drawLogo()
-    
-    // 最高关卡和分数
-    this.drawBestScore(gameState)
-    
-    // 开始游戏按钮
-    this.drawStartButton()
-    
-    // 底部导航按钮
-    this.drawBottomButtons(gameState)
-    
-    // 赛季横幅
-    this.drawSeasonBanner(gameState)
-    
-    // 分享礼包图标（根据是否可以分享来决定是否显示）
-    if (gameState.canShareGift()) {
-      this.drawShareGiftIcon()
+    // 使用缓存的主菜单（优化：减少 draw call）
+    if (this.menuCache && this.menuCtx) {
+      // 首次或布局变化时重新绘制缓存
+      if (this.menuNeedsUpdate) {
+        this.drawMenuToCache(gameState)
+        this.menuNeedsUpdate = false
+      }
+      // 一次性复制整个菜单（1 次 draw call）
+      ctx.drawImage(this.menuCache, 0, 0)
+      
+      // 绘制按钮列表（用于触摸检测）
+      // 注意：按钮已经在 drawMenuToCtx 中创建
+    } else {
+      // 降级方案：直接绘制
+      this.buttons.length = 0
+      this.drawTopCoins(gameState)
+      this.drawLogo()
+      this.drawBestScore(gameState)
+      this.drawStartButton()
+      this.drawBottomButtons(gameState)
+      this.drawSeasonBanner(gameState)
+      if (gameState.canShareGift()) {
+        this.drawShareGiftIcon()
+      }
     }
   }
 

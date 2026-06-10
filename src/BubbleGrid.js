@@ -86,6 +86,10 @@ export class BubbleGrid {
     this.glassCellCache = null
     this.glassCellNeedsUpdate = true
     
+    // 离屏 Canvas 缓存整个玻璃框网格（优化：批量绘制，减少 draw call）
+    this.glassGridCache = null
+    this.glassGridNeedsUpdate = true
+    
     this.updateLayout()
     this.initBubbles()
   }
@@ -131,10 +135,12 @@ export class BubbleGrid {
     // 创建离屏 Canvas
     this.createBgCache()
     this.createGlassCellCache()
+    this.createGlassGridCache()
     
     // 标记背景需要更新
     this.bgNeedsUpdate = true
     this.glassCellNeedsUpdate = true
+    this.glassGridNeedsUpdate = true
   }
   
   // 创建离屏 Canvas 缓存
@@ -163,6 +169,21 @@ export class BubbleGrid {
       console.warn('离屏 Canvas 不可用，使用降级方案')
       this.glassCellCache = null
       this.glassCellCtx = null
+    }
+  }
+  
+  // 创建玻璃框网格缓存（批量绘制优化）
+  createGlassGridCache() {
+    try {
+      if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
+        // 创建整个网格的缓存（gridSize × gridSize）
+        this.glassGridCache = wx.createOffscreenCanvas(this.gridSize, this.gridSize)
+        this.glassGridCtx = this.glassGridCache.getContext('2d')
+      }
+    } catch (e) {
+      console.warn('离屏 Canvas 不可用，使用降级方案')
+      this.glassGridCache = null
+      this.glassGridCtx = null
     }
   }
   
@@ -206,6 +227,37 @@ export class BubbleGrid {
     ctx.stroke()
     
     ctx.restore()
+  }
+  
+  // 绘制整个玻璃框网格到缓存（批量绘制优化）
+  drawGlassGridToCache() {
+    if (!this.glassGridCtx) return
+    
+    const ctx = this.glassGridCtx
+    ctx.clearRect(0, 0, this.gridSize, this.gridSize)
+    
+    // 确保玻璃框单元格缓存已创建
+    if (this.glassCellNeedsUpdate && this.glassCellCache) {
+      this.drawGlassCellToCache()
+      this.glassCellNeedsUpdate = false
+    }
+    
+    // 批量绘制所有玻璃框
+    for (let i = 0; i < this.totalBubbles; i++) {
+      const col = i % this.cols
+      const row = Math.floor(i / this.cols)
+      const x = this.gap + col * this.cellSize + this.cellSize / 2
+      const y = this.gap + row * this.cellSize + this.cellSize / 2
+      
+      // 从单元格缓存复制
+      if (this.glassCellCache) {
+        ctx.drawImage(
+          this.glassCellCache,
+          x - this.cellSize / 2,
+          y - this.cellSize / 2
+        )
+      }
+    }
   }
   
   // 绘制背景到离屏Canvas
@@ -637,33 +689,41 @@ export class BubbleGrid {
     // 绘制玻璃框容器
     this.drawGridContainer()
     
-    // 绘制每个单元格和泡泡
-    this.bubbles.forEach(bubble => {
-      // 使用缓存的玻璃框（如果可用）
-      if (this.glassCellCache && this.glassCellCtx) {
-        // 首次或尺寸变化时重新绘制缓存
-        if (this.glassCellNeedsUpdate) {
-          this.drawGlassCellToCache()
-          this.glassCellNeedsUpdate = false
-        }
-        // 直接复制缓存
-        ctx.drawImage(
-          this.glassCellCache,
-          bubble.x - this.cellSize / 2,
-          bubble.y - this.cellSize / 2
-        )
-      } else {
-        // 降级方案：直接绘制
-        this.drawGlassCell(bubble.x, bubble.y, this.cellSize)
+    // 批量绘制玻璃框网格（优化：减少 draw call）
+    if (this.glassGridCache && this.glassGridCtx) {
+      // 首次或尺寸变化时重新绘制缓存
+      if (this.glassGridNeedsUpdate) {
+        this.drawGlassGridToCache()
+        this.glassGridNeedsUpdate = false
       }
-      
-      // 绘制泡泡
+      // 一次性复制整个网格（1 次 draw call）
+      ctx.drawImage(this.glassGridCache, this.gridX, this.gridY)
+    } else {
+      // 降级方案：逐个绘制玻璃框
+      this.bubbles.forEach(bubble => {
+        if (this.glassCellCache && this.glassCellCtx) {
+          if (this.glassCellNeedsUpdate) {
+            this.drawGlassCellToCache()
+            this.glassCellNeedsUpdate = false
+          }
+          ctx.drawImage(
+            this.glassCellCache,
+            bubble.x - this.cellSize / 2,
+            bubble.y - this.cellSize / 2
+          )
+        } else {
+          this.drawGlassCell(bubble.x, bubble.y, this.cellSize)
+        }
+      })
+    }
+    
+    // 绘制泡泡
+    this.bubbles.forEach(bubble => {
       if (bubble.state === 'normal') {
         this.drawNormalBubble(ctx, bubble)
       } else if (bubble.state === 'red') {
         this.drawErrorBubble(ctx, bubble)
       } else if (bubble.state === 'pink' || bubble.state === 'purple' || bubble.state === 'blue') {
-        // 判断是否在观察阶段（通过检查是否有 clicked 标记）
         const isObserving = !bubble.clicked
         this.drawActiveBubble(ctx, bubble, isObserving)
       }

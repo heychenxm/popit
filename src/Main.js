@@ -37,6 +37,9 @@ export class Main {
     this.bubbleGrid = new BubbleGrid(this.canvas, { pixelRatio: this.pixelRatio })
     this.uiManager = new UIManager(this.canvas, { pixelRatio: this.pixelRatio })
     
+    // 创建 UI 缓存（优化：批量绘制）
+    this.uiManager.createMenuCache()
+    
     // 游戏循环
     this.lastTime = 0
     this.isRunning = false
