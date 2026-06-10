@@ -173,6 +173,54 @@ export class WechatAPI {
       keepScreenOn: keep
     })
   }
+
+  // ========== 云开发相关 ==========
+
+  // 检查云开发是否可用
+  isCloudAvailable() {
+    return typeof wx !== 'undefined' && !!wx.cloud
+  }
+
+  // 调用云函数的通用封装
+  callCloud(name, data = {}) {
+    return new Promise((resolve, reject) => {
+      if (!this.isCloudAvailable()) {
+        reject(new Error('云开发不可用'))
+        return
+      }
+      wx.cloud.callFunction({
+        name,
+        data,
+        success: (res) => resolve(res.result),
+        fail: (err) => reject(err)
+      })
+    })
+  }
+
+  // 保存游戏数据到云端
+  saveGameData(data) {
+    return this.callCloud('saveGameData', data)
+  }
+
+  // 从云端加载游戏数据
+  loadGameData() {
+    return this.callCloud('loadGameData')
+  }
+
+  // 云端签到
+  cloudCheckin() {
+    return this.callCloud('checkin')
+  }
+
+  // 获取总排行榜
+  getLeaderboard(type) {
+    return this.callCloud('getLeaderboard', { type })
+  }
+
+  // 获取赛季排行榜
+  getSeasonLeaderboard(type) {
+    return this.callCloud('getSeasonLeaderboard', { type })
+  }
 }
 
 // 导出单例

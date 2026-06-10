@@ -5,6 +5,15 @@
 
 import { Main } from './src/Main.js'
 
+// 初始化云开发
+if (wx.cloud) {
+  wx.cloud.init({
+    env: 'cloud1-d2gbhgc8abb1ab532',
+    traceUser: true
+  })
+  console.log('云开发初始化完成')
+}
+
 // 全局错误处理
 wx.onError((error) => {
   console.error('Game Error:', error)

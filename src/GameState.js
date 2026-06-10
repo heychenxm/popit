@@ -2,6 +2,7 @@ import { getStorage, setStorage } from './utils.js'
 import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
 import { config } from './config.js'
 import { getSeasonCycle, getSeasonTimeRemaining, formatSeasonCountdown } from './seasonUtils.js'
+import { wechatAPI } from './WechatAPI.js'
 
 /**
  * 游戏状态管理
@@ -432,7 +433,7 @@ export class GameState {
     // 注意：purchaseCount 不在这里重置，它在整个游戏会话中累计
   }
 
-  // 获取排行榜数据（本地版本，无云端数据）
+  // 获取排行榜数据（云端 + 本地缓存）
   async getLeaderboard(type = 'score') {
     // 尝试从缓存读取
     const cacheKey = `leaderboard_${type}_cache`
@@ -455,7 +456,29 @@ export class GameState {
       console.log('读取排行榜缓存失败:', e)
     }
     
-    // 无缓存或缓存过期，返回空排行榜
+    // 缓存过期或无缓存，从云端获取
+    if (wechatAPI.isCloudAvailable()) {
+      try {
+        const result = await wechatAPI.getLeaderboard(type)
+        if (result.success && result.data) {
+          // 写入缓存
+          setStorage(cacheKey, {
+            data: result.data,
+            timestamp: Date.now(),
+            expire: 1800000
+          })
+          return {
+            success: true,
+            data: result.data,
+            fromCache: false
+          }
+        }
+      } catch (err) {
+        console.log('获取云端排行榜失败:', err.message || err)
+      }
+    }
+    
+    // 云端不可用或请求失败，返回空排行榜
     return {
       success: true,
       data: {
@@ -519,7 +542,7 @@ export class GameState {
   }
   
   /**
-   * 获取赛季数据（本地版本，无云端数据）
+   * 获取赛季排行榜数据（云端 + 本地缓存）
    * @param {string} type - 数据类型：'score' 或 'wave'
    * @returns {Promise<Object>} 赛季数据
    */
@@ -545,7 +568,29 @@ export class GameState {
       console.log('读取赛季排行榜缓存失败:', e)
     }
     
-    // 无缓存或缓存过期，返回空赛季数据
+    // 缓存过期或无缓存，从云端获取
+    if (wechatAPI.isCloudAvailable()) {
+      try {
+        const result = await wechatAPI.getSeasonLeaderboard(type)
+        if (result.success && result.data) {
+          // 写入缓存
+          setStorage(cacheKey, {
+            data: result.data,
+            timestamp: Date.now(),
+            expire: 1800000
+          })
+          return {
+            success: true,
+            data: result.data,
+            fromCache: false
+          }
+        }
+      } catch (err) {
+        console.log('获取云端赛季排行榜失败:', err.message || err)
+      }
+    }
+    
+    // 云端不可用或请求失败，返回空赛季数据
     return {
       success: true,
       data: {
@@ -595,5 +640,159 @@ export class GameState {
    */
   getSeasonTimeRemaining() {
     return getSeasonTimeRemaining()
+  }
+
+  // ========== 云端同步 ==========
+
+  /**
+   * 从云端加载数据并与本地合并（游戏启动时调用）
+   * 策略：高分/高关卡取较大值，金币取较大值，签到以云端为准
+   */
+  async loadCloudData() {
+    if (!wechatAPI.isCloudAvailable()) return
+
+    try {
+      const result = await wechatAPI.loadGameData()
+      if (!result.success || !result.data) return
+
+      const cloud = result.data
+      let updated = false
+
+      // 金币取较大值
+      if (typeof cloud.coins === 'number' && cloud.coins > this.coins) {
+        this.coins = cloud.coins
+        setStorage('coins', this.coins)
+        updated = true
+      }
+
+      // 最高分取较大值
+      if (typeof cloud.highScore === 'number' && cloud.highScore > this.highScore) {
+        this.highScore = cloud.highScore
+        setStorage('highScore', this.highScore)
+        updated = true
+      }
+
+      // 最高关卡取较大值
+      if (typeof cloud.bestWave === 'number' && cloud.bestWave > this.bestWave) {
+        this.bestWave = cloud.bestWave
+        setStorage('bestWave', this.bestWave)
+        updated = true
+      }
+
+      // 签到数据以云端为准（防篡改）
+      if (cloud.lastCheckinDate && cloud.lastCheckinDate !== this.lastCheckinDate) {
+        this.lastCheckinDate = cloud.lastCheckinDate
+        setStorage('lastCheckinDate', this.lastCheckinDate)
+        updated = true
+      }
+      if (typeof cloud.checkinStreak === 'number' && cloud.checkinStreak !== this.checkinStreak) {
+        this.checkinStreak = cloud.checkinStreak
+        setStorage('checkinStreak', this.checkinStreak)
+        updated = true
+      }
+
+      // 分享数据以云端为准
+      if (cloud.lastShareDate) {
+        this.lastShareDate = cloud.lastShareDate
+        setStorage('lastShareDate', this.lastShareDate)
+      }
+      if (typeof cloud.todayShareCount === 'number') {
+        this.todayShareCount = cloud.todayShareCount
+        setStorage('todayShareCount', this.todayShareCount)
+      }
+      if (cloud.lastShareGiftDate) {
+        this.lastShareGiftDate = cloud.lastShareGiftDate
+        setStorage('lastShareGiftDate', this.lastShareGiftDate)
+      }
+
+      // 刷新状态
+      this.updateCheckinStatus()
+      this.updateShareCountStatus()
+      this.updateShareGiftStatus()
+
+      if (updated) {
+        console.log('云端数据已合并到本地')
+      }
+    } catch (err) {
+      console.log('加载云端数据失败（不影响游戏）:', err.message || err)
+    }
+  }
+
+  /**
+   * 保存当前数据到云端（游戏退出/隐藏时调用）
+   */
+  async saveToCloud() {
+    if (!wechatAPI.isCloudAvailable()) return
+
+    try {
+      await wechatAPI.saveGameData({
+        coins: this.coins,
+        highScore: this.highScore,
+        bestWave: this.bestWave,
+        lastCheckinDate: this.lastCheckinDate,
+        checkinStreak: this.checkinStreak,
+        lastShareDate: this.lastShareDate,
+        todayShareCount: this.todayShareCount,
+        lastShareGiftDate: this.lastShareGiftDate,
+        seasonId: this.seasonInfo.currentSeasonId,
+        seasonScore: this.seasonData.seasonScore,
+        seasonWave: this.seasonData.seasonWave,
+        totalGames: this.seasonData.totalGames,
+        totalClears: this.seasonData.totalClears,
+        bestStreak: this.seasonData.bestStreak,
+        nickname: this.userInfo.nickname || '',
+        avatarUrl: this.userInfo.avatarUrl || ''
+      })
+      console.log('游戏数据已保存到云端')
+    } catch (err) {
+      console.log('保存到云端失败（不影响游戏）:', err.message || err)
+    }
+  }
+
+  /**
+   * 云端签到（服务端校验，防篡改）
+   * 签到成功时自动更新本地数据
+   */
+  async doCloudCheckin() {
+    // 先做本地快速校验
+    const today = getTodayString()
+    if (this.lastCheckinDate === today) {
+      return null // 今天已签到
+    }
+
+    if (!wechatAPI.isCloudAvailable()) {
+      // 云端不可用，降级到本地签到
+      return this.doLocalCheckin()
+    }
+
+    try {
+      const result = await wechatAPI.cloudCheckin()
+      if (!result.success) {
+        console.log('云端签到失败:', result.error)
+        // 如果是"今天已签到"，同步本地状态
+        if (result.error === '今天已签到') {
+          this.lastCheckinDate = today
+          setStorage('lastCheckinDate', today)
+          this.hasCheckedInToday = true
+        }
+        return null
+      }
+
+      const data = result.data
+      // 用服务端返回的数据更新本地
+      this.coins = data.coins
+      this.checkinStreak = data.checkinStreak
+      this.lastCheckinDate = data.lastCheckinDate
+      this.hasCheckedInToday = true
+
+      setStorage('coins', this.coins)
+      setStorage('checkinStreak', this.checkinStreak)
+      setStorage('lastCheckinDate', this.lastCheckinDate)
+
+      return data.reward
+    } catch (err) {
+      console.log('云端签到异常，降级到本地签到:', err.message || err)
+      return this.doLocalCheckin()
+    }
   }
 }

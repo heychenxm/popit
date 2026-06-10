@@ -68,6 +68,9 @@ export class Main {
     // 绑定游戏生命周期事件
     this.bindLifecycleEvents()
     
+    // 从云端加载数据（异步，不阻塞游戏启动）
+    this.gameState.loadCloudData()
+    
     // 开始游戏循环
     this.start()
   }
@@ -76,9 +79,10 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）
+    // 游戏隐藏（切换到后台）—— 保存数据到云端
     wx.onHide(() => {
       console.log('游戏隐藏')
+      this.gameState.saveToCloud().catch(() => {})
     })
     
     // 游戏显示（回到前台）
@@ -838,6 +842,9 @@ export class Main {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
+    // 返回首页时同步数据到云端
+    await this.gameState.saveToCloud()
+    
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
   }
@@ -966,10 +973,9 @@ export class Main {
     this.uiManager.currentScreen = 'checkin'
   }
 
-  // 执行签到（完全本地处理，不调用云函数）
+  // 执行签到（优先云端，降级本地）
   async doCheckin() {
-    // 使用本地签到逻辑
-    const result = this.gameState.doLocalCheckin()
+    const result = await this.gameState.doCloudCheckin()
     
     if (result) {
       this.vibrate('medium')

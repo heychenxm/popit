@@ -1,0 +1,9 @@
+{
+  "name": "loadGameData",
+  "version": "1.0.0",
+  "description": "从云数据库加载用户游戏数据",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
