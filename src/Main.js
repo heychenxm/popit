@@ -1204,16 +1204,7 @@ export class Main {
   }
 }
 
-
-// 在 Main.js 中导入测试
-// import { testWithMockData } from '../test-sync-logic.js'
-
-// // 在开发环境运行测试
-// if (config.env === 'develop') {
-//   testWithMockData()
-// }
-
 // 注入所有数据（包括排行榜）
-const { injectAll } = require('../inject-mock-data.js')
-injectAll()
+// const { injectAll } = require('../inject-mock-data.js')
+// injectAll()
 
