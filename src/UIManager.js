@@ -59,7 +59,7 @@ export class UIManager {
     const ctx = this.ctx
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     // 顶部金币余额
     this.drawTopCoins(gameState)
@@ -565,7 +565,7 @@ export class UIManager {
     const ctx = this.ctx
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     // 顶部HUD
     this.drawGameHUD(gameState)
@@ -749,7 +749,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -977,7 +977,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -1194,7 +1194,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -1429,7 +1429,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -2041,7 +2041,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -2238,7 +2238,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     
@@ -2429,7 +2429,7 @@ export class UIManager {
     const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
-    this.buttons = []
+    this.buttons.length = 0
     
     ctx.save()
     

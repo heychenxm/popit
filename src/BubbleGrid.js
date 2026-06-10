@@ -69,6 +69,9 @@ export class BubbleGrid {
     this.animationFrame = 0
     this.glowPhase = 0
     
+    // 预创建背景渐变（优化：避免每帧创建）
+    this.bgGradient = null
+    
     this.updateLayout()
     this.initBubbles()
   }
@@ -92,6 +95,12 @@ export class BubbleGrid {
     this.gridX = (this.width - this.gridSize) / 2
     this.gridY = getBubbleGridTop(this.width, this.height)
     this.cellSize = (this.gridSize - this.gap * 2) / this.cols
+    
+    // 重新创建背景渐变
+    this.bgGradient = this.ctx.createLinearGradient(0, 0, 0, this.height)
+    this.bgGradient.addColorStop(0, '#0d0926')
+    this.bgGradient.addColorStop(0.6, '#17113a')
+    this.bgGradient.addColorStop(1, '#2b185d')
   }
 
   // 初始化泡泡
@@ -103,16 +112,74 @@ export class BubbleGrid {
       
       const x = this.gridX + this.gap + col * this.cellSize + this.cellSize / 2
       const y = this.gridY + this.gap + row * this.cellSize + this.cellSize / 2
+      const radius = (this.cellSize - 16) / 2
+      
+      // 预创建普通泡泡渐变
+      let colors
+      if (i < this.bubbleColors.length) {
+        colors = this.bubbleColors[i]
+      } else if (i < this.bubbleColors.length + this.extraBubbleColors.length) {
+        colors = this.extraBubbleColors[i - this.bubbleColors.length]
+      } else {
+        colors = this.bubbleColors[0]
+      }
+      
+      const normalGradient = this.ctx.createRadialGradient(
+        x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+        x, y, radius
+      )
+      normalGradient.addColorStop(0, colors.center)
+      normalGradient.addColorStop(0.7, colors.edge)
+      normalGradient.addColorStop(1, colors.dark)
+      
+      // 预创建激活泡泡渐变（pink/purple/blue）
+      const pinkGradient = this.ctx.createRadialGradient(
+        x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+        x, y, radius
+      )
+      pinkGradient.addColorStop(0, this.activeColors.pink.center)
+      pinkGradient.addColorStop(0.45, this.activeColors.pink.mid)
+      pinkGradient.addColorStop(1, this.activeColors.pink.edge)
+      
+      const purpleGradient = this.ctx.createRadialGradient(
+        x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+        x, y, radius
+      )
+      purpleGradient.addColorStop(0, this.activeColors.purple.center)
+      purpleGradient.addColorStop(0.45, this.activeColors.purple.mid)
+      purpleGradient.addColorStop(1, this.activeColors.purple.edge)
+      
+      const blueGradient = this.ctx.createRadialGradient(
+        x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+        x, y, radius
+      )
+      blueGradient.addColorStop(0, this.activeColors.blue.center)
+      blueGradient.addColorStop(0.45, this.activeColors.blue.mid)
+      blueGradient.addColorStop(1, this.activeColors.blue.edge)
+      
+      // 预创建错误泡泡渐变
+      const errorGradient = this.ctx.createRadialGradient(
+        x, y, radius * 0.1,
+        x, y, radius
+      )
+      errorGradient.addColorStop(0, '#f87171')
+      errorGradient.addColorStop(1, '#dc2626')
       
       this.bubbles.push({
         index: i,
         x: x,
         y: y,
-        radius: (this.cellSize - 16) / 2,
+        radius: radius,
         state: 'normal',
         scale: 1,
         activeColor: null,
-        clicked: false  // 添加 clicked 标记，用于区分观察阶段和点击后
+        clicked: false,
+        // 预创建的渐变对象
+        normalGradient: normalGradient,
+        pinkGradient: pinkGradient,
+        purpleGradient: purpleGradient,
+        blueGradient: blueGradient,
+        errorGradient: errorGradient
       })
     }
   }
@@ -152,12 +219,8 @@ export class BubbleGrid {
   drawBackground() {
     const ctx = this.ctx
     
-    // 渐变背景
-    const gradient = ctx.createLinearGradient(0, 0, 0, this.height)
-    gradient.addColorStop(0, '#0d0926')
-    gradient.addColorStop(0.6, '#17113a')
-    gradient.addColorStop(1, '#2b185d')
-    ctx.fillStyle = gradient
+    // 使用预创建的背景渐变
+    ctx.fillStyle = this.bgGradient
     ctx.fillRect(0, 0, this.width, this.height)
     
     // 霓虹网格背景
@@ -320,30 +383,10 @@ export class BubbleGrid {
   }
 
   // 绘制普通泡泡（暗色状态）
-  drawNormalBubble(ctx, x, y, radius, index) {
-    // 支持更多颜色的泡泡
-    let colors
-    if (index < this.bubbleColors.length) {
-      colors = this.bubbleColors[index]
-    } else if (index < this.bubbleColors.length + this.extraBubbleColors.length) {
-      colors = this.extraBubbleColors[index - this.bubbleColors.length]
-    } else {
-      // 如果超出范围，使用第一个颜色作为默认
-      colors = this.bubbleColors[0]
-    }
+  drawNormalBubble(ctx, bubble) {
+    const { x, y, radius, normalGradient } = bubble
     
-    if (!colors) return
-    
-    // 径向渐变
-    const gradient = ctx.createRadialGradient(
-      x - radius * 0.3, y - radius * 0.3, radius * 0.1,
-      x, y, radius
-    )
-    gradient.addColorStop(0, colors.center)
-    gradient.addColorStop(0.7, colors.edge)
-    gradient.addColorStop(1, colors.dark)
-    
-    ctx.fillStyle = gradient
+    ctx.fillStyle = normalGradient
     ctx.beginPath()
     ctx.arc(x, y, radius, 0, Math.PI * 2)
     ctx.fill()
@@ -367,27 +410,27 @@ export class BubbleGrid {
   }
 
   // 绘制激活泡泡（发光状态）
-  drawActiveBubble(ctx, x, y, radius, color, isObserving = false) {
-    const colors = this.activeColors[color]
-    if (!colors) colors = this.activeColors.purple
+  drawActiveBubble(ctx, bubble, isObserving = false) {
+    const { x, y, radius, activeColor, pinkGradient, purpleGradient, blueGradient } = bubble
+    const colors = this.activeColors[activeColor] || this.activeColors.purple
     
     // 观察阶段：闪动效果（亮度和缩放变化）
     // 点击后：保持高亮状态，不闪动
-    const brightness = isObserving ? 0.7 + Math.sin(this.glowPhase) * 0.3 : 1
     const scale = isObserving ? 1 + Math.sin(this.glowPhase) * 0.04 : 1.04
     
-    // 发光效果（观察阶段更强）
+    // 发光效果（观察阶段动态，点击后固定值减少计算）
     ctx.shadowColor = colors.glow
     ctx.shadowBlur = isObserving ? (20 + Math.sin(this.glowPhase) * 10) : 25
     
-    // 径向渐变
-    const gradient = ctx.createRadialGradient(
-      x - radius * 0.3, y - radius * 0.3, radius * 0.1,
-      x, y, radius
-    )
-    gradient.addColorStop(0, colors.center)
-    gradient.addColorStop(0.45, colors.mid)
-    gradient.addColorStop(1, colors.edge)
+    // 使用预创建的渐变
+    let gradient
+    if (activeColor === 'pink') {
+      gradient = pinkGradient
+    } else if (activeColor === 'blue') {
+      gradient = blueGradient
+    } else {
+      gradient = purpleGradient
+    }
     
     ctx.fillStyle = gradient
     ctx.save()
@@ -415,18 +458,13 @@ export class BubbleGrid {
   }
 
   // 绘制错误泡泡（红色）
-  drawErrorBubble(ctx, x, y, radius) {
+  drawErrorBubble(ctx, bubble) {
+    const { x, y, radius, errorGradient } = bubble
+    
     ctx.shadowColor = Colors.red500
     ctx.shadowBlur = 15
     
-    const gradient = ctx.createRadialGradient(
-      x, y, radius * 0.1,
-      x, y, radius
-    )
-    gradient.addColorStop(0, '#f87171')
-    gradient.addColorStop(1, '#dc2626')
-    
-    ctx.fillStyle = gradient
+    ctx.fillStyle = errorGradient
     ctx.beginPath()
     ctx.arc(x, y, radius, 0, Math.PI * 2)
     ctx.fill()
@@ -453,13 +491,13 @@ export class BubbleGrid {
       
       // 绘制泡泡
       if (bubble.state === 'normal') {
-        this.drawNormalBubble(ctx, bubble.x, bubble.y, bubble.radius, bubble.index)
+        this.drawNormalBubble(ctx, bubble)
       } else if (bubble.state === 'red') {
-        this.drawErrorBubble(ctx, bubble.x, bubble.y, bubble.radius)
+        this.drawErrorBubble(ctx, bubble)
       } else if (bubble.state === 'pink' || bubble.state === 'purple' || bubble.state === 'blue') {
         // 判断是否在观察阶段（通过检查是否有 clicked 标记）
         const isObserving = !bubble.clicked
-        this.drawActiveBubble(ctx, bubble.x, bubble.y, bubble.radius, bubble.activeColor || bubble.state, isObserving)
+        this.drawActiveBubble(ctx, bubble, isObserving)
       }
     })
   }
@@ -469,15 +507,15 @@ export class BubbleGrid {
     this.animationFrame++
     this.glowPhase += deltaTime * 0.005
     
-    // 更新激活泡泡的缩放
-    this.bubbles.forEach(bubble => {
+    // 只更新激活泡泡的缩放（优化：避免遍历所有泡泡）
+    for (let i = 0; i < this.bubbles.length; i++) {
+      const bubble = this.bubbles[i]
       if (bubble.state === 'pink' || bubble.state === 'purple' || bubble.state === 'blue') {
-        const pulse = Math.sin(this.glowPhase) * 0.04 + 1
-        bubble.scale = pulse
-      } else {
+        bubble.scale = Math.sin(this.glowPhase) * 0.04 + 1
+      } else if (bubble.scale !== 1) {
         bubble.scale = 1
       }
-    })
+    }
   }
 
   // 渲染
