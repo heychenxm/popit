@@ -408,22 +408,34 @@ export class GameState {
   // 获取观察时间（毫秒）
   getObserveDuration() {
     if (this.wave < 20) {
-      // 1-19 关：2000ms 起，每关 -100ms，最少 1000ms
-      return Math.max(1000, 2000 - (this.wave * 100))
+      // 1-19 关：2000ms 起，每关 -50ms，最少 1200ms
+      return Math.max(1200, 2000 - (this.wave - 1) * 50)
+    } else if (this.wave < 40) {
+      // 20-39 关：2000ms 起，每关 -30ms，最少 1400ms
+      return Math.max(1400, 2000 - (this.wave - 1) * 30)
+    } else if (this.wave < 60) {
+      // 40-59 关：2000ms 起，每关 -20ms，最少 1800ms
+      return Math.max(1800, 2000 - (this.wave - 1) * 20)
     } else {
-      // 20 关 +：2000ms 起，每关 -25ms，最少 1000ms
-      return Math.max(1000, 2000 - (this.wave * 25))
+      // 60+ 关：2000ms 起，每关 -15ms，最少 1900ms
+      return Math.max(1900, 2000 - (this.wave - 1) * 15)
     }
   }
 
   // 获取点击时间（毫秒）
   getPlayDuration() {
     if (this.wave < 20) {
-      // 1-19 关：4500ms 起，每关 -150ms，最少 2500ms
-      return Math.max(2500, 4500 - (this.wave * 150))
+      // 1-19 关：4500ms 起，每关 -80ms，最少 3000ms
+      return Math.max(3000, 4500 - (this.wave - 1) * 80)
+    } else if (this.wave < 40) {
+      // 20-39 关：4500ms 起，每关 -50ms，最少 3200ms
+      return Math.max(3200, 4500 - (this.wave - 1) * 50)
+    } else if (this.wave < 60) {
+      // 40-59 关：4500ms 起，每关 -35ms，最少 3800ms
+      return Math.max(3800, 4500 - (this.wave - 1) * 35)
     } else {
-      // 20 关 +：4500ms 起，每关 -50ms，最少 1500ms
-      return Math.max(1500, 4500 - (this.wave * 50))
+      // 60+ 关：4500ms 起，每关 -25ms，最少 4100ms
+      return Math.max(4100, 4500 - (this.wave - 1) * 25)
     }
   }
 

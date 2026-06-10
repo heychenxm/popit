@@ -3,6 +3,8 @@
  * 主入口文件
  */
 
+// 先导入兼容性补丁（确保 setTimeout 等可用）
+import './src/polyfill.js'
 import { Main } from './src/Main.js'
 
 // 初始化云开发

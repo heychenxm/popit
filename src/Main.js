@@ -152,14 +152,25 @@ export class Main {
 
   // 绑定事件
   bindEvents() {
-    // 触摸开始（单点触控）
+    // 触摸开始
     wx.onTouchStart((e) => {
-      // 只处理第一个触摸点
-      if (e.touches.length > 0) {
-        const touch = e.touches[0]
-        const x = touch.clientX || touch.x || 0
-        const y = touch.clientY || touch.y || 0
-        this.handleTouchStart(x, y)
+      if (this.gameState.phase === 'PLAY' && !this.gameState.isPaused) {
+        // PLAY 阶段：最多处理2个触摸点，支持多点触控
+        const count = Math.min(e.touches.length, 2)
+        for (let i = 0; i < count; i++) {
+          const touch = e.touches[i]
+          const x = touch.clientX || touch.x || 0
+          const y = touch.clientY || touch.y || 0
+          this.handleTouchStart(x, y)
+        }
+      } else {
+        // 其他阶段：单点触控
+        if (e.touches.length > 0) {
+          const touch = e.touches[0]
+          const x = touch.clientX || touch.x || 0
+          const y = touch.clientY || touch.y || 0
+          this.handleTouchStart(x, y)
+        }
       }
     })
     
