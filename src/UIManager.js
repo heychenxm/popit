@@ -2960,7 +2960,7 @@ export class UIManager {
     ctx.restore()
   }
 
-  // 绘制头像（支持文字头像）
+  // 绘制头像（支持图片头像和文字头像）
   drawAvatar(x, y, size, avatarUrl, isTop1, isUser = false) {
     const ctx = this.ctx
     
@@ -2980,47 +2980,118 @@ export class UIManager {
                              !avatarUrl.includes('anonymous') &&
                              !avatarUrl.includes('temp-avatar')
     
+    console.log('drawAvatar - avatarUrl:', avatarUrl ? avatarUrl.substring(0, 60) : 'null', 'isValid:', isValidAvatarUrl)
+    
     // 如果没有有效头像 URL，使用默认头像图片
     if (!isValidAvatarUrl && this.defaultAvatarLoaded) {
-      ctx.save()
-      ctx.translate(x, y)
-      
-      const imgSize = size
-      
-      // 裁剪为圆形
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.clip()
-      
-      // 绘制默认头像
-      ctx.drawImage(
-        this.defaultAvatarImage,
-        -imgSize / 2,
-        -imgSize / 2,
-        imgSize,
-        imgSize
-      )
-      
-      ctx.restore()
-      
-      // 边框（在裁剪外绘制）
-      ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(x, y, radius, 0, Math.PI * 2)
-      ctx.stroke()
-      
-      // 用户标签（在裁剪外绘制，使用绝对坐标）
-      if (isUser) {
-        this.drawUserBadge(x, y, radius)
-      }
+      console.log('使用默认头像图片')
+      this.drawImageAvatar(x, y, size, this.defaultAvatarImage, isTop1, isUser)
       return
     }
+    
+    // 检查是否有缓存的用户头像
+    if (isValidAvatarUrl && this.avatarCache && this.avatarCache[avatarUrl]) {
+      const cached = this.avatarCache[avatarUrl]
+      console.log('头像缓存状态:', cached)
+      if (cached.loaded && cached.image) {
+        // 已加载完成，绘制图片
+        console.log('绘制缓存的头像图片')
+        this.drawImageAvatar(x, y, size, cached.image, isTop1, isUser)
+        return
+      } else if (cached.loading) {
+        // 正在加载中，先绘制文字头像
+        this.drawTextAvatar(x, y, size, avatarUrl, isTop1, isUser)
+        return
+      }
+    }
+    
+    // 没有缓存，开始加载
+    if (isValidAvatarUrl) {
+      console.log('开始加载头像:', avatarUrl.substring(0, 60))
+      this.loadAvatarImage(avatarUrl)
+    }
+    
+    // 加载期间绘制文字头像
+    this.drawTextAvatar(x, y, size, avatarUrl, isTop1, isUser)
+  }
+  
+  // 加载头像图片
+  loadAvatarImage(avatarUrl) {
+    if (!this.avatarCache) {
+      this.avatarCache = {}
+    }
+    
+    // 如果已经在加载中或已加载，跳过
+    if (this.avatarCache[avatarUrl]) {
+      return
+    }
+    
+    // 标记为加载中
+    this.avatarCache[avatarUrl] = { loading: true, loaded: false, image: null }
+    
+    try {
+      const img = wx.createImage()
+      img.onload = () => {
+        console.log('头像图片加载成功:', avatarUrl)
+        this.avatarCache[avatarUrl] = { loading: false, loaded: true, image: img }
+      }
+      img.onerror = () => {
+        console.warn('头像图片加载失败:', avatarUrl)
+        this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
+      }
+      img.src = avatarUrl
+    } catch (e) {
+      console.warn('头像图片初始化失败:', e)
+      this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
+    }
+  }
+  
+  // 绘制图片头像
+  drawImageAvatar(x, y, size, image, isTop1, isUser) {
+    const ctx = this.ctx
+    const radius = size / 2
     
     ctx.save()
     ctx.translate(x, y)
     
-    // 绘制文字头像背景（整个渐变逻辑包裹在 try-catch 中）
+    // 裁剪为圆形
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
+    ctx.clip()
+    
+    // 绘制头像图片
+    ctx.drawImage(
+      image,
+      -size / 2,
+      -size / 2,
+      size,
+      size
+    )
+    
+    ctx.restore()
+    
+    // 边框（在裁剪外绘制）
+    ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.stroke()
+    
+    // 用户标签（在裁剪外绘制，使用绝对坐标）
+    if (isUser) {
+      this.drawUserBadge(x, y, radius)
+    }
+  }
+  
+  // 绘制文字头像
+  drawTextAvatar(x, y, size, avatarUrl, isTop1, isUser) {
+    const ctx = this.ctx
+    const radius = size / 2
+    
+    ctx.save()
+    ctx.translate(x, y)
+    
+    // 绘制文字头像背景
     try {
       const gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
       if (isTop1) {
@@ -3029,7 +3100,6 @@ export class UIManager {
       } else {
         const hue = this.getHueFromText(avatarUrl || 'default')
         const safeHue = (typeof hue === 'number' && !isNaN(hue)) ? hue : 240
-        // 使用 RGB 格式替代 HSL，避免微信 Canvas 不支持 HSL 格式
         const color1 = this.hslToHex(safeHue, 70, 65)
         const color2 = this.hslToHex(safeHue, 70, 45)
         gradient.addColorStop(0, color1)
@@ -3060,7 +3130,7 @@ export class UIManager {
     
     ctx.restore()
     
-    // 用户标签（在裁剪外绘制，使用绝对坐标）
+    // 用户标签
     if (isUser) {
       this.drawUserBadge(x, y, radius)
     }
