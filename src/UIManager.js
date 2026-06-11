@@ -47,6 +47,11 @@ export class UIManager {
     this.logoImageLoaded = false
     this._loadLogoImage()
     
+    // 默认头像图片
+    this.defaultAvatarImage = null
+    this.defaultAvatarLoaded = false
+    this._loadDefaultAvatar()
+    
     // 缓存常用字体设置（优化：避免每帧重复设置）
     this.cachedFonts = {
       bold18: null,
@@ -286,6 +291,27 @@ export class UIManager {
       img.src = 'src/assets/images/pop_logo.png'
     } catch (e) {
       console.warn('Logo 图片初始化失败:', e)
+    }
+  }
+
+  // 加载默认头像图片
+  _loadDefaultAvatar() {
+    try {
+      const img = typeof wx !== 'undefined' && wx.createImage
+        ? wx.createImage()
+        : (typeof Image !== 'undefined' ? new Image() : null)
+      if (!img) return
+
+      img.onload = () => {
+        this.defaultAvatarImage = img
+        this.defaultAvatarLoaded = true
+      }
+      img.onerror = () => {
+        console.warn('默认头像图片加载失败')
+      }
+      img.src = 'src/assets/images/temp-avatar.png'
+    } catch (e) {
+      console.warn('默认头像图片初始化失败:', e)
     }
   }
 
@@ -2883,6 +2909,39 @@ export class UIManager {
     // 安全检查：确保 size 是有效正数
     if (!size || size <= 0) {
       console.warn('drawAvatar: invalid size', size)
+      return
+    }
+    
+    // 如果没有头像 URL，使用默认头像图片
+    if (!avatarUrl && this.defaultAvatarLoaded) {
+      ctx.save()
+      ctx.translate(x, y)
+      
+      const radius = size / 2
+      const imgSize = size
+      
+      // 裁剪为圆形
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.clip()
+      
+      // 绘制默认头像
+      ctx.drawImage(
+        this.defaultAvatarImage,
+        -imgSize / 2,
+        -imgSize / 2,
+        imgSize,
+        imgSize
+      )
+      
+      // 边框
+      ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.stroke()
+      
+      ctx.restore()
       return
     }
     
