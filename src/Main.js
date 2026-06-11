@@ -44,12 +44,6 @@ export class Main {
     // 观察阶段计时
     this.observeStartTime = 0
     
-    // 分享发奖状态（微信已移除 shareAppMessage 的 success 回调）
-    this.pendingShare = null
-    this.shareReturnTimer = null
-    this.shareShowTimer = null
-    this.sharePollTimer = null
-    
     // 初始化
     this.init()
   }
@@ -210,9 +204,6 @@ export class Main {
   handleTouchStart(x, y) {
     // 首次点击时触发用户信息授权（符合微信规范）
     this.tryInitUserInfo()
-    
-    // 分享返回后，部分机型 onShow 不触发；浮层分享需点击屏幕领取
-    this.onSharePanelClosed(true)
     
     // 暂停状态优先处理
     if (this.gameState.isPaused) {
@@ -1049,111 +1040,21 @@ export class Main {
     this.uiManager.currentScreen = 'share'
   }
   
-  clearShareState() {
-    if (this.shareReturnTimer) {
-      clearTimeout(this.shareReturnTimer)
-      this.shareReturnTimer = null
-    }
-    if (this.sharePollTimer) {
-      clearInterval(this.sharePollTimer)
-      this.sharePollTimer = null
-    }
-    this.pendingShare = null
-  }
-  
-  // 发起分享，返回游戏后本地发奖
+  // 发起分享，调用成功即发奖
   startShareForReward(type) {
-    this.clearShareState()
     this.vibrate('light')
-    
-    const startedAt = Date.now()
-    this.pendingShare = {
-      type,
-      startedAt,
-      hiddenAt: null,
-      sawHide: false,
-      armed: false,
-      granted: false
-    }
     
     wx.shareAppMessage({
       title: '来挑战泡泡大师！',
       query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
     })
     
-    // 分享面板弹出后再开始判定，避免打开面板时的 onShow 误触发
-    setTimeout(() => {
-      if (this.pendingShare && this.pendingShare.startedAt === startedAt) {
-        this.pendingShare.armed = true
-        this.sharePollTimer = setInterval(() => {
-          this.onSharePanelClosed(false)
-        }, 250)
-      }
-    }, 400)
-    
-    this.shareReturnTimer = setTimeout(() => {
-      this.clearShareState()
-    }, 60000)
-  }
-  
-  // 分享面板关闭后尝试发奖（fromTouch：用户点击屏幕触发）
-  onSharePanelClosed(fromTouch = false) {
-    const pending = this.pendingShare
-    if (!pending || !pending.armed || pending.granted) {
-      return
-    }
-    
-    const elapsed = Date.now() - pending.startedAt
-    
-    // 分享面板刚弹出，忽略
-    if (elapsed < 400) {
-      return
-    }
-    
-    // 很快回到游戏且未离开过小游戏，视为取消
-    if (elapsed < 700 && !pending.sawHide) {
-      this.clearShareState()
-      return
-    }
-    
-    const leftApp = pending.sawHide
-    
-    // 切到微信聊天再返回：可自动发奖（用户确实进行了分享操作）
-    if (leftApp && pending.hiddenAt) {
-      const awayMs = Date.now() - pending.hiddenAt
-      if (awayMs < 300) {
-        this.clearShareState()
-        return
-      }
-      if (elapsed >= 500) {
-        this.applyShareReward(pending.type)
-      }
-      return
-    }
-    
-    // 分享浮层未触发 onHide：需要用户点击屏幕确认，并且离开时间足够长才发奖
-    // 避免用户只是打开分享面板就关闭也发奖
-    if (fromTouch && elapsed >= 1000 && leftApp) {
-      // 只有确实离开过小游戏（触发 onHide）才发奖
-      this.applyShareReward(pending.type)
-    } else if (fromTouch) {
-      // 用户点击屏幕但无法确认是否分享，清除状态不发奖
-      console.log('无法确认分享是否成功，不发奖')
-      this.clearShareState()
-    }
+    // 分享调用成功即发奖
+    this.applyShareReward(type)
   }
   
   // 发放分享奖励（仅本地）
   applyShareReward(type) {
-    if (this.pendingShare?.granted) {
-      return
-    }
-    
-    if (this.pendingShare) {
-      this.pendingShare.granted = true
-    }
-    this.clearShareState()
-    
     if (type === 'quick') {
       if (this.gameState.getTodayShareCount() >= config.game.maxShareCountPerDay) {
         this.uiManager.showToast('今日分享次数已达上限')
