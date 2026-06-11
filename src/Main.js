@@ -111,63 +111,6 @@ export class Main {
     })
   }
 
-  // 显示个人名片界面
-  showProfile() {
-    this.audioManager.play('click')
-    this.vibrate('light')
-    this.uiManager.currentScreen = 'profile'
-    
-    // 未授权时，提前创建原生透明按钮（这样用户点击时按钮已存在，可以直接触发授权弹窗）
-    if (!this.gameState.userInfo.authorized) {
-      this.prepareUserInfoButton()
-    }
-  }
-
-  // 提前创建原生透明按钮，覆盖在授权按钮位置上
-  prepareUserInfoButton() {
-    // 先销毁旧的
-    this.gameState.destroyPendingUserInfoButton()
-    
-    const rect = this.uiManager.getProfileAuthButtonRect()
-    this.gameState.createUserInfoButtonOverlay(rect, (userInfo) => {
-      // 授权成功回调
-      this.gameState.saveUserProfileLocally(userInfo.nickName, userInfo.avatarUrl)
-      this.uiManager.showToast('授权成功！')
-      // 销毁按钮
-      this.gameState.destroyPendingUserInfoButton()
-    })
-  }
-
-  // 关闭个人名片界面
-  closeProfile() {
-    this.audioManager.play('click')
-    this.vibrate('light')
-    // 销毁可能存在的授权按钮
-    this.gameState.destroyPendingUserInfoButton()
-    this.uiManager.currentScreen = 'menu'
-  }
-
-  // 处理个人名片界面触摸
-  handleProfileTouch(x, y) {
-    const buttonId = this.uiManager.handleTouch(x, y)
-    
-    if (buttonId) {
-      switch (buttonId) {
-        case 'close':
-          this.closeProfile()
-          break
-        case 'authorize':
-          // 如果已授权，直接提示
-          if (this.gameState.userInfo.authorized) {
-            this.uiManager.showToast('已授权')
-          }
-          // 未授权时不需要在这里处理，原生透明按钮已覆盖在此位置上
-          // 用户点击时原生按钮会拦截触摸并弹出授权弹窗
-          break
-      }
-    }
-  }
-
   // 设置分享
   setupShare() {
     wx.showShareMenu({
@@ -219,12 +162,6 @@ export class Main {
     // 暂停状态优先处理
     if (this.gameState.isPaused) {
       this.handlePauseTouch(x, y)
-      return
-    }
-    
-    // 检查是否在个人名片界面
-    if (this.uiManager.currentScreen === 'profile') {
-      this.handleProfileTouch(x, y)
       return
     }
     
@@ -397,9 +334,6 @@ export class Main {
         case 'leaderboard_detail':
           this.showSeasonLeaderboard()
           break
-        case 'profile':
-          this.showProfile()
-          break
         case 'sound':
           this.toggleSound()
           break
@@ -413,6 +347,10 @@ export class Main {
         case 'share_gift':
           // 右上角分享礼包图标：显示分享礼包弹窗，每天可领一次，奖励 +1000 金币
           this.showShare()
+          break
+        case 'authorize':
+          // 授权按钮：请求获取用户昵称和头像
+          this.handleAuthorize()
           break
       }
     }
@@ -1122,6 +1060,31 @@ export class Main {
     }
     
     this.startShareForReward('gift')
+  }
+
+  // 处理用户授权（获取昵称和头像）
+  handleAuthorize() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 使用 wx.getUserProfile 获取用户信息（需要用户点击触发）
+    wx.getUserProfile({
+      desc: '用于完善用户资料和排行榜展示',
+      success: (res) => {
+        const userInfo = res.userInfo
+        // 保存用户信息到本地
+        this.gameState.saveUserProfileLocally(userInfo.nickName, userInfo.avatarUrl)
+        this.uiManager.showToast('授权成功！')
+        
+        // 立即保存到云端
+        this.gameState.saveToCloud().catch(() => {})
+      },
+      fail: (err) => {
+        // 用户拒绝授权
+        console.log('用户拒绝授权')
+        this.uiManager.showToast('已取消授权')
+      }
+    })
   }
 
   // 开始游戏循环

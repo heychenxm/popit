@@ -21,7 +21,8 @@ exports.main = async (event, context) => {
     'coins', 'highScore', 'bestWave',
     'lastCheckinDate', 'checkinStreak',
     'lastShareDate', 'todayShareCount', 'lastShareGiftDate',
-    'seasonId', 'seasonScore', 'seasonWave'
+    'seasonId', 'seasonScore', 'seasonWave',
+    'nickname', 'avatarUrl'
   ]
 
   const updateData = {}
