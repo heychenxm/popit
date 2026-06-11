@@ -929,24 +929,26 @@ export class UIManager {
     const cellHeight = 95
     const gap = 15
     
-    // 🔧 修复：高亮逻辑
-    const signedDays = gameState.checkinStreak
+    // 签到天数持续累加，每 7 天为一个周期
+    const streak = gameState.checkinStreak
     const canCheckin = gameState.canCheckin()
+    // 当前周期起始天数（0, 7, 14, 21...）
+    const cycleStart = Math.floor((streak - 1) / 7) * 7
+    // 当前周期内已签到天数（0-7）
+    const daysInCycle = streak - cycleStart
+    // 7天连签奖励是否已获得（当前周期已完成7天）
+    const bonusObtained = daysInCycle >= 7
     
-    // 绘制第 1-6 天
-    for (let day = 1; day <= 6; day++) {
-      const col = (day - 1) % 3
-      const row = Math.floor((day - 1) / 3)
+    // 绘制当前周期的第 1-6 天
+    for (let i = 1; i <= 6; i++) {
+      const day = cycleStart + i
+      const col = (i - 1) % 3
+      const row = Math.floor((i - 1) / 3)
       const cellX = gridStartX + col * (cellWidth + gap)
       const cellY = gridStartY + row * (cellHeight + gap)
       
-      // 🔧 修复：高亮 = 今天应该签到的天数
-      // 未签到时：高亮下一天 (signedDays + 1)
-      // 已签到后：高亮最后一次签到的天数 (signedDays)
-      const isToday = canCheckin ? (day === signedDays + 1) : (day === signedDays)
-      
-      // 🔧 修复：已签到的天数显示"已获得"（去掉 !canCheckin 条件）
-      const isSigned = (day <= signedDays)
+      const isToday = canCheckin ? (i === daysInCycle + 1) : (i === daysInCycle)
+      const isSigned = (i <= daysInCycle)
       
       this.drawCheckinCell(ctx, cellX, cellY, cellWidth, cellHeight, day, isToday, isSigned)
       
@@ -954,14 +956,15 @@ export class UIManager {
       this.drawCheckinReward(ctx, cellX, cellY, cellWidth, cellHeight, reward, isSigned)
     }
     
-    // 第 7 天
+    // 当前周期的第 7 天
+    const day7 = cycleStart + 7
     const day7X = gridStartX
     const day7Y = gridStartY + 2 * (cellHeight + gap)
-    const isDay7Today = canCheckin ? (7 === signedDays + 1) : (7 === signedDays)
-    const isDay7Signed = (7 <= signedDays)
+    const isDay7Today = canCheckin ? (7 === daysInCycle + 1) : (7 === daysInCycle)
+    const isDay7Signed = (7 <= daysInCycle)
     
-    this.drawCheckinCell(ctx, day7X, day7Y, cellWidth, cellHeight, 7, isDay7Today, isDay7Signed)
-    const day7Reward = gameState.getTodayReward(7)
+    this.drawCheckinCell(ctx, day7X, day7Y, cellWidth, cellHeight, day7, isDay7Today, isDay7Signed)
+    const day7Reward = gameState.getTodayReward(day7)
     this.drawCheckinReward(ctx, day7X, day7Y, cellWidth, cellHeight, day7Reward, isDay7Signed)
     
     // 7 天连签奖励
@@ -970,7 +973,7 @@ export class UIManager {
     const bonusWidth = cellWidth * 2 + gap
     const bonusHeight = cellHeight
     
-    this.drawBonusCard(ctx, bonusX, bonusY, bonusWidth, bonusHeight, isDay7Signed)
+    this.drawBonusCard(ctx, bonusX, bonusY, bonusWidth, bonusHeight, bonusObtained, day7)
     
     // 签到按钮
     const btnWidth = modalW - 60
@@ -1265,36 +1268,36 @@ export class UIManager {
     ctx.restore()
   }
   
-  // 绘制 7 天连签奖励卡片
-  drawBonusCard(ctx, x, y, w, h, isSigned) {
+  // 绘制连签奖励卡片
+  drawBonusCard(ctx, x, y, w, h, isSigned, bonusDay) {
     const gradient = ctx.createLinearGradient(x, y, x, y + h)
     gradient.addColorStop(0, '#7c3aed')
     gradient.addColorStop(1, '#a855f7')
     
-    ctx.fillStyle = isSigned ? 'rgba(55, 65, 81, 0.5)' : gradient
+    ctx.fillStyle = isSigned ? 'rgba(0, 0, 0, 0.3)' : gradient
     drawRoundRect(ctx, x, y, w, h, 16)
     ctx.fill()
     
-    ctx.strokeStyle = isSigned ? 'rgba(107, 114, 128, 0.5)' : '#c084fc'
+    ctx.strokeStyle = isSigned ? 'rgba(52, 211, 153, 0.3)' : '#c084fc'
     ctx.lineWidth = 2
     ctx.stroke()
     
     // 标题
+    ctx.font = '11px sans-serif'
+    ctx.fillStyle = isSigned ? Colors.gray300 : '#fde68a'
+    ctx.textAlign = 'center'
+    ctx.fillText(isSigned ? `${bonusDay}天连续奖励已获得` : `${bonusDay} 天连签奖励`, x + w / 2, y + 22)
+    
+    // 金币图标
+    const iconSize = 36
+    const iconY = y + h / 2 + 10
+    drawCoinIcon(ctx, x + w / 2, iconY, iconSize, '#facc15')
+    
+    // 奖励文字
     ctx.font = 'bold 12px sans-serif'
-    ctx.fillStyle = isSigned ? Colors.gray500 : '#fde68a'
+    ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'center'
-    ctx.fillText('7 天连签奖励', x + w / 2, y + 25)
-    
-    // 金币图标（位置向上调整）
-    const iconSize = 40
-    const iconY = y + h / 2
-    drawCoinIcon(ctx, x + w / 2, iconY, iconSize, isSigned ? '#9ca3af' : '#fbbf24')
-    
-    // 奖励文字（位置向下调整，避免与金币重叠）
-    ctx.font = isSigned ? 'bold 12px sans-serif' : 'bold 16px sans-serif'
-    ctx.fillStyle = isSigned ? Colors.gray500 : Colors.white
-    ctx.textAlign = 'center'
-    ctx.fillText('额外 +2000', x + w / 2, y + h - 25)
+    ctx.fillText(isSigned ? '+2000' : '额外 +2000', x + w / 2, y + h - 12)
   }
 
   // 绘制排行榜弹窗
