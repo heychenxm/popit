@@ -33,7 +33,7 @@ export class UIManager {
     this.toastTimer = 0
     
     // 当前屏幕
-    this.currentScreen = 'menu' // 'menu' | 'game' | 'win' | 'fail' | 'leaderboard' | 'checkin' | 'share'
+    this.currentScreen = 'menu' // 'menu' | 'game' | 'win' | 'fail' | 'leaderboard' | 'checkin' | 'share' | 'profile'
     
     // 动画状态
     this.animationFrame = 0
@@ -134,6 +134,7 @@ export class UIManager {
     this.drawTopCoins(gameState)
     this.drawLogo()
     this.drawBestScore(gameState)
+    this.drawProfileEntry(gameState)
     this.drawStartButton()
     this.drawBottomButtons(gameState)
     this.drawSeasonBanner(gameState)
@@ -192,6 +193,7 @@ export class UIManager {
       this.drawTopCoins(gameState)
       this.drawLogo()
       this.drawBestScore(gameState)
+      this.drawProfileEntry(gameState)
       this.drawStartButton()
       this.drawBottomButtons(gameState)
       this.drawSeasonBanner(gameState)
@@ -381,6 +383,49 @@ export class UIManager {
     
     ctx.fillStyle = Colors.white
     ctx.fillText(`最高分: ${gameState.highScore}`, this.width / 2 + 60, y)
+    
+    ctx.restore()
+  }
+
+  // 绘制名片入口按钮
+  drawProfileEntry(gameState) {
+    const ctx = this.ctx
+    const btnWidth = 180
+    const btnHeight = 48
+    const btnX = (this.width - btnWidth) / 2
+    const btnY = this.height * 0.38
+    
+    ctx.save()
+    
+    // 绘制按钮背景
+    const gradient = ctx.createLinearGradient(btnX, btnY, btnX + btnWidth, btnY + btnHeight)
+    gradient.addColorStop(0, '#4f46e5')
+    gradient.addColorStop(1, '#7c3aed')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 24)
+    ctx.fill()
+    
+    // 绘制按钮边框
+    ctx.strokeStyle = '#a5b4fc'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 绘制按钮文字
+    ctx.font = 'bold 15px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('个人名片', this.width / 2, btnY + btnHeight / 2)
+    
+    // 添加按钮到按钮列表
+    this.buttons.push({
+      id: 'profile',
+      x: btnX,
+      y: btnY,
+      w: btnWidth,
+      h: btnHeight
+    })
     
     ctx.restore()
   }
@@ -2694,6 +2739,197 @@ export class UIManager {
     ctx.restore()
   }
 
+  // 绘制个人名片弹窗
+  drawProfileModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 320
+    const modalH = 400
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    const isAuthorized = gameState.userInfo.authorized
+    
+    // 清空按钮数组
+    this.buttons.length = 0
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#1e1b4b')
+    gradient.addColorStop(1, '#312e81')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#6366f1'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 关闭按钮
+    const closeBtnSize = 32
+    const closeBtnPadding = 16
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+    
+    // 标题
+    const titleY = modalY + 35
+    ctx.font = 'bold 18px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText('个人名片', this.width / 2, titleY)
+    
+    // 头像区域
+    const avatarSize = isAuthorized ? 72 : 64
+    const avatarX = this.width / 2
+    const avatarY = titleY + 60
+    
+    if (isAuthorized && gameState.userInfo.avatarUrl) {
+      // 已授权：渐变头像占位
+      const hue = this.getHueFromText(gameState.userInfo.nickname || 'U')
+      const grad = ctx.createRadialGradient(avatarX - 5, avatarY - 5, 0, avatarX, avatarY, avatarSize / 2)
+      grad.addColorStop(0, this.hslToHex(hue, 70, 65))
+      grad.addColorStop(1, this.hslToHex(hue, 70, 45))
+      ctx.fillStyle = grad
+    } else {
+      // 未授权：灰色占位
+      ctx.fillStyle = 'rgba(100, 116, 139, 0.4)'
+    }
+    
+    ctx.beginPath()
+    ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 头像边框
+    ctx.strokeStyle = isAuthorized ? '#818cf8' : 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 昵称
+    const nicknameY = avatarY + avatarSize / 2 + 20
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = isAuthorized ? Colors.white : Colors.gray400
+    ctx.textAlign = 'center'
+    ctx.fillText(gameState.userInfo.nickname || '未设置昵称', this.width / 2, nicknameY)
+    
+    // 授权状态提示
+    const statusY = nicknameY + 24
+    ctx.font = '12px sans-serif'
+    ctx.fillStyle = isAuthorized ? '#34d399' : Colors.gray500
+    ctx.fillText(isAuthorized ? '✓ 已授权，排行榜中展示真实信息' : '授权后将在排行榜中展示', this.width / 2, statusY)
+    
+    // 授权按钮或已授权提示
+    const btnY = statusY + 40
+    const btnW = modalW - 60
+    const btnH = 46
+    const btnX = modalX + 30
+    
+    if (!isAuthorized) {
+      // 授权按钮（原生按钮会覆盖在此位置上）
+      const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY)
+      btnGrad.addColorStop(0, '#6366f1')
+      btnGrad.addColorStop(1, '#8b5cf6')
+      
+      ctx.fillStyle = btnGrad
+      drawRoundRect(ctx, btnX, btnY, btnW, btnH, 23)
+      ctx.fill()
+      ctx.strokeStyle = '#a5b4fc'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = 'bold 15px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('授权微信头像和昵称', this.width / 2, btnY + btnH / 2)
+      
+      this.buttons.push({
+        id: 'authorize',
+        x: btnX,
+        y: btnY,
+        w: btnW,
+        h: btnH
+      })
+      
+      // 底部说明
+      const hintY = btnY + btnH + 20
+      ctx.font = '10px sans-serif'
+      ctx.fillStyle = Colors.gray500
+      ctx.textAlign = 'center'
+      ctx.fillText('授权仅用于排行榜展示，不影响游戏', this.width / 2, hintY)
+    } else {
+      // 已授权：显示信息卡片
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.15)'
+      drawRoundRect(ctx, btnX, btnY, btnW, 60, 12)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+      
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = '#a5b4fc'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('排行榜展示信息', this.width / 2, btnY + 18)
+      
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.fillText(gameState.userInfo.nickname, this.width / 2, btnY + 42)
+    }
+    
+    ctx.restore()
+  }
+
+  // 获取名片页授权按钮的矩形区域（用于 createUserInfoButton 定位）
+  getProfileAuthButtonRect() {
+    const modalW = 320
+    const modalH = 400
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    const titleY = modalY + 35
+    const avatarY = titleY + 60
+    const nicknameY = avatarY + 52
+    const statusY = nicknameY + 24
+    const btnY = statusY + 40
+    const btnW = modalW - 60
+    const btnH = 46
+    const btnX = modalX + 30
+    
+    // 返回逻辑像素坐标（createUserInfoButton 需要物理像素）
+    return {
+      left: btnX * this.pixelRatio,
+      top: btnY * this.pixelRatio,
+      width: btnW * this.pixelRatio,
+      height: btnH * this.pixelRatio
+    }
+  }
+
   // 绘制 Toast 提示
   drawToast() {
     if (!this.toast) return
@@ -2798,6 +3034,9 @@ export class UIManager {
         break
       case 'share':
         this.drawShareModal(gameState)
+        break
+      case 'profile':
+        this.drawProfileModal(gameState)
         break
     }
     

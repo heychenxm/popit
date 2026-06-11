@@ -537,6 +537,72 @@ export class GameState {
     })
   }
 
+  // 检查是否已授权 scope.userInfo
+  isUserInfoAuthorized() {
+    return new Promise((resolve) => {
+      wx.getSetting({
+        success: (res) => {
+          resolve(!!res.authSetting['scope.userInfo'])
+        },
+        fail: () => {
+          resolve(false)
+        }
+      })
+    })
+  }
+
+  // 销毁待处理的授权按钮
+  destroyPendingUserInfoButton() {
+    if (this._pendingUserInfoButton) {
+      this._pendingUserInfoButton.destroy()
+      this._pendingUserInfoButton = null
+    }
+  }
+
+  // 通过 createUserInfoButton 发起授权（需在用户点击时调用）
+  // buttonStyle: { left, top, width, height } 透明按钮的位置
+  requestUserInfoViaButton(buttonStyle) {
+    return new Promise((resolve, reject) => {
+      // 先检查是否已授权
+      this.isUserInfoAuthorized().then(authorized => {
+        if (authorized) {
+          // 已授权，直接获取
+          wx.getUserInfo({
+            success: (res) => resolve(res.userInfo),
+            fail: (err) => reject(err)
+          })
+          return
+        }
+
+        // 未授权，创建透明按钮引导用户点击
+        const button = wx.createUserInfoButton({
+          type: 'text',
+          text: '',
+          style: {
+            left: buttonStyle.left,
+            top: buttonStyle.top,
+            width: buttonStyle.width,
+            height: buttonStyle.height,
+            backgroundColor: 'transparent',
+            color: 'transparent'
+          }
+        })
+
+        button.onTap((res) => {
+          button.destroy()
+          if (res.userInfo) {
+            resolve(res.userInfo)
+          } else {
+            reject(new Error('用户拒绝授权'))
+          }
+        })
+
+        // 存储 button 引用以便外部销毁
+        this._pendingUserInfoButton = button
+      })
+    })
+  }
+
   // 保存用户信息到本地
   saveUserProfileLocally(nickname, avatarUrl) {
     this.userInfo.nickname = nickname
@@ -631,6 +697,13 @@ export class GameState {
     }
   }
   
+  /**
+   * 递增赛季参与局数（开始新游戏时调用）
+   */
+  incrementSeasonGames() {
+    this.seasonData.totalGames = (this.seasonData.totalGames || 0) + 1
+  }
+
   /**
    * 更新赛季数据（本地更新）
    * @param {number} score - 当前得分
@@ -733,6 +806,9 @@ export class GameState {
       if (updated) {
         console.log('云端数据已合并到本地')
       }
+
+      // 检测赛季变更，触发上赛季结算
+      this.checkAndSettleSeason()
     } catch (err) {
       console.log('加载云端数据失败（不影响游戏）:', err.message || err)
     }
@@ -767,6 +843,43 @@ export class GameState {
     } catch (err) {
       console.log('保存到云端失败（不影响游戏）:', err.message || err)
     }
+  }
+
+  /**
+   * 检测赛季变更，触发上赛季结算
+   * 新赛季首次进入游戏时调用
+   */
+  async checkAndSettleSeason() {
+    if (!wechatAPI.isCloudAvailable()) return
+
+    const lastSeasonId = getStorage('lastSeasonId', '')
+    const currentSeasonId = this.seasonInfo.currentSeasonId
+
+    // 首次记录或赛季未变更
+    if (!lastSeasonId || lastSeasonId === currentSeasonId) {
+      // 仅记录当前赛季
+      if (!lastSeasonId) {
+        setStorage('lastSeasonId', currentSeasonId)
+      }
+      return
+    }
+
+    // 赛季变更，结算上赛季
+    console.log(`检测到赛季变更: ${lastSeasonId} → ${currentSeasonId}，开始结算上赛季`)
+
+    try {
+      const result = await wechatAPI.settleSeason(lastSeasonId)
+      if (result.success) {
+        console.log(`赛季 ${lastSeasonId} 结算完成:`, result.data)
+      } else {
+        console.log(`赛季 ${lastSeasonId} 结算失败:`, result.error)
+      }
+    } catch (err) {
+      console.log(`赛季结算异常（不影响游戏）:`, err.message || err)
+    }
+
+    // 更新本地记录的赛季 ID
+    setStorage('lastSeasonId', currentSeasonId)
   }
 
   /**
@@ -814,5 +927,44 @@ export class GameState {
       console.log('云端签到异常，降级到本地签到:', err.message || err)
       return this.doLocalCheckin()
     }
+  }
+
+  // 创建原生透明按钮覆盖层（进入名片页时调用，按钮预先存在，用户点击时直接触发授权弹窗）
+  createUserInfoButtonOverlay(buttonStyle, onSuccess) {
+    // 先销毁旧的
+    this.destroyPendingUserInfoButton()
+    
+    // 使用 type: 'text' 创建按钮，背景色与名片页授权按钮一致
+    // 注意：按钮必须覆盖在 Canvas 绘制的授权按钮位置上
+    const button = wx.createUserInfoButton({
+      type: 'text',
+      text: '授权微信头像和昵称',
+      style: {
+        left: buttonStyle.left,
+        top: buttonStyle.top,
+        width: buttonStyle.width,
+        height: buttonStyle.height,
+        lineHeight: buttonStyle.height,
+        backgroundColor: '#7c3aed',
+        color: '#ffffff',
+        textAlign: 'center',
+        fontSize: 15,
+        borderRadius: 23
+      }
+    })
+
+    button.onTap((res) => {
+      // 检查授权是否成功
+      if (res.errMsg && res.errMsg.indexOf(':ok') > -1 && res.userInfo) {
+        onSuccess(res.userInfo)
+      }
+      // 无论成功失败都销毁按钮
+      button.destroy()
+      if (this._pendingUserInfoButton === button) {
+        this._pendingUserInfoButton = null
+      }
+    })
+
+    this._pendingUserInfoButton = button
   }
 }

@@ -26,21 +26,47 @@ wx.onUnhandledRejection((error) => {
   console.error('Unhandled Rejection:', error)
 })
 
+// 隐私政策处理：确保用户同意隐私政策后再启动游戏
+function startGameWithPrivacy() {
+  // 检查是否需要隐私授权（使用平台组件模式）
+  if (wx.requirePrivacyAuthorize) {
+    wx.requirePrivacyAuthorize({
+      success: () => {
+        // 用户已同意隐私政策，启动游戏
+        launchGame()
+      },
+      fail: () => {
+        // 用户拒绝隐私政策，仍然启动游戏（但某些功能可能受限）
+        console.log('用户拒绝隐私政策，部分功能可能受限')
+        launchGame()
+      }
+    })
+  } else {
+    // 旧版本基础库，直接启动
+    launchGame()
+  }
+}
+
 // 启动游戏
-let game = null
-
-try {
-  game = new Main()
-  console.log('泡泡大师 - 游戏启动成功！')
-} catch (error) {
-  console.error('游戏启动失败:', error)
+function launchGame() {
+  let game = null
+  
+  try {
+    game = new Main()
+    console.log('泡泡大师 - 游戏启动成功！')
+  } catch (error) {
+    console.error('游戏启动失败:', error)
+  }
+  
+  // 导出game实例供调试使用
+  if (typeof globalThis !== 'undefined') {
+    globalThis.game = game
+  } else if (typeof global !== 'undefined') {
+    global.game = game
+  } else if (typeof wx !== 'undefined') {
+    wx.game = game
+  }
 }
 
-// 导出game实例供调试使用
-if (typeof globalThis !== 'undefined') {
-  globalThis.game = game
-} else if (typeof global !== 'undefined') {
-  global.game = game
-} else if (typeof wx !== 'undefined') {
-  wx.game = game
-}
+// 启动游戏（带隐私政策检查）
+startGameWithPrivacy()

@@ -221,6 +221,16 @@ export class WechatAPI {
   getSeasonLeaderboard(type) {
     return this.callCloud('getSeasonLeaderboard', { type })
   }
+
+  // 赛季结算归档
+  settleSeason(seasonId) {
+    return this.callCloud('settleSeason', { seasonId })
+  }
+
+  // 查询历史赛季归档
+  getSeasonArchive(seasonId, type) {
+    return this.callCloud('getSeasonArchive', { seasonId, type })
+  }
 }
 
 // 导出单例

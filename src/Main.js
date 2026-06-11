@@ -111,47 +111,60 @@ export class Main {
     })
   }
 
-  // 首次点击时触发用户信息授权（符合微信规范）
-  async tryInitUserInfo() {
-    // 如果已经授权过，不再弹出
-    if (this.gameState.userInfo.authorized) {
-      return
-    }
+  // 显示个人名片界面
+  showProfile() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    this.uiManager.currentScreen = 'profile'
     
-    // 标记已尝试，避免重复弹出
-    if (this.hasTriedInitUserInfo) {
-      return
+    // 未授权时，提前创建原生透明按钮（这样用户点击时按钮已存在，可以直接触发授权弹窗）
+    if (!this.gameState.userInfo.authorized) {
+      this.prepareUserInfoButton()
     }
-    this.hasTriedInitUserInfo = true
-    
-    await this.initUserInfo()
   }
 
-  // 初始化用户信息（在用户确认授权后调用）
-  async initUserInfo() {
-    // 如果已经授权过，直接使用本地数据
-    if (this.gameState.userInfo.authorized) {
-      console.log('用户已授权，使用本地数据')
-      return true
-    }
+  // 提前创建原生透明按钮，覆盖在授权按钮位置上
+  prepareUserInfoButton() {
+    // 先销毁旧的
+    this.gameState.destroyPendingUserInfoButton()
     
-    try {
-      // 尝试获取用户信息
-      const userInfo = await this.gameState.getUserProfile()
-      console.log('获取用户信息成功:', userInfo)
-      
-      // 保存到本地
+    const rect = this.uiManager.getProfileAuthButtonRect()
+    this.gameState.createUserInfoButtonOverlay(rect, (userInfo) => {
+      // 授权成功回调
       this.gameState.saveUserProfileLocally(userInfo.nickName, userInfo.avatarUrl)
-      console.log('用户资料保存成功')
-      return true
-    } catch (err) {
-      // 用户拒绝授权，使用默认昵称
-      console.log('用户拒绝授权，使用默认昵称')
-      // 生成默认昵称：泡泡大师 + 随机数
-      const randomNum = Math.floor(Math.random() * 9000) + 1000
-      const defaultNickname = `泡泡大师${randomNum}`
-      this.gameState.saveUserProfileLocally(defaultNickname, '')
-      return false
+      this.uiManager.showToast('授权成功！')
+      // 销毁按钮
+      this.gameState.destroyPendingUserInfoButton()
+    })
+  }
+
+  // 关闭个人名片界面
+  closeProfile() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    // 销毁可能存在的授权按钮
+    this.gameState.destroyPendingUserInfoButton()
+    this.uiManager.currentScreen = 'menu'
+  }
+
+  // 处理个人名片界面触摸
+  handleProfileTouch(x, y) {
+    const buttonId = this.uiManager.handleTouch(x, y)
+    
+    if (buttonId) {
+      switch (buttonId) {
+        case 'close':
+          this.closeProfile()
+          break
+        case 'authorize':
+          // 如果已授权，直接提示
+          if (this.gameState.userInfo.authorized) {
+            this.uiManager.showToast('已授权')
+          }
+          // 未授权时不需要在这里处理，原生透明按钮已覆盖在此位置上
+          // 用户点击时原生按钮会拦截触摸并弹出授权弹窗
+          break
+      }
     }
   }
 
@@ -203,12 +216,15 @@ export class Main {
 
   // 处理触摸开始
   handleTouchStart(x, y) {
-    // 首次点击时触发用户信息授权（符合微信规范）
-    this.tryInitUserInfo()
-    
     // 暂停状态优先处理
     if (this.gameState.isPaused) {
       this.handlePauseTouch(x, y)
+      return
+    }
+    
+    // 检查是否在个人名片界面
+    if (this.uiManager.currentScreen === 'profile') {
+      this.handleProfileTouch(x, y)
       return
     }
     
@@ -381,6 +397,9 @@ export class Main {
         case 'leaderboard_detail':
           this.showSeasonLeaderboard()
           break
+        case 'profile':
+          this.showProfile()
+          break
         case 'sound':
           this.toggleSound()
           break
@@ -494,6 +513,7 @@ export class Main {
   restartGame() {
     this.gameState.isNewScoreRecord = false
     this.gameState.reset()
+    this.gameState.incrementSeasonGames()
     this.uiManager.currentScreen = 'game'
     this.startNewWave()
   }
@@ -501,6 +521,7 @@ export class Main {
   // 开始游戏
   startGame() {
     this.gameState.reset()
+    this.gameState.incrementSeasonGames()
     this.uiManager.currentScreen = 'game'
     this.bubbleGrid.resetBubbles()
     this.startNewWave()
@@ -736,6 +757,9 @@ export class Main {
       1,  // 通关次数 +1
       this.gameState.consecutiveWins
     )
+    
+    // 及时同步赛季数据到云端，保证排行榜数据完整
+    this.gameState.saveToCloud().catch(() => {})
     
     // 检查是否显示胜利弹窗（在保存之前判断）
     const modalType = this.shouldShowVictoryModal()
