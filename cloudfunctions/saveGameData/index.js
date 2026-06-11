@@ -16,6 +16,9 @@ exports.main = async (event, context) => {
     return { success: false, error: '无法获取用户标识' }
   }
 
+  console.log('收到保存请求，openid:', openid)
+  console.log('接收到的数据:', JSON.stringify(event))
+
   // 只允许保存白名单字段，防止客户端注入
   const allowedFields = [
     'coins', 'highScore', 'bestWave',
@@ -32,6 +35,8 @@ exports.main = async (event, context) => {
     }
   }
 
+  console.log('过滤后的数据:', JSON.stringify(updateData))
+
   if (Object.keys(updateData).length === 0) {
     return { success: false, error: '没有可保存的数据' }
   }
@@ -47,11 +52,13 @@ exports.main = async (event, context) => {
 
     if (data.length > 0) {
       // 已有记录，更新
+      console.log('更新已有记录')
       await db.collection('gameData')
         .where({ _openid: openid })
         .update({ data: updateData })
     } else {
       // 新建记录
+      console.log('创建新记录')
       updateData._openid = openid
       await db.collection('gameData').add({ data: updateData })
     }
@@ -59,6 +66,8 @@ exports.main = async (event, context) => {
     // 同时更新赛季记录（如果有赛季数据）
     if (updateData.seasonId) {
       const seasonId = updateData.seasonId
+      console.log('更新赛季记录，seasonId:', seasonId)
+      
       const { data: seasonRecords } = await db.collection('seasonRecords')
         .where({ _openid: openid, seasonId: seasonId })
         .limit(1)
@@ -67,6 +76,10 @@ exports.main = async (event, context) => {
       const seasonUpdate = {
         updatedAt: db.serverDate()
       }
+
+      // 同步用户信息（昵称和头像）
+      if (updateData.nickname !== undefined) seasonUpdate.nickname = updateData.nickname
+      if (updateData.avatarUrl !== undefined) seasonUpdate.avatarUrl = updateData.avatarUrl
 
       // 赛季数据取较大值
       if (updateData.seasonScore !== undefined) {
@@ -81,11 +94,15 @@ exports.main = async (event, context) => {
       if (event.totalClears !== undefined) seasonUpdate.totalClears = event.totalClears
       if (event.bestStreak !== undefined) seasonUpdate.bestStreak = _.max(event.bestStreak)
 
+      console.log('赛季更新数据:', JSON.stringify(seasonUpdate))
+
       if (seasonRecords.length > 0) {
+        console.log('更新已有赛季记录')
         await db.collection('seasonRecords')
           .where({ _openid: openid, seasonId: seasonId })
           .update({ data: seasonUpdate })
       } else {
+        console.log('创建新赛季记录')
         seasonUpdate._openid = openid
         seasonUpdate.seasonId = seasonId
         seasonUpdate.nickname = updateData.nickname || ''
@@ -97,8 +114,11 @@ exports.main = async (event, context) => {
         seasonUpdate.bestStreak = event.bestStreak || 0
         await db.collection('seasonRecords').add({ data: seasonUpdate })
       }
+    } else {
+      console.log('没有赛季数据，跳过赛季记录更新')
     }
 
+    console.log('保存成功')
     return { success: true, data: updateData }
   } catch (err) {
     console.error('saveGameData error:', err)

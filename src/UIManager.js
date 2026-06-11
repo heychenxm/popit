@@ -397,6 +397,12 @@ export class UIManager {
     const btnX = (this.width - btnWidth) / 2
     const btnY = this.height * 0.44
     
+    // 检测微信版本
+    const systemInfo = wx.getSystemInfoSync()
+    const version = systemInfo.SDKVersion || ''
+    const [major, minor] = version.split('.').map(Number)
+    const isOldVersion = major < 2 || (major === 2 && minor < 27)
+    
     ctx.save()
     
     // 绘制按钮背景
@@ -413,12 +419,14 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    // 绘制按钮文字
+    // 根据版本显示不同文字
     ctx.font = 'bold 14px sans-serif'
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('授权获取昵称和头像', this.width / 2, btnY + btnHeight / 2)
+    
+    const buttonText = isOldVersion ? '授权获取昵称和头像' : '设置昵称和头像'
+    ctx.fillText(buttonText, this.width / 2, btnY + btnHeight / 2)
     
     // 添加按钮到按钮列表
     this.buttons.push({
@@ -2964,8 +2972,16 @@ export class UIManager {
     
     const radius = size / 2
     
-    // 如果没有头像 URL，使用默认头像图片
-    if (!avatarUrl && this.defaultAvatarLoaded) {
+    // 检查头像 URL 是否有效（排除空字符串、默认值、无效 URL）
+    const isValidAvatarUrl = avatarUrl && 
+                             avatarUrl.trim() !== '' && 
+                             avatarUrl !== '微信用户' &&
+                             !avatarUrl.includes('default') &&
+                             !avatarUrl.includes('anonymous') &&
+                             !avatarUrl.includes('temp-avatar')
+    
+    // 如果没有有效头像 URL，使用默认头像图片
+    if (!isValidAvatarUrl && this.defaultAvatarLoaded) {
       ctx.save()
       ctx.translate(x, y)
       

@@ -44,6 +44,11 @@ export class Main {
     // 观察阶段计时
     this.observeStartTime = 0
     
+    // 头像昵称填写组件引用
+    this.avatarButton = null
+    this.nicknameInput = null
+    this.showingAvatarPicker = false
+    
     // 初始化
     this.init()
   }
@@ -99,10 +104,10 @@ export class Main {
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）—— 保存数据到云端
+    // 游戏隐藏（切换到后台）—— 不再自动保存
     wx.onHide(() => {
       console.log('游戏隐藏')
-      this.gameState.saveToCloud().catch(() => {})
+      // 不再自动保存到云端
     })
     
     // 游戏显示（回到前台）
@@ -696,8 +701,7 @@ export class Main {
       this.gameState.consecutiveWins
     )
     
-    // 及时同步赛季数据到云端，保证排行榜数据完整
-    this.gameState.saveToCloud().catch(() => {})
+    // 不再每关都保存，等待用户点击"返回首页"时统一保存
     
     // 检查是否显示胜利弹窗（在保存之前判断）
     const modalType = this.shouldShowVictoryModal()
@@ -833,8 +837,8 @@ export class Main {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
-    // 返回首页时同步数据到云端
-    await this.gameState.saveToCloud()
+    // 返回首页时同步数据到云端（强制保存，因为可能破纪录）
+    await this.gameState.saveToCloud(true)
     
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
@@ -1067,24 +1071,243 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     
-    // 使用 wx.getUserProfile 获取用户信息（需要用户点击触发）
-    wx.getUserProfile({
-      desc: '用于完善用户资料和排行榜展示',
-      success: (res) => {
-        const userInfo = res.userInfo
-        // 保存用户信息到本地
-        this.gameState.saveUserProfileLocally(userInfo.nickName, userInfo.avatarUrl)
-        this.uiManager.showToast('授权成功！')
-        
-        // 立即保存到云端
-        this.gameState.saveToCloud().catch(() => {})
-      },
-      fail: (err) => {
-        // 用户拒绝授权
-        console.log('用户拒绝授权')
-        this.uiManager.showToast('已取消授权')
+    // 获取基础库版本
+    const systemInfo = wx.getSystemInfoSync()
+    const version = systemInfo.SDKVersion || ''
+    const [major, minor] = version.split('.').map(Number)
+    const isOldVersion = major < 2 || (major === 2 && minor < 27)
+    
+    if (isOldVersion) {
+      // 低版本微信：使用 wx.getUserProfile（可以弹出授权弹窗）
+      wx.getUserProfile({
+        desc: '用于完善用户资料和排行榜展示',
+        success: (res) => {
+          const userInfo = res.userInfo
+          this.saveAndSyncUserInfo(userInfo.nickName, userInfo.avatarUrl)
+        },
+        fail: (err) => {
+          console.log('用户拒绝授权')
+          this.uiManager.showToast('已取消授权')
+        }
+      })
+    } else {
+      // 高版本微信：wx.getUserProfile 已失效，返回默认值
+      // 提示用户手动选择头像和填写昵称
+      this.uiManager.showToast('请点击头像和昵称进行设置')
+      
+      // 尝试获取，如果返回的是默认值则提示
+      wx.getUserProfile({
+        desc: '用于完善用户资料和排行榜展示',
+        success: (res) => {
+          const userInfo = res.userInfo
+          // 检查是否返回默认值（微信用户 + 灰色头像）
+          const isDefault = userInfo.nickName === '微信用户' || 
+                           !userInfo.avatarUrl || 
+                           userInfo.avatarUrl.includes('default') ||
+                           userInfo.avatarUrl.includes('anonymous')
+          
+          if (isDefault) {
+            // 高版本已无法通过 API 获取，提示用户使用头像昵称填写组件
+            this.uiManager.showToast('请使用下方头像和昵称组件设置')
+            // 显示头像昵称填写组件（如果已实现）
+            this.showAvatarNicknamePicker()
+          } else {
+            this.saveAndSyncUserInfo(userInfo.nickName, userInfo.avatarUrl)
+          }
+        },
+        fail: (err) => {
+          console.log('授权失败，显示填写组件')
+          this.showAvatarNicknamePicker()
+        }
+      })
+    }
+  }
+  
+  // 保存用户信息并同步到云端（仅在授权时调用）
+  saveAndSyncUserInfo(nickname, avatarUrl) {
+    this.gameState.saveUserProfileLocally(nickname, avatarUrl)
+    this.uiManager.showToast('设置成功！')
+    // 立即保存到云端（只保存用户信息）
+    this.gameState.saveUserProfileToCloud().catch(() => {})
+  }
+  
+  // 显示头像昵称选择组件（高版本微信降级方案）
+  showAvatarNicknamePicker() {
+    if (this.showingAvatarPicker) return // 防止重复创建
+    
+    this.showingAvatarPicker = true
+    
+    const systemInfo = wx.getSystemInfoSync()
+    const windowWidth = systemInfo.windowWidth
+    const windowHeight = systemInfo.windowHeight
+    
+    // 创建半透明遮罩
+    const mask = wx.createInput({
+      type: 'text',
+      style: {
+        left: 0,
+        top: 0,
+        width: windowWidth,
+        height: windowHeight,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        borderWidth: 0,
+        borderColor: 'transparent'
       }
     })
+    
+    // 点击遮罩关闭
+    mask.onTap(() => {
+      this.hideAvatarNicknamePicker()
+    })
+    
+    // 创建头像选择按钮
+    const btnWidth = 200
+    const btnHeight = 44
+    const avatarBtnX = (windowWidth - btnWidth) / 2
+    const avatarBtnY = windowHeight * 0.45
+    
+    this.avatarButton = wx.createButton({
+      type: 'text',
+      text: '选择头像',
+      style: {
+        left: avatarBtnX,
+        top: avatarBtnY,
+        width: btnWidth,
+        height: btnHeight,
+        backgroundColor: '#6366f1',
+        color: '#ffffff',
+        fontSize: 14,
+        borderRadius: 22,
+        textAlign: 'center',
+        lineHeight: btnHeight
+      }
+    })
+    
+    this.avatarButton.onTap(() => {
+      // 调用 chooseAvatar API
+      wx.chooseAvatar({
+        success: (res) => {
+          const avatarUrl = res.avatarUrl
+          // 保存头像（不立即同步到云端）
+          this.gameState.saveUserProfileLocally(
+            this.gameState.userInfo.nickname,
+            avatarUrl
+          )
+          this.uiManager.showToast('头像设置成功！')
+          // 不立即同步，等待用户点击完成按钮时统一保存
+          this.hideAvatarNicknamePicker()
+        },
+        fail: (err) => {
+          console.log('选择头像失败', err)
+          this.uiManager.showToast('已取消选择')
+        }
+      })
+    })
+    
+    // 创建昵称输入框
+    const inputWidth = 240
+    const inputHeight = 40
+    const inputX = (windowWidth - inputWidth) / 2
+    const inputY = avatarBtnY + 70
+    
+    this.nicknameInput = wx.createInput({
+      type: 'text',
+      value: this.gameState.userInfo.nickname || '',
+      placeholder: '请输入昵称',
+      style: {
+        left: inputX,
+        top: inputY,
+        width: inputWidth,
+        height: inputHeight,
+        backgroundColor: '#ffffff',
+        color: '#333333',
+        fontSize: 14,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#cccccc',
+        textAlign: 'center'
+      }
+    })
+    
+    this.nicknameInput.onTap(() => {
+      // 输入框获得焦点
+    })
+    
+    this.nicknameInput.onConfirm((res) => {
+      const nickname = res.value.trim()
+      if (nickname) {
+        // 保存昵称（不立即同步到云端）
+        this.gameState.saveUserProfileLocally(
+          nickname,
+          this.gameState.userInfo.avatarUrl
+        )
+        this.uiManager.showToast('昵称设置成功！')
+        // 不立即同步，等待用户点击完成按钮时统一保存
+        this.hideAvatarNicknamePicker()
+      } else {
+        this.uiManager.showToast('昵称不能为空')
+      }
+    })
+    
+    // 创建确认按钮
+    const confirmBtn = wx.createButton({
+      type: 'text',
+      text: '完成设置',
+      style: {
+        left: avatarBtnX,
+        top: inputY + 60,
+        width: btnWidth,
+        height: btnHeight,
+        backgroundColor: '#10b981',
+        color: '#ffffff',
+        fontSize: 14,
+        borderRadius: 22,
+        textAlign: 'center',
+        lineHeight: btnHeight
+      }
+    })
+    
+    confirmBtn.onTap(() => {
+      const nickname = this.nicknameInput ? this.nicknameInput.getValue() : ''
+      if (nickname && nickname.trim()) {
+        // 保存用户信息并同步到云端
+        this.gameState.saveUserProfileLocally(
+          nickname.trim(),
+          this.gameState.userInfo.avatarUrl
+        )
+        this.uiManager.showToast('设置成功！')
+        // 只在点击完成按钮时同步到云端（只保存用户信息）
+        this.gameState.saveUserProfileToCloud().catch(() => {})
+      }
+      this.hideAvatarNicknamePicker()
+    })
+    
+    // 存储遮罩引用以便销毁
+    this._avatarPickerMask = mask
+    this._avatarPickerConfirm = confirmBtn
+  }
+  
+  // 隐藏头像昵称填写组件
+  hideAvatarNicknamePicker() {
+    this.showingAvatarPicker = false
+    
+    // 销毁所有组件
+    if (this.avatarButton) {
+      this.avatarButton.destroy()
+      this.avatarButton = null
+    }
+    if (this.nicknameInput) {
+      this.nicknameInput.destroy()
+      this.nicknameInput = null
+    }
+    if (this._avatarPickerMask) {
+      this._avatarPickerMask.destroy()
+      this._avatarPickerMask = null
+    }
+    if (this._avatarPickerConfirm) {
+      this._avatarPickerConfirm.destroy()
+      this._avatarPickerConfirm = null
+    }
   }
 
   // 开始游戏循环

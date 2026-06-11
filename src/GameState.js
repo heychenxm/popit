@@ -535,6 +535,31 @@ export class GameState {
   }
 
   /**
+   * 保存用户信息到云端（仅在授权时调用）
+   */
+  async saveUserProfileToCloud() {
+    if (!wechatAPI.isCloudAvailable()) {
+      console.log('云开发不可用，跳过保存用户信息')
+      return
+    }
+
+    try {
+      console.log('保存用户信息到云端:', {
+        nickname: this.userInfo.nickname,
+        avatarUrl: this.userInfo.avatarUrl ? this.userInfo.avatarUrl.substring(0, 50) + '...' : 'null'
+      })
+      
+      const result = await wechatAPI.saveGameData({
+        nickname: this.userInfo.nickname || '',
+        avatarUrl: this.userInfo.avatarUrl || ''
+      })
+      console.log('用户信息保存到云端结果:', JSON.stringify(result))
+    } catch (err) {
+      console.log('保存用户信息到云端失败:', err.message || err)
+    }
+  }
+
+  /**
    * 初始化赛季信息
    */
   initSeasonInfo() {
@@ -662,14 +687,38 @@ export class GameState {
    * 策略：高分/高关卡取较大值，金币取较大值，签到以云端为准
    */
   async loadCloudData() {
-    if (!wechatAPI.isCloudAvailable()) return
+    if (!wechatAPI.isCloudAvailable()) {
+      console.log('云开发不可用，使用本地数据')
+      return
+    }
 
     try {
       const result = await wechatAPI.loadGameData()
-      if (!result.success || !result.data) return
+      if (!result.success || !result.data) {
+        console.log('云端无数据，使用本地数据')
+        return
+      }
 
       const cloud = result.data
       let updated = false
+
+      // 用户信息（昵称、头像）以云端为准
+      if (cloud.nickname && cloud.nickname !== this.userInfo.nickname) {
+        this.userInfo.nickname = cloud.nickname
+        setStorage('nickname', cloud.nickname)
+        updated = true
+      }
+      if (cloud.avatarUrl && cloud.avatarUrl !== this.userInfo.avatarUrl) {
+        this.userInfo.avatarUrl = cloud.avatarUrl
+        setStorage('avatarUrl', cloud.avatarUrl)
+        updated = true
+      }
+      // 如果云端有头像，标记为已授权
+      if (cloud.avatarUrl) {
+        this.userInfo.authorized = true
+        setStorage('userInfoAuthorized', true)
+        console.log('用户已授权，使用云端头像')
+      }
 
       // 金币取较大值
       if (typeof cloud.coins === 'number' && cloud.coins > this.coins) {
@@ -735,13 +784,27 @@ export class GameState {
   }
 
   /**
-   * 保存当前数据到云端（游戏退出/隐藏时调用）
+   * 保存当前数据到云端（仅在点击"返回首页"时调用）
+   * @param {boolean} forceSave - 是否强制保存（破纪录时）
    */
-  async saveToCloud() {
-    if (!wechatAPI.isCloudAvailable()) return
+  async saveToCloud(forceSave = false) {
+    if (!wechatAPI.isCloudAvailable()) {
+      console.log('云开发不可用，跳过保存')
+      return
+    }
+
+    // 如果不是强制保存，检查是否有破纪录
+    if (!forceSave) {
+      // 检查是否破了最高分或最高关卡纪录
+      const hasNewRecord = this.isNewHighScore() || this.wave > this.bestWave
+      if (!hasNewRecord) {
+        console.log('没有破纪录，跳过保存')
+        return
+      }
+    }
 
     try {
-      await wechatAPI.saveGameData({
+      const saveData = {
         coins: this.coins,
         highScore: this.highScore,
         bestWave: this.bestWave,
@@ -756,10 +819,15 @@ export class GameState {
         totalGames: this.seasonData.totalGames,
         totalClears: this.seasonData.totalClears,
         bestStreak: this.seasonData.bestStreak,
-        nickname: this.userInfo.nickname || '',
-        avatarUrl: this.userInfo.avatarUrl || ''
-      })
-      console.log('游戏数据已保存到云端')
+        // 注意：昵称和头像只在授权时保存，这里不主动保存
+        // nickname: this.userInfo.nickname || '',
+        // avatarUrl: this.userInfo.avatarUrl || ''
+      }
+      
+      console.log('准备保存到云端（游戏数据）')
+      
+      const result = await wechatAPI.saveGameData(saveData)
+      console.log('保存到云端结果:', JSON.stringify(result))
     } catch (err) {
       console.log('保存到云端失败（不影响游戏）:', err.message || err)
     }
