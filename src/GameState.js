@@ -73,8 +73,16 @@ export class GameState {
     }
     
     // 用户信息
+    let nickname = getStorage('nickname', '')
+    // 如果没有昵称，生成默认昵称
+    if (!nickname) {
+      const randomNum = Math.floor(Math.random() * 9000) + 1000
+      nickname = `泡泡大师${randomNum}`
+      setStorage('nickname', nickname)
+    }
+    
     this.userInfo = {
-      nickname: getStorage('nickname', ''),
+      nickname: nickname,
       avatarUrl: getStorage('avatarUrl', ''),
       authorized: getStorage('userInfoAuthorized', false)
     }

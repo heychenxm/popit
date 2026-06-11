@@ -26,7 +26,7 @@ exports.main = async (event, context) => {
     // 构造排行榜列表
     const leaderboard = topList.map((item, index) => ({
       rank: index + 1,
-      nickname: item.nickname || '匿名玩家',
+      nickname: item.nickname || '',
       avatarUrl: item.avatarUrl || '',
       value: item[field] || 0,
       isUser: item._openid === openid

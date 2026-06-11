@@ -145,10 +145,11 @@ export class Main {
       console.log('用户资料保存成功')
       return true
     } catch (err) {
-      // 用户拒绝授权，使用默认头像
-      console.log('用户拒绝授权，使用默认头像')
-      // 生成默认昵称
-      const defaultNickname = `玩家${wx.getSystemInfoSync().SDKVersion || 'default'}`
+      // 用户拒绝授权，使用默认昵称
+      console.log('用户拒绝授权，使用默认昵称')
+      // 生成默认昵称：泡泡大师 + 随机数
+      const randomNum = Math.floor(Math.random() * 9000) + 1000
+      const defaultNickname = `泡泡大师${randomNum}`
       this.gameState.saveUserProfileLocally(defaultNickname, '')
       return false
     }

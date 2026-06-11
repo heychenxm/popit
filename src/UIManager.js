@@ -1871,12 +1871,13 @@ export class UIManager {
     const avatarX = x + w / 2
     const avatarY = y + 55
     
-    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1)
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1, isUser)
     
     ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
     ctx.textAlign = 'center'
-    const displayNickname = nickname.length > 6 ? nickname.substring(0, 5) + '...' : nickname
+    const safeNickname = nickname || '泡泡大师'
+    const displayNickname = safeNickname.length > 6 ? safeNickname.substring(0, 5) + '...' : safeNickname
     ctx.fillText(displayNickname, x + w / 2, y + 95)
     
     ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
@@ -1931,12 +1932,13 @@ export class UIManager {
     const avatarX = x + w / 2
     const avatarY = y + 55
     
-    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1)
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1, isUser)
     
     ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
     ctx.textAlign = 'center'
-    const displayNickname = nickname.length > 6 ? nickname.substring(0, 5) + '...' : nickname
+    const safeNickname = nickname || '泡泡大师'
+    const displayNickname = safeNickname.length > 6 ? safeNickname.substring(0, 5) + '...' : safeNickname
     ctx.fillText(displayNickname, x + w / 2, y + 95)
     
     ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
@@ -1978,12 +1980,13 @@ export class UIManager {
     const avatarSize = 32
     const avatarX = x + itemPadding + 28
     const avatarY = y + h / 2
-    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false)
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false, isUser)
     
     ctx.font = isHighlight ? 'bold 11px sans-serif' : '11px sans-serif'
     ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
     ctx.textAlign = 'left'
-    const displayNickname = nickname.length > 10 ? nickname.substring(0, 9) + '...' : nickname
+    const safeNickname = nickname || '泡泡大师'
+    const displayNickname = safeNickname.length > 10 ? safeNickname.substring(0, 9) + '...' : safeNickname
     ctx.fillText(displayNickname, avatarX + avatarSize / 2 + 12, y + h / 2)
     
     ctx.font = 'bold 13px sans-serif'
@@ -2903,7 +2906,7 @@ export class UIManager {
   }
 
   // 绘制头像（支持文字头像）
-  drawAvatar(x, y, size, avatarUrl, isTop1) {
+  drawAvatar(x, y, size, avatarUrl, isTop1, isUser = false) {
     const ctx = this.ctx
     
     // 安全检查：确保 size 是有效正数
@@ -2912,12 +2915,13 @@ export class UIManager {
       return
     }
     
+    const radius = size / 2
+    
     // 如果没有头像 URL，使用默认头像图片
     if (!avatarUrl && this.defaultAvatarLoaded) {
       ctx.save()
       ctx.translate(x, y)
       
-      const radius = size / 2
       const imgSize = size
       
       // 裁剪为圆形
@@ -2934,21 +2938,24 @@ export class UIManager {
         imgSize
       )
       
-      // 边框
+      ctx.restore()
+      
+      // 边框（在裁剪外绘制）
       ctx.strokeStyle = isTop1 ? '#fef3c7' : 'rgba(255, 255, 255, 0.4)'
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.arc(x, y, radius, 0, Math.PI * 2)
       ctx.stroke()
       
-      ctx.restore()
+      // 用户标签（在裁剪外绘制，使用绝对坐标）
+      if (isUser) {
+        this.drawUserBadge(x, y, radius)
+      }
       return
     }
     
     ctx.save()
     ctx.translate(x, y)
-    
-    const radius = size / 2
     
     // 绘制文字头像背景（整个渐变逻辑包裹在 try-catch 中）
     try {
@@ -2989,6 +2996,38 @@ export class UIManager {
     ctx.fillText(displayText, 0, 1)
     
     ctx.restore()
+    
+    // 用户标签（在裁剪外绘制，使用绝对坐标）
+    if (isUser) {
+      this.drawUserBadge(x, y, radius)
+    }
+  }
+
+  // 绘制用户标签（右下角圆形"我"字，使用绝对坐标避免被裁剪）
+  drawUserBadge(cx, cy, radius) {
+    const ctx = this.ctx
+    const badgeSize = radius * 0.5
+    // 右下角位置：圆心 + 半径偏移
+    const badgeX = cx + radius * 0.65
+    const badgeY = cy + radius * 0.65
+    
+    // 圆形背景（主色调）
+    ctx.fillStyle = '#6366f1'
+    ctx.beginPath()
+    ctx.arc(badgeX, badgeY, badgeSize, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 白色边框
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    
+    // "我"字
+    ctx.font = `bold ${badgeSize * 1.2}px sans-serif`
+    ctx.fillStyle = '#ffffff'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('我', badgeX, badgeY + 1)
   }
 
   // 根据文字生成固定色相值
