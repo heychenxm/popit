@@ -49,24 +49,25 @@ export function randomInt(min, max) {
 
 // 获取唯一随机索引数组
 export function getUniqueRandomIndices(total, count) {
-  const indices = []
-  while (indices.length < count) {
-    const idx = randomInt(0, total)
-    if (!indices.includes(idx)) {
-      indices.push(idx)
-    }
+  // 防止 count > total 导致死循环
+  count = Math.min(count, total)
+  const indexSet = new Set()
+  while (indexSet.size < count) {
+    indexSet.add(randomInt(0, total))
   }
-  return indices
+  return Array.from(indexSet)
 }
 
 // 根据索引获取泡泡颜色类别
 // 颜色分配规则：基于索引的确定性分配，确保相同索引始终返回相同颜色
 export function getColorClass(index) {
-  // 特殊索引固定颜色
+  // 特殊索引固定颜色（设计意图：确保特定位置的泡泡颜色醒目）
+  // index === 1: 强制粉色，避免 % 3 计算得到 purple
   if (index === 1) return 'pink'
+  // index === 10: 强制蓝色，避免 % 3 计算得到 purple
   if (index === 10) return 'blue'
   
-  // 其他索引按循环分配
+  // 其他索引按循环分配（pink/purple/blue 循环）
   const cycle = index % 3
   const colors = ['pink', 'purple', 'blue']
   return colors[cycle]
@@ -245,7 +246,16 @@ export function getGameHudBottom() {
   return 160 // topPadding(60) + 波次行(50) + 分数卡片(50)
 }
 
+// 布局缓存（按尺寸缓存，避免同帧重复计算）
+let _layoutCache = null
+let _layoutCacheKey = ''
+
 export function getGameScreenLayout(width, height) {
+  const key = `${width}x${height}`
+  if (_layoutCache && _layoutCacheKey === key) {
+    return _layoutCache
+  }
+  
   const hudBottom = getGameHudBottom()
   const countdownTop = height * 0.85 - 36
 
@@ -270,7 +280,9 @@ export function getGameScreenLayout(width, height) {
   const gridAreaHeight = gridAreaBottom - gridAreaTop
   const gridY = gridAreaTop + Math.max(0, (gridAreaHeight - gridContainerHeight) / 2)
 
-  return { titleY, descY, gridY, gridSize }
+  _layoutCache = { titleY, descY, gridY, gridSize }
+  _layoutCacheKey = key
+  return _layoutCache
 }
 
 export function getPhaseIndicatorLayout(width, height) {

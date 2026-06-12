@@ -9,6 +9,10 @@ export class AudioManager {
     this.isWechat = false
     this.wechatAudioContext = null
     
+    // GainNode 对象池（减少高频触发时的 GC 压力）
+    this._gainNodePool = []
+    this._maxPoolSize = 10
+    
     this._detectEnvironment()
     this._initAudioContext()
   }
@@ -72,6 +76,29 @@ export class AudioManager {
     return !!this.ctx
   }
 
+  // 从对象池获取 GainNode（复用减少 GC 压力）
+  _getGainNode() {
+    if (this._gainNodePool.length > 0) {
+      return this._gainNodePool.pop()
+    }
+    return this.ctx.createGain()
+  }
+
+  // 归还 GainNode 到对象池
+  _releaseGainNode(gain) {
+    if (this._gainNodePool.length < this._maxPoolSize) {
+      // 断开连接并重置参数
+      try {
+        gain.disconnect()
+        gain.gain.cancelScheduledValues(this.ctx.currentTime)
+        gain.gain.value = 0
+        this._gainNodePool.push(gain)
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+  }
+
   // ==================== 音效合成方法（与 index.html 保持一致）====================
 
   // 泡泡爆破音 - 正弦波，频率从 400Hz 快速上升到 1200Hz
@@ -79,7 +106,7 @@ export class AudioManager {
     if (!this._ensureContext()) return
     
     const osc = this.ctx.createOscillator()
-    const gain = this.ctx.createGain()
+    const gain = this._getGainNode()
     
     osc.type = 'sine'
     osc.frequency.setValueAtTime(400, this.ctx.currentTime)
@@ -92,6 +119,9 @@ export class AudioManager {
     gain.connect(this.ctx.destination)
     osc.start()
     osc.stop(this.ctx.currentTime + 0.15)
+    
+    // 播放结束后归还 GainNode
+    osc.onended = () => this._releaseGainNode(gain)
   }
 
   // 错误音 - 锯齿波，频率从 180Hz 下降到 100Hz
@@ -99,7 +129,7 @@ export class AudioManager {
     if (!this._ensureContext()) return
     
     const osc = this.ctx.createOscillator()
-    const gain = this.ctx.createGain()
+    const gain = this._getGainNode()
     
     osc.type = 'sawtooth'
     osc.frequency.setValueAtTime(180, this.ctx.currentTime)
@@ -112,6 +142,8 @@ export class AudioManager {
     gain.connect(this.ctx.destination)
     osc.start()
     osc.stop(this.ctx.currentTime + 0.45)
+    
+    osc.onended = () => this._releaseGainNode(gain)
   }
 
   // 成功音 - 三角波，C5-E5-G5-C6 上升音阶
@@ -123,7 +155,7 @@ export class AudioManager {
     
     notes.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator()
-      const gain = this.ctx.createGain()
+      const gain = this._getGainNode()
       
       osc.type = 'triangle'
       osc.frequency.setValueAtTime(freq, now + idx * 0.08)
@@ -135,6 +167,8 @@ export class AudioManager {
       gain.connect(this.ctx.destination)
       osc.start(now + idx * 0.08)
       osc.stop(now + idx * 0.08 + 0.3)
+      
+      osc.onended = () => this._releaseGainNode(gain)
     })
   }
 
@@ -143,7 +177,7 @@ export class AudioManager {
     if (!this._ensureContext()) return
     
     const osc = this.ctx.createOscillator()
-    const gain = this.ctx.createGain()
+    const gain = this._getGainNode()
     
     osc.type = 'sine'
     osc.frequency.setValueAtTime(600, this.ctx.currentTime)
@@ -156,6 +190,8 @@ export class AudioManager {
     gain.connect(this.ctx.destination)
     osc.start()
     osc.stop(this.ctx.currentTime + 0.06)
+    
+    osc.onended = () => this._releaseGainNode(gain)
   }
 
   // ==================== 统一播放接口 ====================

@@ -9,11 +9,14 @@ import { wechatAPI } from './WechatAPI.js'
  */
 export class GameState {
   constructor() {
+    // 批量读取所有 Storage 数据（减少阻塞 IO 次数）
+    const saved = this._loadAllFromStorage()
+
     // 玩家数据
     this.score = 0
-    this.highScore = Number(getStorage('highScore', 0)) || 0
-    this.bestWave = Number(getStorage('bestWave', 0)) || 0
-    this.coins = Number(getStorage('coins', config.game.initialCoins)) || config.game.initialCoins
+    this.highScore = saved.highScore
+    this.bestWave = saved.bestWave
+    this.coins = saved.coins
     this.lives = config.game.initialLives
     this.maxLives = config.game.maxLives
 
@@ -38,16 +41,17 @@ export class GameState {
     this.pausedTimerRemaining = 0 // 暂停时的剩余时间
 
     // 签到数据
-    this.lastCheckinDate = getStorage('lastCheckinDate', '')
-    this.checkinStreak = getStorage('checkinStreak', 0)
+    this.lastCheckinDate = saved.lastCheckinDate
+    this.checkinStreak = saved.checkinStreak
     this.hasCheckedInToday = false  // 当前是否已签到
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
+    this.lastShareGiftDate = saved.lastShareGiftDate
     // 初始化时检查今天是否已领取
     this.updateShareGiftStatus()
     
     // 分享次数数据（用于限制每日分享刷金币）
-    this.lastShareDate = getStorage('lastShareDate', '')
-    this.todayShareCount = getStorage('todayShareCount', 0)
+    this.lastShareDate = saved.lastShareDate
+    this.todayShareCount = saved.todayShareCount
     // 初始化时检查分享次数
     this.updateShareCountStatus()
     
@@ -60,20 +64,8 @@ export class GameState {
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     
-    // 排行榜缓存
-    this.leaderboardCache = {
-      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存
-      wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
-    }
-    
-    // 赛季排名缓存（30 分钟）
-    this.seasonLeaderboardCache = {
-      score: { data: null, timestamp: 0, expire: 1800000 },  // 30 分钟缓存
-      wave: { data: null, timestamp: 0, expire: 1800000 }    // 30 分钟缓存
-    }
-    
     // 用户信息
-    let nickname = getStorage('nickname', '')
+    let nickname = saved.nickname
     
     // 如果没有昵称，生成默认昵称
     if (!nickname) {
@@ -84,16 +76,9 @@ export class GameState {
     
     this.userInfo = {
       nickname: nickname,
-      avatarUrl: getStorage('avatarUrl', ''),
-      authorized: getStorage('userInfoAuthorized', false)
+      avatarUrl: saved.avatarUrl,
+      authorized: saved.authorized
     }
-    
-    // 签到状态缓存（5 分钟）
-    this.checkinStatusCache = {
-      data: null,
-      timestamp: 0
-    }
-    this.checkinCacheDuration = 300000 // 5 分钟缓存
     
     // 赛季数据
     this.seasonData = {
@@ -118,6 +103,48 @@ export class GameState {
     
     // 初始化赛季信息
     this.initSeasonInfo()
+  }
+
+  // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）
+  _loadAllFromStorage() {
+    return {
+      highScore: Number(getStorage('highScore', 0)) || 0,
+      bestWave: Number(getStorage('bestWave', 0)) || 0,
+      coins: Number(getStorage('coins', config.game.initialCoins)) || config.game.initialCoins,
+      lastCheckinDate: getStorage('lastCheckinDate', ''),
+      checkinStreak: getStorage('checkinStreak', 0),
+      lastShareGiftDate: getStorage('lastShareGiftDate', ''),
+      lastShareDate: getStorage('lastShareDate', ''),
+      todayShareCount: getStorage('todayShareCount', 0),
+      nickname: getStorage('nickname', ''),
+      avatarUrl: getStorage('avatarUrl', ''),
+      authorized: getStorage('userInfoAuthorized', false)
+    }
+  }
+
+  // 延迟批量写入 Storage（合并同一帧内的多次写入）
+  _scheduleStorageWrite(key, value) {
+    if (!this._pendingWrites) this._pendingWrites = new Map()
+    this._pendingWrites.set(key, value)
+    if (!this._storageFlushTimer) {
+      this._storageFlushTimer = setTimeout(() => {
+        this._flushStorageWrites()
+      }, 0)
+    }
+  }
+
+  // 立即执行所有待写入的 Storage 操作
+  _flushStorageWrites() {
+    if (this._storageFlushTimer) {
+      clearTimeout(this._storageFlushTimer)
+      this._storageFlushTimer = null
+    }
+    if (this._pendingWrites && this._pendingWrites.size > 0) {
+      this._pendingWrites.forEach((value, key) => {
+        setStorage(key, value)
+      })
+      this._pendingWrites.clear()
+    }
   }
 
   // 重置游戏状态（开始新游戏）
@@ -153,10 +180,11 @@ export class GameState {
     // 注意：不重置 uiManager.currentScreen，由 Main.js 控制
   }
 
-  // 设置计时器
-  setTimer(callback, duration) {
+  // 设置计时器（interval 模式，duration 参数保留供未来使用）
+  setTimer(callback, interval = 100) {
     this.clearTimer()
-    this.timerInterval = setInterval(callback, 30)
+    this.timerInterval = setInterval(callback, interval)
+    this.timerType = 'interval'
   }
 
   // 清除计时器
@@ -170,7 +198,7 @@ export class GameState {
 
   // 本局得分是否破了历史最高分（与本局开始时记录比较）
   isNewHighScore() {
-    return Number(this.score) > Number(this.sessionStartHighScore)
+    return this.score > this.sessionStartHighScore
   }
 
   // 保存最高分和最高关卡（关卡结束后调用）
@@ -178,8 +206,8 @@ export class GameState {
     let hasUpdate = false
     
     // 更新最高分
-    if (Number(this.score) > Number(this.highScore)) {
-      this.highScore = Number(this.score)
+    if (this.score > this.highScore) {
+      this.highScore = this.score
       setStorage('highScore', this.highScore)
       hasUpdate = true
     }
@@ -198,7 +226,7 @@ export class GameState {
   addCoins(amount) {
     const delta = Number(amount) || 0
     this.coins = Number(this.coins) + delta
-    setStorage('coins', this.coins)
+    this._scheduleStorageWrite('coins', this.coins)
   }
 
   // 检查是否可以签到（用于 UI 显示红点）
@@ -248,7 +276,7 @@ export class GameState {
   recordShare() {
     this.updateShareCountStatus()
     this.todayShareCount++
-    setStorage('todayShareCount', this.todayShareCount)
+    this._scheduleStorageWrite('todayShareCount', this.todayShareCount)
     // 发放奖励金币
     this.addCoins(config.rewards.share)
   }
@@ -295,8 +323,8 @@ export class GameState {
     // 更新今日是否已签到状态
     this.hasCheckedInToday = true
     
-    // 根据签到天数给予奖励
-    const reward = this.getTodayReward()
+    // 根据签到天数给予奖励（传入当前签到天数，而非 +1）
+    const reward = this.getTodayReward(this.checkinStreak)
     
     // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
     const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
@@ -359,7 +387,7 @@ export class GameState {
       this.coins -= price
       this.lives++
       this.purchaseCount++
-      setStorage('coins', this.coins)
+      this._scheduleStorageWrite('coins', this.coins)
       return true
     }
     return false
@@ -454,75 +482,54 @@ export class GameState {
     // 注意：purchaseCount 不在这里重置，它在整个游戏会话中累计
   }
 
-  // 获取排行榜数据（云端 + 本地缓存）
-  async getLeaderboard(type = 'score') {
+  // 通用缓存+云端获取模式（减少重复代码）
+  async _fetchWithCache(cacheKey, fetchFn, fallbackData, label) {
     // 尝试从缓存读取
-    const cacheKey = `leaderboard_${type}_cache`
     try {
       const cached = wx.getStorageSync(cacheKey)
       if (cached) {
         const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached
         const now = Date.now()
-        // 检查缓存是否过期（30 分钟）
         if (parsed.timestamp && (now - parsed.timestamp) < parsed.expire) {
-          console.log(`使用缓存的排行榜数据: ${type}`)
-          return {
-            success: true,
-            data: parsed.data,
-            fromCache: true
-          }
+          console.log(`使用缓存的${label}数据`)
+          return { success: true, data: parsed.data, fromCache: true }
         }
       }
     } catch (e) {
-      console.log('读取排行榜缓存失败:', e)
+      console.log(`读取${label}缓存失败:`, e)
     }
-    
+
     // 缓存过期或无缓存，从云端获取
     if (wechatAPI.isCloudAvailable()) {
       try {
-        const result = await wechatAPI.getLeaderboard(type)
+        const result = await fetchFn()
         if (result.success && result.data) {
-          // 写入缓存
           setStorage(cacheKey, {
             data: result.data,
             timestamp: Date.now(),
             expire: 1800000
           })
-          return {
-            success: true,
-            data: result.data,
-            fromCache: false
-          }
+          return { success: true, data: result.data, fromCache: false }
         }
       } catch (err) {
-        console.log('获取云端排行榜失败:', err.message || err)
+        console.log(`获取云端${label}失败:`, err.message || err)
       }
     }
-    
-    // 云端不可用或请求失败，返回空排行榜
-    return {
-      success: true,
-      data: {
-        type,
-        leaderboard: [],
-        userRank: 0,
-        userValue: 0
-      },
-      fromCache: false
-    }
-  }
-  
-  /**
-   * 清除排行榜缓存
-   */
-  clearLeaderboardCache() {
-    this.leaderboardCache.score.data = null
-    this.leaderboardCache.score.timestamp = 0
-    this.leaderboardCache.wave.data = null
-    this.leaderboardCache.wave.timestamp = 0
-    console.log('排行榜缓存已清除')
+
+    // 返回 fallback 数据
+    return { success: true, data: fallbackData, fromCache: false }
   }
 
+  // 获取排行榜数据（云端 + 本地缓存）
+  async getLeaderboard(type = 'score') {
+    return this._fetchWithCache(
+      `leaderboard_${type}_cache`,
+      () => wechatAPI.getLeaderboard(type),
+      { type, leaderboard: [], userRank: 0, userValue: 0 },
+      '排行榜'
+    )
+  }
+  
   // 保存用户信息到本地
   saveUserProfileLocally(nickname, avatarUrl) {
     this.userInfo.nickname = nickname
@@ -578,53 +585,10 @@ export class GameState {
    * @returns {Promise<Object>} 赛季数据
    */
   async getSeasonData(type = 'score') {
-    // 尝试从缓存读取
-    const cacheKey = `season_leaderboard_${type}_cache`
-    try {
-      const cached = wx.getStorageSync(cacheKey)
-      if (cached) {
-        const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached
-        const now = Date.now()
-        // 检查缓存是否过期（30 分钟）
-        if (parsed.timestamp && (now - parsed.timestamp) < parsed.expire) {
-          console.log(`使用缓存的赛季排行榜数据: ${type}`)
-          return {
-            success: true,
-            data: parsed.data,
-            fromCache: true
-          }
-        }
-      }
-    } catch (e) {
-      console.log('读取赛季排行榜缓存失败:', e)
-    }
-    
-    // 缓存过期或无缓存，从云端获取
-    if (wechatAPI.isCloudAvailable()) {
-      try {
-        const result = await wechatAPI.getSeasonLeaderboard(type)
-        if (result.success && result.data) {
-          // 写入缓存
-          setStorage(cacheKey, {
-            data: result.data,
-            timestamp: Date.now(),
-            expire: 1800000
-          })
-          return {
-            success: true,
-            data: result.data,
-            fromCache: false
-          }
-        }
-      } catch (err) {
-        console.log('获取云端赛季排行榜失败:', err.message || err)
-      }
-    }
-    
-    // 云端不可用或请求失败，返回空赛季数据
-    return {
-      success: true,
-      data: {
+    return this._fetchWithCache(
+      `season_leaderboard_${type}_cache`,
+      () => wechatAPI.getSeasonLeaderboard(type),
+      {
         type,
         seasonId: this.seasonInfo.currentSeasonId,
         seasonStartTime: this.seasonInfo.seasonStartTime,
@@ -632,14 +596,10 @@ export class GameState {
         leaderboard: [],
         userRank: 0,
         userValue: 0,
-        userStats: {
-          totalGames: 0,
-          totalClears: 0,
-          bestStreak: 0
-        }
+        userStats: { totalGames: 0, totalClears: 0, bestStreak: 0 }
       },
-      fromCache: false
-    }
+      '赛季排行榜'
+    )
   }
   
   /**
@@ -705,66 +665,66 @@ export class GameState {
       // 用户信息（昵称、头像）以云端为准
       if (cloud.nickname && cloud.nickname !== this.userInfo.nickname) {
         this.userInfo.nickname = cloud.nickname
-        setStorage('nickname', cloud.nickname)
+        this._scheduleStorageWrite('nickname', cloud.nickname)
         updated = true
       }
       if (cloud.avatarUrl && cloud.avatarUrl !== this.userInfo.avatarUrl) {
         this.userInfo.avatarUrl = cloud.avatarUrl
-        setStorage('avatarUrl', cloud.avatarUrl)
+        this._scheduleStorageWrite('avatarUrl', cloud.avatarUrl)
         updated = true
       }
       // 如果云端有头像，标记为已授权
       if (cloud.avatarUrl) {
         this.userInfo.authorized = true
-        setStorage('userInfoAuthorized', true)
+        this._scheduleStorageWrite('userInfoAuthorized', true)
         console.log('用户已授权，使用云端头像')
       }
 
       // 金币取较大值
       if (typeof cloud.coins === 'number' && cloud.coins > this.coins) {
         this.coins = cloud.coins
-        setStorage('coins', this.coins)
+        this._scheduleStorageWrite('coins', this.coins)
         updated = true
       }
 
       // 最高分取较大值
       if (typeof cloud.highScore === 'number' && cloud.highScore > this.highScore) {
         this.highScore = cloud.highScore
-        setStorage('highScore', this.highScore)
+        this._scheduleStorageWrite('highScore', this.highScore)
         updated = true
       }
 
       // 最高关卡取较大值
       if (typeof cloud.bestWave === 'number' && cloud.bestWave > this.bestWave) {
         this.bestWave = cloud.bestWave
-        setStorage('bestWave', this.bestWave)
+        this._scheduleStorageWrite('bestWave', this.bestWave)
         updated = true
       }
 
       // 签到数据以云端为准（防篡改）
       if (cloud.lastCheckinDate && cloud.lastCheckinDate !== this.lastCheckinDate) {
         this.lastCheckinDate = cloud.lastCheckinDate
-        setStorage('lastCheckinDate', this.lastCheckinDate)
+        this._scheduleStorageWrite('lastCheckinDate', this.lastCheckinDate)
         updated = true
       }
       if (typeof cloud.checkinStreak === 'number' && cloud.checkinStreak !== this.checkinStreak) {
         this.checkinStreak = cloud.checkinStreak
-        setStorage('checkinStreak', this.checkinStreak)
+        this._scheduleStorageWrite('checkinStreak', this.checkinStreak)
         updated = true
       }
 
       // 分享数据以云端为准
       if (cloud.lastShareDate) {
         this.lastShareDate = cloud.lastShareDate
-        setStorage('lastShareDate', this.lastShareDate)
+        this._scheduleStorageWrite('lastShareDate', this.lastShareDate)
       }
       if (typeof cloud.todayShareCount === 'number') {
         this.todayShareCount = cloud.todayShareCount
-        setStorage('todayShareCount', this.todayShareCount)
+        this._scheduleStorageWrite('todayShareCount', this.todayShareCount)
       }
       if (cloud.lastShareGiftDate) {
         this.lastShareGiftDate = cloud.lastShareGiftDate
-        setStorage('lastShareGiftDate', this.lastShareGiftDate)
+        this._scheduleStorageWrite('lastShareGiftDate', this.lastShareGiftDate)
       }
 
       // 刷新状态
@@ -784,23 +744,13 @@ export class GameState {
   }
 
   /**
-   * 保存当前数据到云端（仅在点击"返回首页"时调用）
-   * @param {boolean} forceSave - 是否强制保存（破纪录时）
+   * 保存当前数据到云端（在点击"返回首页"时调用）
+   * 始终保存完整数据，确保云端数据与本地同步
    */
-  async saveToCloud(forceSave = false) {
+  async saveToCloud() {
     if (!wechatAPI.isCloudAvailable()) {
       console.log('云开发不可用，跳过保存')
       return
-    }
-
-    // 如果不是强制保存，检查是否有破纪录
-    if (!forceSave) {
-      // 检查是否破了最高分或最高关卡纪录
-      const hasNewRecord = this.isNewHighScore() || this.wave > this.bestWave
-      if (!hasNewRecord) {
-        console.log('没有破纪录，跳过保存')
-        return
-      }
     }
 
     try {

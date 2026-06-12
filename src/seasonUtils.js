@@ -4,20 +4,33 @@
  * 赛季命名：YYYY-Sww（如 2025-S24）
  */
 
+// 缓存当前赛季周期（同一事件循环内复用）
+let _cachedCycle = null
+let _cachedCycleTime = 0
+const CACHE_DURATION = 1000 // 1 秒缓存
+
 /**
- * 获取当前赛季周期信息
- * @param {Date} now - 当前时间
+ * 获取当前赛季周期信息（带缓存）
+ * @param {Date} [now] - 当前时间（可选，不传则使用缓存或当前时间）
  * @returns {Object} { seasonId, seasonStart, seasonEnd }
  */
-export function getSeasonCycle(now = new Date()) {
-  const day = now.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
+export function getSeasonCycle(now) {
+  const currentTime = Date.now()
+  
+  // 如果没有传入 now，使用缓存
+  if (!now && _cachedCycle && (currentTime - _cachedCycleTime) < CACHE_DURATION) {
+    return _cachedCycle
+  }
+  
+  const date = now || new Date()
+  const day = date.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
   
   // 计算距离下周六 00:00 的天数
   let daysToNextSat = 6 - day;
   if (daysToNextSat <= 0) daysToNextSat += 7;
   
   // 赛季结束时间：下周六 00:00
-  const seasonEnd = new Date(now);
+  const seasonEnd = new Date(date);
   seasonEnd.setDate(seasonEnd.getDate() + daysToNextSat);
   seasonEnd.setHours(0, 0, 0, 0);
   
@@ -31,7 +44,15 @@ export function getSeasonCycle(now = new Date()) {
   const weekNum = Math.ceil(((seasonStart - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
   const seasonId = `${year}-S${String(weekNum).padStart(2, '0')}`;
   
-  return { seasonId, seasonStart, seasonEnd };
+  const result = { seasonId, seasonStart, seasonEnd };
+  
+  // 缓存结果（仅当未传入 now 时）
+  if (!now) {
+    _cachedCycle = result;
+    _cachedCycleTime = currentTime;
+  }
+  
+  return result;
 }
 
 /**
@@ -39,7 +60,7 @@ export function getSeasonCycle(now = new Date()) {
  * @returns {number} 剩余时间（毫秒）
  */
 export function getSeasonTimeRemaining() {
-  const { seasonEnd } = getSeasonCycle(new Date());
+  const { seasonEnd } = getSeasonCycle();
   return Math.max(0, seasonEnd.getTime() - Date.now());
 }
 
@@ -63,7 +84,7 @@ export function formatSeasonCountdown() {
  * @returns {number} 赛季开始时间戳（毫秒）
  */
 export function getSeasonStartTime() {
-  return getSeasonCycle(new Date()).seasonStart.getTime();
+  return getSeasonCycle().seasonStart.getTime();
 }
 
 /**
@@ -71,7 +92,7 @@ export function getSeasonStartTime() {
  * @returns {number} 赛季结束时间戳（毫秒）
  */
 export function getSeasonEndTime() {
-  return getSeasonCycle(new Date()).seasonEnd.getTime();
+  return getSeasonCycle().seasonEnd.getTime();
 }
 
 /**
@@ -79,5 +100,5 @@ export function getSeasonEndTime() {
  * @returns {string} 赛季编号（如 2025-S24）
  */
 export function getCurrentSeasonId() {
-  return getSeasonCycle(new Date()).seasonId;
+  return getSeasonCycle().seasonId;
 }

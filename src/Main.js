@@ -837,8 +837,8 @@ export class Main {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
-    // 返回首页时同步数据到云端（强制保存，因为可能破纪录）
-    await this.gameState.saveToCloud(true)
+    // 返回首页时同步数据到云端
+    await this.gameState.saveToCloud()
     
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()

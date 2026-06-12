@@ -7,8 +7,8 @@
 import './src/polyfill.js'
 import { Main } from './src/Main.js'
 
-// 初始化云开发
-if (wx.cloud) {
+// 初始化云开发（仅在微信环境中）
+if (typeof wx !== 'undefined' && wx.cloud) {
   wx.cloud.init({
     env: 'cloud1-d2gbhgc8abb1ab532',
     traceUser: true
@@ -16,20 +16,22 @@ if (wx.cloud) {
   console.log('云开发初始化完成')
 }
 
-// 全局错误处理
-wx.onError((error) => {
-  console.error('Game Error:', error)
-})
+// 全局错误处理（仅在微信环境中）
+if (typeof wx !== 'undefined') {
+  wx.onError((error) => {
+    console.error('Game Error:', error)
+  })
 
-// 未处理的Promise拒绝
-wx.onUnhandledRejection((error) => {
-  console.error('Unhandled Rejection:', error)
-})
+  // 未处理的Promise拒绝
+  wx.onUnhandledRejection((error) => {
+    console.error('Unhandled Rejection:', error)
+  })
+}
 
 // 隐私政策处理：确保用户同意隐私政策后再启动游戏
 function startGameWithPrivacy() {
   // 检查是否需要隐私授权（使用平台组件模式）
-  if (wx.requirePrivacyAuthorize) {
+  if (typeof wx !== 'undefined' && wx.requirePrivacyAuthorize) {
     wx.requirePrivacyAuthorize({
       success: () => {
         // 用户已同意隐私政策，启动游戏
@@ -42,7 +44,7 @@ function startGameWithPrivacy() {
       }
     })
   } else {
-    // 旧版本基础库，直接启动
+    // 旧版本基础库或非微信环境，直接启动
     launchGame()
   }
 }
@@ -58,13 +60,15 @@ function launchGame() {
     console.error('游戏启动失败:', error)
   }
   
-  // 导出game实例供调试使用
-  if (typeof globalThis !== 'undefined') {
-    globalThis.game = game
-  } else if (typeof global !== 'undefined') {
-    global.game = game
-  } else if (typeof wx !== 'undefined') {
-    wx.game = game
+  // 导出game实例供调试使用（仅在实例非空时）
+  if (game) {
+    if (typeof globalThis !== 'undefined') {
+      globalThis.game = game
+    } else if (typeof global !== 'undefined') {
+      global.game = game
+    } else if (typeof wx !== 'undefined') {
+      wx.game = game
+    }
   }
 }
 

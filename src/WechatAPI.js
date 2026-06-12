@@ -2,10 +2,15 @@
  * 微信API封装 - 排行榜、分享等社交功能
  */
 export class WechatAPI {
-  constructor() {
-    this.userCloudStorage = null
-    this.friendCloudStorage = null
-    this.relation = null
+  // 通用 wx API Promise 封装（减少重复代码）
+  _callWxApi(method, options = {}, transform = (res) => res) {
+    return new Promise((resolve, reject) => {
+      wx[method]({
+        ...options,
+        success: (res) => resolve(transform(res)),
+        fail: (err) => reject(err)
+      })
+    })
   }
 
   // 初始化微信API
@@ -20,80 +25,35 @@ export class WechatAPI {
 
   // 获取登录凭证
   login() {
-    return new Promise((resolve, reject) => {
-      wx.login({
-        success: (res) => {
-          resolve(res.code)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
-    })
+    return this._callWxApi('login', {}, (res) => res.code)
   }
 
   // 分享 - 分享到聊天
   shareToChat(options = {}) {
-    return new Promise((resolve, reject) => {
-      wx.shareAppMessage({
-        title: options.title || '来挑战泡泡大师！',
-        imageUrl: options.imageUrl || '',
-        query: options.query || '',
-        success: (res) => {
-          resolve(res)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
+    return this._callWxApi('shareAppMessage', {
+      title: options.title || '来挑战泡泡大师！',
+      imageUrl: options.imageUrl || '',
+      query: options.query || ''
     })
   }
 
   // 分享 - 分享到朋友圈
   shareToTimeline(options = {}) {
-    return new Promise((resolve, reject) => {
-      wx.shareTimeline({
-        title: options.title || '来挑战泡泡大师！',
-        query: options.query || '',
-        success: (res) => {
-          resolve(res)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
+    return this._callWxApi('shareTimeline', {
+      title: options.title || '来挑战泡泡大师！',
+      query: options.query || ''
     })
   }
 
   // 获取排行榜数据 - 好友排行榜
   getFriendRankData(key) {
-    return new Promise((resolve, reject) => {
-      wx.getUserCloudStorage({
-        keyList: [key],
-        success: (res) => {
-          resolve(res.KVDataList)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
-    })
+    return this._callWxApi('getUserCloudStorage', { keyList: [key] }, (res) => res.KVDataList)
   }
 
   // 上传分数到云端
   uploadScore(key, value) {
-    return new Promise((resolve, reject) => {
-      wx.setUserCloudStorage({
-        KVDataList: [
-          { key: key, value: value }
-        ],
-        success: (res) => {
-          resolve(res)
-        },
-        fail: (err) => {
-          reject(err)
-        }
-      })
+    return this._callWxApi('setUserCloudStorage', {
+      KVDataList: [{ key, value }]
     })
   }
 

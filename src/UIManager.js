@@ -100,9 +100,18 @@ export class UIManager {
     }
     
     try {
+      let offscreen = null
       if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
-        this.menuCache = wx.createOffscreenCanvas(this.width, this.height)
-        this.menuCtx = this.menuCache.getContext('2d')
+        offscreen = wx.createOffscreenCanvas(this.width, this.height)
+      } else if (typeof OffscreenCanvas !== 'undefined') {
+        offscreen = new OffscreenCanvas(this.width, this.height)
+      }
+      if (offscreen) {
+        // 释放旧引用（防止内存泄漏）
+        this.menuCache = null
+        this.menuCtx = null
+        this.menuCache = offscreen
+        this.menuCtx = offscreen.getContext('2d')
         this.menuNeedsUpdate = true
       }
     } catch (e) {

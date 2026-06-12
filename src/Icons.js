@@ -3,16 +3,20 @@
  * 所有图标基于 24x24 viewBox 设计，坐标范围 0-24，确保居中显示
  */
 
-// 绘制柱状图图标（排行榜）
-export function drawBarChartIcon(ctx, x, y, size, color = '#ffffff') {
-  ctx.save()
-  
+// 通用图标上下文设置（减少重复代码）
+function setupIconContext(ctx, x, y, size) {
   const scale = size / 24
   const offsetX = x - (24 * scale) / 2
   const offsetY = y - (24 * scale) / 2
-  
+  ctx.save()
   ctx.translate(offsetX, offsetY)
   ctx.scale(scale, scale)
+  return scale
+}
+
+// 绘制柱状图图标（排行榜）
+export function drawBarChartIcon(ctx, x, y, size, color = '#ffffff') {
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -40,14 +44,7 @@ export function drawBarChartIcon(ctx, x, y, size, color = '#ffffff') {
 
 // 绘制扬声器图标（声音）
 export function drawSpeakerIcon(ctx, x, y, size, color = '#ffffff', isMuted = false) {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -93,14 +90,7 @@ export function drawSpeakerIcon(ctx, x, y, size, color = '#ffffff', isMuted = fa
 
 // 绘制日历图标（签到）
 export function drawCalendarIcon(ctx, x, y, size, color = '#ffffff') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -141,14 +131,7 @@ export function drawCalendarIcon(ctx, x, y, size, color = '#ffffff') {
 
 // 绘制分享图标
 export function drawShareIcon(ctx, x, y, size, color = '#ffffff') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -184,14 +167,7 @@ export function drawShareIcon(ctx, x, y, size, color = '#ffffff') {
 
 // 绘制奖杯图标（赛季）
 export function drawTrophyIcon(ctx, x, y, size, color = '#ffffff') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -231,14 +207,7 @@ export function drawTrophyIcon(ctx, x, y, size, color = '#ffffff') {
 
 // 绘制皇冠图标（新赛季 - 精确匹配 index.html 中的 SVG）
 export function drawCrownIcon(ctx, x, y, size, color = '#ffffff') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -246,7 +215,6 @@ export function drawCrownIcon(ctx, x, y, size, color = '#ffffff') {
   ctx.lineJoin = 'round'
   
   // 皇冠路径（精确匹配 index.html 中的 SVG path）
-  // M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z
   ctx.beginPath()
   ctx.moveTo(12, 2)
   ctx.lineTo(15.09, 8.26)
@@ -266,18 +234,11 @@ export function drawCrownIcon(ctx, x, y, size, color = '#ffffff') {
 }
 
 // 绘制宝箱图标（分享礼包）
-export function drawChestIcon(ctx, x, y, size) {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+export function drawChestIcon(ctx, x, y, size, color = '#d946ef') {
+  setupIconContext(ctx, x, y, size)
   
   // 宝箱主体
-  ctx.fillStyle = '#d946ef'
+  ctx.fillStyle = color
   ctx.strokeStyle = '#ffffff'
   ctx.lineWidth = 1.5
   ctx.lineCap = 'round'
@@ -289,8 +250,8 @@ export function drawChestIcon(ctx, x, y, size) {
   ctx.fill()
   ctx.stroke()
   
-  // 盖子（弧形）
-  ctx.fillStyle = '#a21caf'
+  // 盖子（弧形）- 使用稍深的同色系
+  ctx.fillStyle = darkenColor(color, 0.3)
   ctx.beginPath()
   ctx.moveTo(2, 10)
   ctx.lineTo(2, 7)
@@ -318,16 +279,25 @@ export function drawChestIcon(ctx, x, y, size) {
   ctx.restore()
 }
 
+// 辅助函数：加深颜色
+function darkenColor(hex, amount) {
+  // 将 hex 转换为 RGB
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  
+  // 加深
+  const newR = Math.max(0, Math.floor(r * (1 - amount)))
+  const newG = Math.max(0, Math.floor(g * (1 - amount)))
+  const newB = Math.max(0, Math.floor(b * (1 - amount)))
+  
+  // 转回 hex
+  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+}
+
 // 绘制心形图标（生命值）
 export function drawHeartIcon(ctx, x, y, size, color = '#f43f5e') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.fillStyle = color
   
@@ -348,14 +318,7 @@ export function drawHeartIcon(ctx, x, y, size, color = '#f43f5e') {
 
 // 绘制金币图标
 export function drawCoinIcon(ctx, x, y, size, color = '#facc15') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   // 外圆
   ctx.fillStyle = color
@@ -382,14 +345,7 @@ export function drawCoinIcon(ctx, x, y, size, color = '#facc15') {
 
 // 绘制宝石图标
 export function drawGemIcon(ctx, x, y, size, color = '#c084fc') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.fillStyle = color
   ctx.strokeStyle = color
@@ -427,14 +383,7 @@ export function drawGemIcon(ctx, x, y, size, color = '#c084fc') {
 
 // 绘制骷髅图标
 export function drawSkullIcon(ctx, x, y, size, color = '#9ca3af') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.fillStyle = color
   ctx.strokeStyle = color
@@ -488,14 +437,7 @@ export function drawSkullIcon(ctx, x, y, size, color = '#9ca3af') {
 
 // 绘制时钟图标
 export function drawClockIcon(ctx, x, y, size, color = '#facc15') {
-  ctx.save()
-  
-  const scale = size / 24
-  const offsetX = x - (24 * scale) / 2
-  const offsetY = y - (24 * scale) / 2
-  
-  ctx.translate(offsetX, offsetY)
-  ctx.scale(scale, scale)
+  setupIconContext(ctx, x, y, size)
   
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -524,12 +466,11 @@ export function drawClockIcon(ctx, x, y, size, color = '#facc15') {
 
 // 绘制星星
 export function drawStar(ctx, x, y, size, color = '#facc15') {
-  ctx.save()
-  
   const spikes = 5
   const outerRadius = size / 2
   const innerRadius = size / 4
   
+  ctx.save()
   ctx.fillStyle = color
   ctx.translate(x, y)
   
