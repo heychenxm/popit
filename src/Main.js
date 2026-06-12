@@ -1359,7 +1359,3 @@ export class Main {
   }
 }
 
-// 注入所有数据（包括排行榜）
-// const { injectAll } = require('../inject-mock-data.js')
-// injectAll()
-

@@ -16,9 +16,6 @@ exports.main = async (event, context) => {
     return { success: false, error: '无法获取用户标识' }
   }
 
-  console.log('收到保存请求，openid:', openid)
-  console.log('接收到的数据:', JSON.stringify(event))
-
   // 只允许保存白名单字段，防止客户端注入
   const allowedFields = [
     'coins', 'highScore', 'bestWave',

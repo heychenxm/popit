@@ -13,7 +13,7 @@
         },
         "useCompilerPlugins": false,
         "compileWorklet": false,
-        "uploadWithSourceMap": true,
+        "uploadWithSourceMap": false,
         "packNpmManually": false,
         "minifyWXSS": true,
         "minifyWXML": true,
