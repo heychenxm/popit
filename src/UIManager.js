@@ -2975,7 +2975,6 @@ export class UIManager {
     
     // 安全检查：确保 size 是有效正数
     if (!size || size <= 0) {
-      console.warn('drawAvatar: invalid size', size)
       return
     }
     
@@ -2989,11 +2988,8 @@ export class UIManager {
                              !avatarUrl.includes('anonymous') &&
                              !avatarUrl.includes('temp-avatar')
     
-    console.log('drawAvatar - avatarUrl:', avatarUrl ? avatarUrl.substring(0, 60) : 'null', 'isValid:', isValidAvatarUrl)
-    
     // 如果没有有效头像 URL，使用默认头像图片
     if (!isValidAvatarUrl && this.defaultAvatarLoaded) {
-      console.log('使用默认头像图片')
       this.drawImageAvatar(x, y, size, this.defaultAvatarImage, isTop1, isUser)
       return
     }
@@ -3001,10 +2997,8 @@ export class UIManager {
     // 检查是否有缓存的用户头像
     if (isValidAvatarUrl && this.avatarCache && this.avatarCache[avatarUrl]) {
       const cached = this.avatarCache[avatarUrl]
-      console.log('头像缓存状态:', cached)
       if (cached.loaded && cached.image) {
         // 已加载完成，绘制图片
-        console.log('绘制缓存的头像图片')
         this.drawImageAvatar(x, y, size, cached.image, isTop1, isUser)
         return
       } else if (cached.loading) {
@@ -3016,7 +3010,6 @@ export class UIManager {
     
     // 没有缓存，开始加载
     if (isValidAvatarUrl) {
-      console.log('开始加载头像:', avatarUrl.substring(0, 60))
       this.loadAvatarImage(avatarUrl)
     }
     
@@ -3041,16 +3034,13 @@ export class UIManager {
     try {
       const img = wx.createImage()
       img.onload = () => {
-        console.log('头像图片加载成功:', avatarUrl)
         this.avatarCache[avatarUrl] = { loading: false, loaded: true, image: img }
       }
       img.onerror = () => {
-        console.warn('头像图片加载失败:', avatarUrl)
         this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
       }
       img.src = avatarUrl
     } catch (e) {
-      console.warn('头像图片初始化失败:', e)
       this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
     }
   }
