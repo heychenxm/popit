@@ -456,7 +456,7 @@ export class Main {
   restartGame() {
     this.gameState.isNewScoreRecord = false
     this.gameState.reset()
-    this.gameState.incrementSeasonGames()
+    // 修复：移除重复的 incrementSeasonGames()，只在 startGame() 中调用
     this.uiManager.currentScreen = 'game'
     this.startNewWave()
   }

@@ -727,6 +727,30 @@ export class GameState {
         this._scheduleStorageWrite('lastShareGiftDate', this.lastShareGiftDate)
       }
 
+      // 加载赛季数据（修复：从云端加载赛季数据，支持跨会话累积）
+      if (cloud.seasonId === this.seasonInfo.currentSeasonId) {
+        if (typeof cloud.seasonScore === 'number' && cloud.seasonScore > this.seasonData.seasonScore) {
+          this.seasonData.seasonScore = cloud.seasonScore
+          updated = true
+        }
+        if (typeof cloud.seasonWave === 'number' && cloud.seasonWave > this.seasonData.seasonWave) {
+          this.seasonData.seasonWave = cloud.seasonWave
+          updated = true
+        }
+        if (typeof cloud.totalGames === 'number' && cloud.totalGames > this.seasonData.totalGames) {
+          this.seasonData.totalGames = cloud.totalGames
+          updated = true
+        }
+        if (typeof cloud.totalClears === 'number' && cloud.totalClears > this.seasonData.totalClears) {
+          this.seasonData.totalClears = cloud.totalClears
+          updated = true
+        }
+        if (typeof cloud.bestStreak === 'number' && cloud.bestStreak > this.seasonData.bestStreak) {
+          this.seasonData.bestStreak = cloud.bestStreak
+          updated = true
+        }
+      }
+
       // 刷新状态
       this.updateCheckinStatus()
       this.updateShareCountStatus()

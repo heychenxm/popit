@@ -78,18 +78,29 @@ exports.main = async (event, context) => {
       if (updateData.nickname !== undefined) seasonUpdate.nickname = updateData.nickname
       if (updateData.avatarUrl !== undefined) seasonUpdate.avatarUrl = updateData.avatarUrl
 
-      // 赛季数据取较大值
+      // 赛季数据取较大值（修复：使用 Math.max 替代 _.max）
       if (updateData.seasonScore !== undefined) {
-        seasonUpdate.highScore = _.max(updateData.seasonScore)
+        const existingScore = seasonRecords.length > 0 ? (seasonRecords[0].highScore || 0) : 0
+        seasonUpdate.highScore = Math.max(existingScore, updateData.seasonScore)
       }
       if (updateData.seasonWave !== undefined) {
-        seasonUpdate.bestWave = _.max(updateData.seasonWave)
+        const existingWave = seasonRecords.length > 0 ? (seasonRecords[0].bestWave || 0) : 0
+        seasonUpdate.bestWave = Math.max(existingWave, updateData.seasonWave)
       }
 
-      // 传递其他赛季统计字段
-      if (event.totalGames !== undefined) seasonUpdate.totalGames = event.totalGames
-      if (event.totalClears !== undefined) seasonUpdate.totalClears = event.totalClears
-      if (event.bestStreak !== undefined) seasonUpdate.bestStreak = _.max(event.bestStreak)
+      // 传递其他赛季统计字段（修复：取较大值而非直接覆盖）
+      if (event.totalGames !== undefined) {
+        const existingGames = seasonRecords.length > 0 ? (seasonRecords[0].totalGames || 0) : 0
+        seasonUpdate.totalGames = Math.max(existingGames, event.totalGames)
+      }
+      if (event.totalClears !== undefined) {
+        const existingClears = seasonRecords.length > 0 ? (seasonRecords[0].totalClears || 0) : 0
+        seasonUpdate.totalClears = Math.max(existingClears, event.totalClears)
+      }
+      if (event.bestStreak !== undefined) {
+        const existingStreak = seasonRecords.length > 0 ? (seasonRecords[0].bestStreak || 0) : 0
+        seasonUpdate.bestStreak = Math.max(existingStreak, event.bestStreak)
+      }
 
       console.log('赛季更新数据:', JSON.stringify(seasonUpdate))
 
