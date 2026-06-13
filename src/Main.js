@@ -837,11 +837,14 @@ export class Main {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
-    // 返回首页时同步数据到云端
-    await this.gameState.saveToCloud()
-    
+    // ✅ 修复：先切换 UI，再异步保存数据（不阻塞用户）
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
+    
+    // 异步保存到云端（不 await，用户无感知）
+    this.gameState.saveToCloud().catch(err => {
+      console.log('保存到云端失败（不影响游戏）:', err.message || err)
+    })
   }
 
   // 暂停游戏
