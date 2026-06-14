@@ -414,12 +414,18 @@ export class UIManager {
     
     ctx.save()
     
-    // 绘制按钮背景
-    const gradient = ctx.createLinearGradient(btnX, btnY, btnX + btnWidth, btnY + btnHeight)
-    gradient.addColorStop(0, '#6366f1')
-    gradient.addColorStop(1, '#8b5cf6')
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.authBtn) {
+      this.cachedGradients.authBtn = ctx.createLinearGradient(0, 0, 0, 40)
+      this.cachedGradients.authBtn.addColorStop(0, '#6366f1')
+      this.cachedGradients.authBtn.addColorStop(1, '#8b5cf6')
+    }
     
-    ctx.fillStyle = gradient
+    // 绘制按钮背景
+    ctx.fillStyle = this.cachedGradients.authBtn
     drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 22)
     ctx.fill()
     
@@ -460,17 +466,23 @@ export class UIManager {
     
     ctx.save()
     
-    // 3D阴影层（底部）
+    // 3D 阴影层（底部）
     ctx.fillStyle = '#c26a00'
     drawRoundRect(ctx, btnX, btnY + 6, btnWidth, btnHeight, btnRadius)
     ctx.fill()
     
-    // 主按钮体
-    const gradient = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnHeight)
-    gradient.addColorStop(0, '#ffd13b')
-    gradient.addColorStop(1, '#ff9e00')
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.startBtn) {
+      this.cachedGradients.startBtn = ctx.createLinearGradient(0, 0, 0, 56)
+      this.cachedGradients.startBtn.addColorStop(0, '#ffd13b')
+      this.cachedGradients.startBtn.addColorStop(1, '#ff9e00')
+    }
     
-    ctx.fillStyle = gradient
+    // 主按钮体
+    ctx.fillStyle = this.cachedGradients.startBtn
     drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, btnRadius)
     ctx.fill()
     
@@ -530,19 +542,32 @@ export class UIManager {
       
       ctx.save()
       
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      
       // 声音按钮特殊处理：静音时使用灰色背景
       let bgColor, borderColor
       if (btn.id === 'sound' && !gameState.soundEnabled) {
         // 静音状态：灰色背景
-        bgColor = ctx.createLinearGradient(x, y, x + btnSize, y + btnSize)
-        bgColor.addColorStop(0, '#475569')
-        bgColor.addColorStop(1, '#334155')
+        const cacheKey = 'soundMuted'
+        if (!this.cachedGradients[cacheKey]) {
+          this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 50, 50)
+          this.cachedGradients[cacheKey].addColorStop(0, '#475569')
+          this.cachedGradients[cacheKey].addColorStop(1, '#334155')
+        }
+        bgColor = this.cachedGradients[cacheKey]
         borderColor = '#64748b'
       } else {
         // 正常状态：原色背景
-        bgColor = ctx.createLinearGradient(x, y, x + btnSize, y + btnSize)
-        bgColor.addColorStop(0, btn.color1)
-        bgColor.addColorStop(1, btn.color2)
+        const cacheKey = `btn_${btn.id}`
+        if (!this.cachedGradients[cacheKey]) {
+          this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 50, 50)
+          this.cachedGradients[cacheKey].addColorStop(0, btn.color1)
+          this.cachedGradients[cacheKey].addColorStop(1, btn.color2)
+        }
+        bgColor = this.cachedGradients[cacheKey]
         borderColor = btn.borderColor || 'rgba(255, 255, 255, 0.3)'
       }
       
@@ -1472,10 +1497,16 @@ export class UIManager {
     const scoreBtnActive = this.leaderboardType === 'score'
     
     if (scoreBtnActive) {
-      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
-      scoreGrad.addColorStop(0, '#fbbf24')
-      scoreGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = scoreGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.rankSwitchActive) {
+        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.rankSwitchActive
       drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1498,10 +1529,16 @@ export class UIManager {
     const waveBtnActive = this.leaderboardType === 'wave'
     
     if (waveBtnActive) {
-      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
-      waveGrad.addColorStop(0, '#fbbf24')
-      waveGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = waveGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.rankSwitchActive) {
+        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.rankSwitchActive
       drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1717,10 +1754,16 @@ export class UIManager {
     const scoreBtnActive = this.seasonLeaderboardType === 'score'
     
     if (scoreBtnActive) {
-      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
-      scoreGrad.addColorStop(0, '#fbbf24')
-      scoreGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = scoreGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.seasonSwitchActive) {
+        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
       drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1743,10 +1786,16 @@ export class UIManager {
     const waveBtnActive = this.seasonLeaderboardType === 'wave'
     
     if (waveBtnActive) {
-      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
-      waveGrad.addColorStop(0, '#fbbf24')
-      waveGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = waveGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.seasonSwitchActive) {
+        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
       drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1887,12 +1936,17 @@ export class UIManager {
     const btnX = modalX + 20
     const btnY = modalY + modalH - 60
     
-    // 渐变背景
-    const gradient = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY)
-    gradient.addColorStop(0, '#a855f7')
-    gradient.addColorStop(1, '#6366f1')
+    // 使用预创建的渐变（如果存在）
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.gameClubBtn) {
+      this.cachedGradients.gameClubBtn = ctx.createLinearGradient(0, 0, 320, 40)
+      this.cachedGradients.gameClubBtn.addColorStop(0, '#a855f7')
+      this.cachedGradients.gameClubBtn.addColorStop(1, '#6366f1')
+    }
     
-    ctx.fillStyle = gradient
+    ctx.fillStyle = this.cachedGradients.gameClubBtn
     drawRoundRect(ctx, btnX, btnY, btnW, btnH, 20)
     ctx.fill()
     ctx.strokeStyle = '#c084fc'
@@ -1967,12 +2021,20 @@ export class UIManager {
     
     ctx.save()
     
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    
     let bgColor
     if (isTop1) {
-      const grad = ctx.createLinearGradient(x, y, x, y + h)
-      grad.addColorStop(0, '#4f46e5')
-      grad.addColorStop(1, '#3730a3')
-      bgColor = grad
+      const cacheKey = 'rank1Grad'
+      if (!this.cachedGradients[cacheKey]) {
+        this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 0, h)
+        this.cachedGradients[cacheKey].addColorStop(0, '#4f46e5')
+        this.cachedGradients[cacheKey].addColorStop(1, '#3730a3')
+      }
+      bgColor = this.cachedGradients[cacheKey]
     } else if (rankNum === 2) {
       bgColor = 'rgba(148, 163, 184, 0.3)'
     } else if (rankNum === 3) {
@@ -2032,12 +2094,20 @@ export class UIManager {
     
     ctx.save()
     
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    
     let bgColor
     if (isTop1) {
-      const grad = ctx.createLinearGradient(x, y, x, y + h)
-      grad.addColorStop(0, '#4f46e5')
-      grad.addColorStop(1, '#3730a3')
-      bgColor = grad
+      const cacheKey = 'rank1Grad'
+      if (!this.cachedGradients[cacheKey]) {
+        this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 0, h)
+        this.cachedGradients[cacheKey].addColorStop(0, '#4f46e5')
+        this.cachedGradients[cacheKey].addColorStop(1, '#3730a3')
+      }
+      bgColor = this.cachedGradients[cacheKey]
     } else if (rankNum === 2) {
       bgColor = 'rgba(148, 163, 184, 0.3)'
     } else {
