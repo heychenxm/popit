@@ -1899,17 +1899,12 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    // 社区图标
-    const iconX = btnX + 20
-    const iconY = btnY + btnH / 2
-    this.drawCommunityIcon(ctx, iconX, iconY, 16, Colors.white)
-    
-    // 文字
+    // 文字（居中）
     ctx.font = 'bold 14px sans-serif'
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('进入游戏圈交流', btnX + btnW / 2 + 8, btnY + btnH / 2)
+    ctx.fillText('进入游戏圈交流', btnX + btnW / 2, btnY + btnH / 2)
     
     // 记录按钮区域
     this.buttons.push({
