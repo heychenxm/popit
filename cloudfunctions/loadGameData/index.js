@@ -18,6 +18,14 @@ exports.main = async (event, context) => {
     const { data } = await db.collection('gameData')
       .where({ _openid: openid })
       .limit(1)
+      .field({ 
+        coins: true, highScore: true, bestWave: true,
+        lastCheckinDate: true, checkinStreak: true,
+        lastShareDate: true, todayShareCount: true, lastShareGiftDate: true,
+        seasonId: true, seasonScore: true, seasonWave: true,
+        totalGames: true, totalClears: true, bestStreak: true,
+        nickname: true, avatarUrl: true
+      })
       .get()
 
     if (data.length > 0) {

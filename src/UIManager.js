@@ -414,12 +414,18 @@ export class UIManager {
     
     ctx.save()
     
-    // 绘制按钮背景
-    const gradient = ctx.createLinearGradient(btnX, btnY, btnX + btnWidth, btnY + btnHeight)
-    gradient.addColorStop(0, '#6366f1')
-    gradient.addColorStop(1, '#8b5cf6')
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.authBtn) {
+      this.cachedGradients.authBtn = ctx.createLinearGradient(0, 0, 0, 40)
+      this.cachedGradients.authBtn.addColorStop(0, '#6366f1')
+      this.cachedGradients.authBtn.addColorStop(1, '#8b5cf6')
+    }
     
-    ctx.fillStyle = gradient
+    // 绘制按钮背景
+    ctx.fillStyle = this.cachedGradients.authBtn
     drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 22)
     ctx.fill()
     
@@ -460,17 +466,23 @@ export class UIManager {
     
     ctx.save()
     
-    // 3D阴影层（底部）
+    // 3D 阴影层（底部）
     ctx.fillStyle = '#c26a00'
     drawRoundRect(ctx, btnX, btnY + 6, btnWidth, btnHeight, btnRadius)
     ctx.fill()
     
-    // 主按钮体
-    const gradient = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnHeight)
-    gradient.addColorStop(0, '#ffd13b')
-    gradient.addColorStop(1, '#ff9e00')
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.startBtn) {
+      this.cachedGradients.startBtn = ctx.createLinearGradient(0, 0, 0, 56)
+      this.cachedGradients.startBtn.addColorStop(0, '#ffd13b')
+      this.cachedGradients.startBtn.addColorStop(1, '#ff9e00')
+    }
     
-    ctx.fillStyle = gradient
+    // 主按钮体
+    ctx.fillStyle = this.cachedGradients.startBtn
     drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, btnRadius)
     ctx.fill()
     
@@ -530,19 +542,32 @@ export class UIManager {
       
       ctx.save()
       
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      
       // 声音按钮特殊处理：静音时使用灰色背景
       let bgColor, borderColor
       if (btn.id === 'sound' && !gameState.soundEnabled) {
         // 静音状态：灰色背景
-        bgColor = ctx.createLinearGradient(x, y, x + btnSize, y + btnSize)
-        bgColor.addColorStop(0, '#475569')
-        bgColor.addColorStop(1, '#334155')
+        const cacheKey = 'soundMuted'
+        if (!this.cachedGradients[cacheKey]) {
+          this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 50, 50)
+          this.cachedGradients[cacheKey].addColorStop(0, '#475569')
+          this.cachedGradients[cacheKey].addColorStop(1, '#334155')
+        }
+        bgColor = this.cachedGradients[cacheKey]
         borderColor = '#64748b'
       } else {
         // 正常状态：原色背景
-        bgColor = ctx.createLinearGradient(x, y, x + btnSize, y + btnSize)
-        bgColor.addColorStop(0, btn.color1)
-        bgColor.addColorStop(1, btn.color2)
+        const cacheKey = `btn_${btn.id}`
+        if (!this.cachedGradients[cacheKey]) {
+          this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 50, 50)
+          this.cachedGradients[cacheKey].addColorStop(0, btn.color1)
+          this.cachedGradients[cacheKey].addColorStop(1, btn.color2)
+        }
+        bgColor = this.cachedGradients[cacheKey]
         borderColor = btn.borderColor || 'rgba(255, 255, 255, 0.3)'
       }
       
@@ -1472,10 +1497,16 @@ export class UIManager {
     const scoreBtnActive = this.leaderboardType === 'score'
     
     if (scoreBtnActive) {
-      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
-      scoreGrad.addColorStop(0, '#fbbf24')
-      scoreGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = scoreGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.rankSwitchActive) {
+        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.rankSwitchActive
       drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1498,10 +1529,16 @@ export class UIManager {
     const waveBtnActive = this.leaderboardType === 'wave'
     
     if (waveBtnActive) {
-      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
-      waveGrad.addColorStop(0, '#fbbf24')
-      waveGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = waveGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.rankSwitchActive) {
+        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.rankSwitchActive
       drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1622,6 +1659,9 @@ export class UIManager {
       })
     }
     
+    // 游戏圈按钮
+    this.drawGameClubButton(modalX, modalW, modalY, modalH)
+    
     ctx.restore()
   }
 
@@ -1714,10 +1754,16 @@ export class UIManager {
     const scoreBtnActive = this.seasonLeaderboardType === 'score'
     
     if (scoreBtnActive) {
-      const scoreGrad = ctx.createLinearGradient(scoreBtnX, switchContainerY, scoreBtnX, switchContainerY + switchContainerH)
-      scoreGrad.addColorStop(0, '#fbbf24')
-      scoreGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = scoreGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.seasonSwitchActive) {
+        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
       drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1740,10 +1786,16 @@ export class UIManager {
     const waveBtnActive = this.seasonLeaderboardType === 'wave'
     
     if (waveBtnActive) {
-      const waveGrad = ctx.createLinearGradient(waveBtnX, switchContainerY, waveBtnX, switchContainerY + switchContainerH)
-      waveGrad.addColorStop(0, '#fbbf24')
-      waveGrad.addColorStop(1, '#d97706')
-      ctx.fillStyle = waveGrad
+      // 使用预创建的渐变
+      if (!this.cachedGradients) {
+        this.cachedGradients = {}
+      }
+      if (!this.cachedGradients.seasonSwitchActive) {
+        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
+        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
+      }
+      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
       drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1869,6 +1921,83 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
     
+    // 游戏圈按钮
+    this.drawGameClubButton(modalX, modalW, modalY, modalH)
+    
+    ctx.restore()
+  }
+
+  // 绘制游戏圈按钮
+  drawGameClubButton(modalX, modalW, modalY, modalH) {
+    const ctx = this.ctx
+    
+    const btnW = modalW - 40
+    const btnH = 40
+    const btnX = modalX + 20
+    const btnY = modalY + modalH - 60
+    
+    // 使用预创建的渐变（如果存在）
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    if (!this.cachedGradients.gameClubBtn) {
+      this.cachedGradients.gameClubBtn = ctx.createLinearGradient(0, 0, 320, 40)
+      this.cachedGradients.gameClubBtn.addColorStop(0, '#a855f7')
+      this.cachedGradients.gameClubBtn.addColorStop(1, '#6366f1')
+    }
+    
+    ctx.fillStyle = this.cachedGradients.gameClubBtn
+    drawRoundRect(ctx, btnX, btnY, btnW, btnH, 20)
+    ctx.fill()
+    ctx.strokeStyle = '#c084fc'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 文字（居中）
+    ctx.font = 'bold 14px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('进入游戏圈交流', btnX + btnW / 2, btnY + btnH / 2)
+    
+    // 记录按钮区域
+    this.buttons.push({
+      id: 'game_club',
+      x: btnX,
+      y: btnY,
+      w: btnW,
+      h: btnH
+    })
+  }
+
+  // 绘制社区图标
+  drawCommunityIcon(ctx, x, y, size, color) {
+    ctx.save()
+    ctx.translate(x, y)
+    
+    ctx.fillStyle = color
+    
+    // 左侧气泡
+    ctx.beginPath()
+    ctx.moveTo(-size * 0.4, -size * 0.3)
+    ctx.lineTo(size * 0.2, -size * 0.3)
+    ctx.lineTo(size * 0.2, size * 0.1)
+    ctx.lineTo(-size * 0.1, size * 0.1)
+    ctx.lineTo(-size * 0.3, size * 0.4)
+    ctx.lineTo(-size * 0.3, size * 0.1)
+    ctx.lineTo(-size * 0.4, size * 0.1)
+    ctx.closePath()
+    ctx.fill()
+    
+    // 右侧气泡
+    ctx.beginPath()
+    ctx.moveTo(size * 0.1, -size * 0.1)
+    ctx.lineTo(size * 0.5, -size * 0.1)
+    ctx.lineTo(size * 0.5, size * 0.3)
+    ctx.lineTo(size * 0.1, size * 0.3)
+    ctx.closePath()
+    ctx.fill()
+    
     ctx.restore()
   }
   
@@ -1892,12 +2021,20 @@ export class UIManager {
     
     ctx.save()
     
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    
     let bgColor
     if (isTop1) {
-      const grad = ctx.createLinearGradient(x, y, x, y + h)
-      grad.addColorStop(0, '#4f46e5')
-      grad.addColorStop(1, '#3730a3')
-      bgColor = grad
+      const cacheKey = 'rank1Grad'
+      if (!this.cachedGradients[cacheKey]) {
+        this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 0, h)
+        this.cachedGradients[cacheKey].addColorStop(0, '#4f46e5')
+        this.cachedGradients[cacheKey].addColorStop(1, '#3730a3')
+      }
+      bgColor = this.cachedGradients[cacheKey]
     } else if (rankNum === 2) {
       bgColor = 'rgba(148, 163, 184, 0.3)'
     } else if (rankNum === 3) {
@@ -1957,12 +2094,20 @@ export class UIManager {
     
     ctx.save()
     
+    // 使用预创建的渐变
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    
     let bgColor
     if (isTop1) {
-      const grad = ctx.createLinearGradient(x, y, x, y + h)
-      grad.addColorStop(0, '#4f46e5')
-      grad.addColorStop(1, '#3730a3')
-      bgColor = grad
+      const cacheKey = 'rank1Grad'
+      if (!this.cachedGradients[cacheKey]) {
+        this.cachedGradients[cacheKey] = ctx.createLinearGradient(0, 0, 0, h)
+        this.cachedGradients[cacheKey].addColorStop(0, '#4f46e5')
+        this.cachedGradients[cacheKey].addColorStop(1, '#3730a3')
+      }
+      bgColor = this.cachedGradients[cacheKey]
     } else if (rankNum === 2) {
       bgColor = 'rgba(148, 163, 184, 0.3)'
     } else {
@@ -2975,7 +3120,6 @@ export class UIManager {
     
     // 安全检查：确保 size 是有效正数
     if (!size || size <= 0) {
-      console.warn('drawAvatar: invalid size', size)
       return
     }
     
@@ -2989,11 +3133,8 @@ export class UIManager {
                              !avatarUrl.includes('anonymous') &&
                              !avatarUrl.includes('temp-avatar')
     
-    console.log('drawAvatar - avatarUrl:', avatarUrl ? avatarUrl.substring(0, 60) : 'null', 'isValid:', isValidAvatarUrl)
-    
     // 如果没有有效头像 URL，使用默认头像图片
     if (!isValidAvatarUrl && this.defaultAvatarLoaded) {
-      console.log('使用默认头像图片')
       this.drawImageAvatar(x, y, size, this.defaultAvatarImage, isTop1, isUser)
       return
     }
@@ -3001,10 +3142,8 @@ export class UIManager {
     // 检查是否有缓存的用户头像
     if (isValidAvatarUrl && this.avatarCache && this.avatarCache[avatarUrl]) {
       const cached = this.avatarCache[avatarUrl]
-      console.log('头像缓存状态:', cached)
       if (cached.loaded && cached.image) {
         // 已加载完成，绘制图片
-        console.log('绘制缓存的头像图片')
         this.drawImageAvatar(x, y, size, cached.image, isTop1, isUser)
         return
       } else if (cached.loading) {
@@ -3016,7 +3155,6 @@ export class UIManager {
     
     // 没有缓存，开始加载
     if (isValidAvatarUrl) {
-      console.log('开始加载头像:', avatarUrl.substring(0, 60))
       this.loadAvatarImage(avatarUrl)
     }
     
@@ -3041,16 +3179,13 @@ export class UIManager {
     try {
       const img = wx.createImage()
       img.onload = () => {
-        console.log('头像图片加载成功:', avatarUrl)
         this.avatarCache[avatarUrl] = { loading: false, loaded: true, image: img }
       }
       img.onerror = () => {
-        console.warn('头像图片加载失败:', avatarUrl)
         this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
       }
       img.src = avatarUrl
     } catch (e) {
-      console.warn('头像图片初始化失败:', e)
       this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
     }
   }

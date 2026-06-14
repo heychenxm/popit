@@ -481,28 +481,39 @@ export class BubbleGrid {
     ctx.restore()
   }
 
-  // 绘制星星粒子（支持传入ctx和是否闪烁）
+  // 绘制星星粒子（支持传入 ctx 和是否闪烁）
   drawStars(ctx, animate) {
     ctx = ctx || this.ctx
     animate = animate !== undefined ? animate : true
     ctx.save()
     
-    for (let i = 0; i < 30; i++) {
-      const seed = i * 1337
-      const x = ((seed * 7) % this.width)
-      const y = ((seed * 13) % (this.height * 0.7))
-      const size = ((seed * 3) % 2) + 1
-      
+    // 预计算星星位置（只在首次调用时计算）
+    if (!this.starsCache) {
+      this.starsCache = []
+      for (let i = 0; i < 30; i++) {
+        const seed = i * 1337
+        this.starsCache.push({
+          x: ((seed * 7) % this.width),
+          y: ((seed * 13) % (this.height * 0.7)),
+          size: ((seed * 3) % 2) + 1,
+          phase: i  // 闪烁相位
+        })
+      }
+    }
+    
+    // 使用缓存绘制
+    for (let i = 0; i < this.starsCache.length; i++) {
+      const star = this.starsCache[i]
       let alpha = 0.8
       if (animate) {
-        const twinkle = Math.sin(this.animationFrame * 0.02 + i) * 0.4 + 0.6
+        const twinkle = Math.sin(this.animationFrame * 0.02 + star.phase) * 0.4 + 0.6
         alpha = twinkle * 0.8
       }
       
       ctx.globalAlpha = alpha
       ctx.fillStyle = Colors.white
       ctx.beginPath()
-      ctx.arc(x, y, size, 0, Math.PI * 2)
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2)
       ctx.fill()
     }
     
