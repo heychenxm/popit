@@ -213,6 +213,9 @@ export class Main {
     const buttonId = this.uiManager.handleTouch(x, y)
     
     if (buttonId) {
+      this.audioManager.play('click')
+      this.vibrate()
+      
       switch (buttonId) {
         case 'close':
           this.closeLeaderboard()
@@ -223,6 +226,9 @@ export class Main {
         case 'leaderboard_wave':
           await this.switchLeaderboardType('wave')
           break
+        case 'game_club':
+          this.openGameClub()
+          break
       }
     }
   }
@@ -232,6 +238,9 @@ export class Main {
     const buttonId = this.uiManager.handleTouch(x, y)
     
     if (buttonId) {
+      this.audioManager.play('click')
+      this.vibrate()
+      
       switch (buttonId) {
         case 'close':
           this.closeSeasonLeaderboard()
@@ -241,6 +250,9 @@ export class Main {
           break
         case 'season_leaderboard_wave':
           await this.switchSeasonLeaderboardType('wave')
+          break
+        case 'game_club':
+          this.openGameClub()
           break
       }
     }
@@ -356,6 +368,10 @@ export class Main {
         case 'authorize':
           // 授权按钮：请求获取用户昵称和头像
           this.handleAuthorize()
+          break
+        case 'game_club':
+          // 游戏圈按钮：打开游戏圈
+          this.openGameClub()
           break
       }
     }
@@ -930,6 +946,33 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     this.uiManager.currentScreen = 'menu'
+  }
+
+  // 打开游戏圈
+  openGameClub() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    if (typeof wx === 'undefined' || !wx.createPageManager) {
+      this.uiManager.showToast('当前环境不支持游戏圈')
+      return
+    }
+    
+    try {
+      const pageManager = wx.createPageManager()
+      pageManager.load({
+        openlink: config.gameClub.openlink
+      }).then((res) => {
+        console.log('游戏圈加载成功', res)
+        pageManager.show()
+      }).catch((err) => {
+        console.error('游戏圈加载失败', err)
+        this.uiManager.showToast('打开游戏圈失败')
+      })
+    } catch (e) {
+      console.error('创建 PageManager 失败', e)
+      this.uiManager.showToast('打开游戏圈失败')
+    }
   }
 
   // 切换声音

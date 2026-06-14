@@ -1622,6 +1622,9 @@ export class UIManager {
       })
     }
     
+    // 游戏圈按钮
+    this.drawGameClubButton(modalX, modalW, modalY, modalH)
+    
     ctx.restore()
   }
 
@@ -1868,6 +1871,83 @@ export class UIManager {
     ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
     ctx.textAlign = 'center'
     ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
+    
+    // 游戏圈按钮
+    this.drawGameClubButton(modalX, modalW, modalY, modalH)
+    
+    ctx.restore()
+  }
+
+  // 绘制游戏圈按钮
+  drawGameClubButton(modalX, modalW, modalY, modalH) {
+    const ctx = this.ctx
+    
+    const btnW = modalW - 40
+    const btnH = 40
+    const btnX = modalX + 20
+    const btnY = modalY + modalH - 60
+    
+    // 渐变背景
+    const gradient = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY)
+    gradient.addColorStop(0, '#a855f7')
+    gradient.addColorStop(1, '#6366f1')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, btnX, btnY, btnW, btnH, 20)
+    ctx.fill()
+    ctx.strokeStyle = '#c084fc'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 社区图标
+    const iconX = btnX + 20
+    const iconY = btnY + btnH / 2
+    this.drawCommunityIcon(ctx, iconX, iconY, 16, Colors.white)
+    
+    // 文字
+    ctx.font = 'bold 14px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('进入游戏圈交流', btnX + btnW / 2 + 8, btnY + btnH / 2)
+    
+    // 记录按钮区域
+    this.buttons.push({
+      id: 'game_club',
+      x: btnX,
+      y: btnY,
+      w: btnW,
+      h: btnH
+    })
+  }
+
+  // 绘制社区图标
+  drawCommunityIcon(ctx, x, y, size, color) {
+    ctx.save()
+    ctx.translate(x, y)
+    
+    ctx.fillStyle = color
+    
+    // 左侧气泡
+    ctx.beginPath()
+    ctx.moveTo(-size * 0.4, -size * 0.3)
+    ctx.lineTo(size * 0.2, -size * 0.3)
+    ctx.lineTo(size * 0.2, size * 0.1)
+    ctx.lineTo(-size * 0.1, size * 0.1)
+    ctx.lineTo(-size * 0.3, size * 0.4)
+    ctx.lineTo(-size * 0.3, size * 0.1)
+    ctx.lineTo(-size * 0.4, size * 0.1)
+    ctx.closePath()
+    ctx.fill()
+    
+    // 右侧气泡
+    ctx.beginPath()
+    ctx.moveTo(size * 0.1, -size * 0.1)
+    ctx.lineTo(size * 0.5, -size * 0.1)
+    ctx.lineTo(size * 0.5, size * 0.3)
+    ctx.lineTo(size * 0.1, size * 0.3)
+    ctx.closePath()
+    ctx.fill()
     
     ctx.restore()
   }
