@@ -2210,6 +2210,7 @@ export class UIManager {
   drawPhaseIndicator(gameState) {
     const ctx = this.ctx
     const { titleY, descY } = getPhaseIndicatorLayout(this.width, this.height)
+    const centerX = this.width / 2 + 2 // 微调视觉居中
     
     ctx.save()
     
@@ -2220,13 +2221,13 @@ export class UIManager {
       ctx.fillStyle = Colors.purple500
       ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('请观察！', this.width / 2, titleY)
+      ctx.fillText('请观察！', centerX, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('记住闪烁的气泡', this.width / 2, descY)
+      ctx.fillText('记住闪烁的气泡', centerX, descY)
     } else if (gameState.phase === 'PLAY') {
       ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
@@ -2234,13 +2235,13 @@ export class UIManager {
       ctx.fillStyle = Colors.yellow300
       ctx.shadowColor = 'rgba(234, 179, 8, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('点它！', this.width / 2, titleY)
+      ctx.fillText('点它！', centerX, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', this.width / 2, descY)
+      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', centerX, descY)
     }
     
     ctx.restore()
