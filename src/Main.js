@@ -113,6 +113,12 @@ export class Main {
     // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
+      
+      // 检查是否正在等待分享复活返回
+      if (this.gameState.isWaitingShareRevive) {
+        this.gameState.isWaitingShareRevive = false
+        this.executeShareRevive()
+      }
     })
   }
 
@@ -441,6 +447,9 @@ export class Main {
           break
         case 'purchase':
           this.purchaseLifeAndContinue()
+          break
+        case 'shareRevive':
+          this.shareReviveAndContinue()
           break
         case 'restart':
           this.restartGame()
@@ -826,6 +835,43 @@ export class Main {
     } else {
       this.vibrate('light')
       this.uiManager.showToast(`金币不足或已达到购买上限（需要${currentPrice}金币，最多${config.game.maxPurchaseCount}次）`)
+    }
+  }
+
+  // 分享复活并继续
+  shareReviveAndContinue() {
+    this.audioManager.play('click')
+    
+    if (this.gameState.canShareRevive()) {
+      // 设置等待标志
+      this.gameState.isWaitingShareRevive = true
+      
+      // 触发微信分享
+      wx.shareAppMessage({
+        title: '来挑战泡泡大师！',
+        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
+      })
+      
+      // 用户分享后返回游戏，会在 onShow 中执行复活
+    } else {
+      this.vibrate('light')
+      this.uiManager.showToast('分享复活次数已用完')
+    }
+  }
+
+  // 执行分享复活（分享返回后调用）
+  executeShareRevive() {
+    if (this.gameState.useShareRevive()) {
+      this.vibrate('medium')
+      const remaining = this.gameState.getShareReviveRemaining()
+      this.uiManager.showToast(`分享成功！生命 +1 ❤️（剩余${remaining}次）`)
+      
+      // 关闭失败弹窗
+      this.gameState.isNewScoreRecord = false
+      this.uiManager.currentScreen = 'game'
+      
+      // 重置当前关卡（重新开始，包括观察阶段）
+      this.restartCurrentWave()
     }
   }
 

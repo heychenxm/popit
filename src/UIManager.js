@@ -2587,7 +2587,7 @@ export class UIManager {
   drawFailModal(gameState) {
     const ctx = this.ctx
     const modalW = 320
-    const modalH = 380
+    const modalH = 420  // 增加高度以容纳新按钮
     const modalX = (this.width - modalW) / 2
     const modalY = (this.height - modalH) / 2
     
@@ -2670,6 +2670,8 @@ export class UIManager {
     const infoH = 50
     const canPurchase = gameState.canPurchaseLife()
     const purchasePrice = gameState.getPurchasePrice()
+    const canShareRevive = gameState.canShareRevive()
+    const shareReviveRemaining = gameState.getShareReviveRemaining()
     
     ctx.fillStyle = canPurchase ? 'rgba(34, 197, 94, 0.15)' : 'rgba(75, 85, 99, 0.2)'
     drawRoundRect(ctx, modalX + 20, infoY, modalW - 40, infoH, 12)
@@ -2684,14 +2686,94 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.fillText(`当前金币：${gameState.coins}`, this.width / 2, infoY + infoH / 2)
     
-    // 按钮区域
-    const btnY = infoY + infoH + 20
+    // 按钮区域 - 第一行：金币购买 + 分享复活
+    const btnY1 = infoY + infoH + 15
     const btnW = (modalW - 60) / 2
     const btnH = 42
     
-    // 返回首页
+    // 金币购买按钮
+    const hasPurchaseAttempts = gameState.purchaseCount < config.game.maxPurchaseCount
+    if (hasPurchaseAttempts) {
+      if (canPurchase) {
+        const purchaseBtnGradient = ctx.createLinearGradient(modalX + 20, btnY1, modalX + 20 + btnW, btnY1 + btnH)
+        purchaseBtnGradient.addColorStop(0, '#22c55e')
+        purchaseBtnGradient.addColorStop(1, '#16a34a')
+        
+        ctx.fillStyle = purchaseBtnGradient
+        drawRoundRect(ctx, modalX + 20, btnY1, btnW, btnH, 12)
+        ctx.fill()
+        ctx.strokeStyle = '#86efac'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      } else {
+        ctx.fillStyle = Colors.gray700
+        drawRoundRect(ctx, modalX + 20, btnY1, btnW, btnH, 12)
+        ctx.fill()
+        ctx.strokeStyle = Colors.gray500
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+      
+      this.drawContinuePurchaseButton(ctx, modalX + 20, btnY1, btnW, btnH, purchasePrice, canPurchase)
+      
+      this.buttons.push({
+        id: 'purchase',
+        x: modalX + 20,
+        y: btnY1,
+        w: btnW,
+        h: btnH
+      })
+    }
+    
+    // 分享复活按钮
+    const shareReviveBtnX = hasPurchaseAttempts ? modalX + 40 + btnW : modalX + 20
+    const shareReviveBtnW = hasPurchaseAttempts ? btnW : modalW - 40
+    
+    if (canShareRevive) {
+      const shareBtnGradient = ctx.createLinearGradient(shareReviveBtnX, btnY1, shareReviveBtnX + shareReviveBtnW, btnY1 + btnH)
+      shareBtnGradient.addColorStop(0, '#3b82f6')
+      shareBtnGradient.addColorStop(1, '#2563eb')
+      
+      ctx.fillStyle = shareBtnGradient
+      drawRoundRect(ctx, shareReviveBtnX, btnY1, shareReviveBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#93c5fd'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('分享复活', shareReviveBtnX + shareReviveBtnW / 2, btnY1 + btnH / 2)
+    } else {
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, shareReviveBtnX, btnY1, shareReviveBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+      
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.gray400
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('分享复活（已用完）', shareReviveBtnX + shareReviveBtnW / 2, btnY1 + btnH / 2)
+    }
+    
+    this.buttons.push({
+      id: 'shareRevive',
+      x: shareReviveBtnX,
+      y: btnY1,
+      w: shareReviveBtnW,
+      h: btnH
+    })
+    
+    // 第二行：返回首页按钮
+    const btnY2 = btnY1 + btnH + 15
+    
     ctx.fillStyle = Colors.gray700
-    drawRoundRect(ctx, modalX + 20, btnY, btnW, btnH, 12)
+    drawRoundRect(ctx, modalX + 20, btnY2, modalW - 40, btnH, 12)
     ctx.fill()
     ctx.strokeStyle = Colors.gray500
     ctx.lineWidth = 1
@@ -2701,75 +2783,15 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('返回首页', modalX + 20 + btnW / 2, btnY + btnH / 2)
+    ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
     
     this.buttons.push({
       id: 'home',
       x: modalX + 20,
-      y: btnY,
-      w: btnW,
+      y: btnY2,
+      w: modalW - 40,
       h: btnH
     })
-    
-    const continueBtnX = modalX + 40 + btnW
-    const hasPurchaseAttempts = gameState.purchaseCount < config.game.maxPurchaseCount
-    
-    if (hasPurchaseAttempts) {
-      if (canPurchase) {
-        const purchaseBtnGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX + btnW, btnY + btnH)
-        purchaseBtnGradient.addColorStop(0, '#22c55e')
-        purchaseBtnGradient.addColorStop(1, '#16a34a')
-        
-        ctx.fillStyle = purchaseBtnGradient
-        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
-        ctx.fill()
-        ctx.strokeStyle = '#86efac'
-        ctx.lineWidth = 2
-        ctx.stroke()
-      } else {
-        ctx.fillStyle = Colors.gray700
-        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
-        ctx.fill()
-        ctx.strokeStyle = Colors.gray500
-        ctx.lineWidth = 1
-        ctx.stroke()
-      }
-      
-      this.drawContinuePurchaseButton(ctx, continueBtnX, btnY, btnW, btnH, purchasePrice, canPurchase)
-      
-      this.buttons.push({
-        id: 'purchase',
-        x: continueBtnX,
-        y: btnY,
-        w: btnW,
-        h: btnH
-      })
-    } else {
-      const retryGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX, btnY + btnH)
-      retryGradient.addColorStop(0, '#ffd13b')
-      retryGradient.addColorStop(1, '#ff9e00')
-      
-      ctx.fillStyle = retryGradient
-      drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = '#fffdf0'
-      ctx.lineWidth = 3
-      ctx.stroke()
-      
-      ctx.font = 'bold 14px sans-serif'
-      ctx.fillStyle = Colors.white
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('重新开始', continueBtnX + btnW / 2, btnY + btnH / 2)
-      
-      this.buttons.push({
-        id: 'restart',
-        x: continueBtnX,
-        y: btnY,
-        w: btnW,
-        h: btnH
-      })
-    }
     
     ctx.restore()
   }

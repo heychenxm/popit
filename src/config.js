@@ -11,6 +11,7 @@ export const config = {
     maxPurchaseCount: 3,       // 最大购买次数
     purchasePrices: [300, 500, 1000],  // 购买价格
     maxShareCountPerDay: 10,   // 每日最大分享次数
+    maxShareReviveCount: 3,    // 每局最多分享复活次数
   },
   
   // 签到配置
