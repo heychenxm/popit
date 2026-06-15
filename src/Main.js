@@ -705,9 +705,10 @@ export class Main {
       this.uiManager.showToast(`连续 ${config.rewards.consecutiveWin} 胜！恢复 1 生命 ❤️`)
     }
     
-    // 发放通关奖励：金币
-    this.gameState.addCoins(config.rewards.waveClear)
-    this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
+    // 发放通关奖励：金币（阶梯式奖励）
+    const waveReward = this.gameState.getWaveReward()
+    this.gameState.addCoins(waveReward)
+    this.uiManager.showToast(`通关奖励：+${waveReward} 金币 `)
     
     // ✅ 优化：只更新本地数据，不调用云函数
     this.gameState.updateSeasonDataLocal(

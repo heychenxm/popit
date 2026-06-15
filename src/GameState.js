@@ -442,37 +442,50 @@ export class GameState {
     }
   }
 
+  // 获取当前关卡的通关奖励（金币）
+  getWaveReward() {
+    if (this.wave < 20) {
+      return config.rewards.waveClear  // 15金币
+    } else if (this.wave < 40) {
+      return config.rewards.waveClearTier2  // 30金币
+    } else if (this.wave < 60) {
+      return config.rewards.waveClearTier3  // 50金币
+    } else {
+      return config.rewards.waveClearTier4  // 80金币
+    }
+  }
+
   // 获取观察时间（毫秒）
   getObserveDuration() {
     if (this.wave < 20) {
-      // 1-19 关：2000ms 起，每关 -50ms，最少 1200ms
-      return Math.max(1200, 2000 - (this.wave - 1) * 50)
+      // 1-19 关：2500ms 起，每关 -60ms，最少 1500ms
+      return Math.max(1500, 2500 - (this.wave - 1) * 60)
     } else if (this.wave < 40) {
-      // 20-39 关：2000ms 起，每关 -30ms，最少 1400ms
-      return Math.max(1400, 2000 - (this.wave - 1) * 30)
+      // 20-39 关：2200ms 起，每关 -40ms，最少 1400ms
+      return Math.max(1400, 2200 - (this.wave - 1) * 40)
     } else if (this.wave < 60) {
-      // 40-59 关：2000ms 起，每关 -20ms，最少 1800ms
-      return Math.max(1800, 2000 - (this.wave - 1) * 20)
+      // 40-59 关：2000ms 起，每关 -30ms，最少 1400ms
+      return Math.max(1400, 2000 - (this.wave - 1) * 30)
     } else {
-      // 60+ 关：2000ms 起，每关 -15ms，最少 1900ms
-      return Math.max(1900, 2000 - (this.wave - 1) * 15)
+      // 60+ 关：1800ms 起，每关 -20ms，最少 1400ms
+      return Math.max(1400, 1800 - (this.wave - 1) * 20)
     }
   }
 
   // 获取点击时间（毫秒）
   getPlayDuration() {
     if (this.wave < 20) {
-      // 1-19 关：4500ms 起，每关 -80ms，最少 3000ms
-      return Math.max(3000, 4500 - (this.wave - 1) * 80)
+      // 1-19 关：5000ms 起，每关 -100ms，最少 3200ms
+      return Math.max(3200, 5000 - (this.wave - 1) * 100)
     } else if (this.wave < 40) {
-      // 20-39 关：4500ms 起，每关 -50ms，最少 3200ms
-      return Math.max(3200, 4500 - (this.wave - 1) * 50)
+      // 20-39 关：4800ms 起，每关 -70ms，最少 3400ms
+      return Math.max(3400, 4800 - (this.wave - 1) * 70)
     } else if (this.wave < 60) {
-      // 40-59 关：4500ms 起，每关 -35ms，最少 3800ms
-      return Math.max(3800, 4500 - (this.wave - 1) * 35)
+      // 40-59 关：4500ms 起，每关 -50ms，最少 3500ms
+      return Math.max(3500, 4500 - (this.wave - 1) * 50)
     } else {
-      // 60+ 关：4500ms 起，每关 -25ms，最少 4100ms
-      return Math.max(4100, 4500 - (this.wave - 1) * 25)
+      // 60+ 关：4200ms 起，每关 -30ms，最少 3600ms
+      return Math.max(3600, 4200 - (this.wave - 1) * 30)
     }
   }
 

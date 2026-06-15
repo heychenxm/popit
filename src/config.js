@@ -19,14 +19,17 @@ export const config = {
       1: { base: 300, bonus: 0 },
       2: { base: 500, bonus: 0 },
     },
-    defaultBase: 1000,         // 默认基础奖励
+    defaultBase: 500,         // 默认基础奖励
     bonusDay: 7,               //  bonus 天数（7 的倍数）
-    bonusAmount: 2000,         // bonus 额外奖励
+    bonusAmount: 1000,         // bonus 额外奖励
   },
   
   // 奖励配置
   rewards: {
-    waveClear: 30,             // 通关奖励
+    waveClear: 15,           // 基础通关奖励（1-19关）
+    waveClearTier2: 30,      // 20-39关奖励
+    waveClearTier3: 50,      // 40-59关奖励
+    waveClearTier4: 80,      // 60关+奖励
     share: 50,                 // 分享奖励
     shareGift: 1000,           // 分享礼包奖励
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔
