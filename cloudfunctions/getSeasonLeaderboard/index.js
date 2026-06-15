@@ -50,6 +50,7 @@ exports.main = async (event, context) => {
       const { data: gameDataList } = await db.collection('gameData')
         .where({ _openid: _.in(openids) })
         .field({ _openid: true, nickname: true, avatarUrl: true })
+        .limit(100)
         .get()
       
       // 构建 openid -> 用户信息 的映射

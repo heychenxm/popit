@@ -556,10 +556,19 @@ export class GameState {
         avatarUrl: this.userInfo.avatarUrl ? this.userInfo.avatarUrl.substring(0, 50) + '...' : 'null'
       })
       
-      const result = await wechatAPI.saveGameData({
+      const saveData = {
         nickname: this.userInfo.nickname || '',
         avatarUrl: this.userInfo.avatarUrl || ''
-      })
+      }
+
+      // 同时传入赛季数据，确保 seasonRecords 中的昵称/头像也被更新
+      if (this.seasonInfo && this.seasonInfo.currentSeasonId) {
+        saveData.seasonId = this.seasonInfo.currentSeasonId
+        saveData.seasonScore = this.seasonData.seasonScore || 0
+        saveData.seasonWave = this.seasonData.seasonWave || 0
+      }
+
+      const result = await wechatAPI.saveGameData(saveData)
       console.log('用户信息保存到云端结果:', JSON.stringify(result))
     } catch (err) {
       console.log('保存用户信息到云端失败:', err.message || err)
@@ -793,9 +802,8 @@ export class GameState {
         totalGames: this.seasonData.totalGames,
         totalClears: this.seasonData.totalClears,
         bestStreak: this.seasonData.bestStreak,
-        // 注意：昵称和头像只在授权时保存，这里不主动保存
-        // nickname: this.userInfo.nickname || '',
-        // avatarUrl: this.userInfo.avatarUrl || ''
+        nickname: this.userInfo.nickname || '',
+        avatarUrl: this.userInfo.avatarUrl || ''
       }
       
       console.log('准备保存到云端（游戏数据）')
