@@ -2769,29 +2769,86 @@ export class UIManager {
       h: btnH
     })
     
-    // 第二行：返回首页按钮
+    // 第二行：返回首页按钮（或重新开始 + 返回首页）
     const btnY2 = btnY1 + btnH + 15
-    
-    ctx.fillStyle = Colors.gray700
-    drawRoundRect(ctx, modalX + 20, btnY2, modalW - 40, btnH, 12)
-    ctx.fill()
-    ctx.strokeStyle = Colors.gray500
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 14px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
-    
-    this.buttons.push({
-      id: 'home',
-      x: modalX + 20,
-      y: btnY2,
-      w: modalW - 40,
-      h: btnH
-    })
+    const allRevivalExhausted = !hasPurchaseAttempts && !canShareRevive
+
+    if (allRevivalExhausted) {
+      // 两种方式都用完，显示"重新开始"和"返回首页"并排
+      const rowBtnW = (modalW - 60) / 2
+
+      // 重新开始按钮
+      const restartGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + rowBtnW, btnY2 + btnH)
+      restartGradient.addColorStop(0, '#f59e0b')
+      restartGradient.addColorStop(1, '#d97706')
+
+      ctx.fillStyle = restartGradient
+      drawRoundRect(ctx, modalX + 20, btnY2, rowBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('重新开始', modalX + 20 + rowBtnW / 2, btnY2 + btnH / 2)
+
+      this.buttons.push({
+        id: 'restart',
+        x: modalX + 20,
+        y: btnY2,
+        w: rowBtnW,
+        h: btnH
+      })
+
+      // 返回首页按钮
+      const homeBtnX = modalX + 40 + rowBtnW
+
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, homeBtnX, btnY2, rowBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('返回首页', homeBtnX + rowBtnW / 2, btnY2 + btnH / 2)
+
+      this.buttons.push({
+        id: 'home',
+        x: homeBtnX,
+        y: btnY2,
+        w: rowBtnW,
+        h: btnH
+      })
+    } else {
+      // 还有复活方式可用，只显示"返回首页"
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY2, modalW - 40, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
+
+      this.buttons.push({
+        id: 'home',
+        x: modalX + 20,
+        y: btnY2,
+        w: modalW - 40,
+        h: btnH
+      })
+    }
     
     ctx.restore()
   }
