@@ -59,10 +59,17 @@ export class GameState {
     this.waveScore = 0           // 当前关卡得分
     this.consecutiveWins = 0     // 连续胜利关卡数
     this.purchaseCount = 0       // 购买生命次数（整个游戏会话累计，最多 3 次）
+    this.shareReviveCount = 0    // 分享复活次数（整个游戏会话累计，最多 3 次）
     this.sessionCoins = 0        // 本次游戏会话获得的金币（不包含初始 1000）
     this.hasShownRecordBreakModal = false  // 本局是否已显示破纪录弹窗
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
+    this.isWaitingShareRevive = false    // 是否正在等待分享复活返回
+
+    // 广告相关
+    this.adReviveCount = 0               // 看广告复活次数（每局累计）
+    this.pendingAdDoubleCheckin = false   // 是否等待签到双倍奖励
+    this.pendingAdDoubleGift = false      // 是否等待礼包双倍奖励
     
     // 用户信息
     let nickname = saved.nickname
@@ -159,6 +166,7 @@ export class GameState {
     this.waveScore = 0
     this.consecutiveWins = 0
     this.purchaseCount = 0
+    this.shareReviveCount = 0  // 重置分享复活次数
     this.sessionCoins = 0  // 重置会话金币
     this.hasShownRecordBreakModal = false  // 重置破纪录弹窗标志
     this.isNewScoreRecord = false
@@ -166,6 +174,10 @@ export class GameState {
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
+    this.isWaitingShareRevive = false  // 重置分享复活等待标志
+    this.adReviveCount = 0  // 重置广告复活次数
+    this.pendingAdDoubleCheckin = false
+    this.pendingAdDoubleGift = false
     this.clearTimer()
   }
 
@@ -393,6 +405,79 @@ export class GameState {
     return false
   }
 
+  // 判断是否可使用分享复活
+  canShareRevive() {
+    return this.shareReviveCount < config.game.maxShareReviveCount
+  }
+
+  // 获取分享复活剩余次数
+  getShareReviveRemaining() {
+    return config.game.maxShareReviveCount - this.shareReviveCount
+  }
+
+  // 执行分享复活
+  useShareRevive() {
+    if (!this.canShareRevive()) return false
+
+    this.shareReviveCount++
+    if (this.lives < this.maxLives) {
+      this.lives++
+    }
+    this._scheduleStorageWrite('shareReviveCount', this.shareReviveCount)
+    return true
+  }
+
+  // ==================== 广告相关方法 ====================
+
+  // 是否可以看广告复活
+  canAdRevive() {
+    return this.adReviveCount < config.ads.maxAdRevivePerLevel
+  }
+
+  // 获取广告复活剩余次数
+  getAdReviveRemaining() {
+    return config.ads.maxAdRevivePerLevel - this.adReviveCount
+  }
+
+  // 执行广告复活
+  useAdRevive() {
+    if (!this.canAdRevive()) return false
+
+    this.adReviveCount++
+    if (this.lives < this.maxLives) {
+      this.lives++
+    }
+    return true
+  }
+
+  // 设置签到双倍标记
+  setAdDoubleCheckin() {
+    this.pendingAdDoubleCheckin = true
+  }
+
+  // 消费签到双倍标记，返回是否双倍
+  consumeAdDoubleCheckin() {
+    if (this.pendingAdDoubleCheckin) {
+      this.pendingAdDoubleCheckin = false
+      return true
+    }
+    return false
+  }
+
+  // 设置礼包双倍标记
+  setAdDoubleGift() {
+    this.pendingAdDoubleGift = true
+  }
+
+  // 消费礼包双倍标记，返回是否双倍
+  consumeAdDoubleGift() {
+    if (this.pendingAdDoubleGift) {
+      this.pendingAdDoubleGift = false
+      return true
+    }
+    return false
+  }
+
   // 增加连续胜利计数
   addConsecutiveWin() {
     this.consecutiveWins++
@@ -442,37 +527,50 @@ export class GameState {
     }
   }
 
+  // 获取当前关卡的通关奖励（金币）
+  getWaveReward() {
+    if (this.wave < 20) {
+      return config.rewards.waveClear  // 15金币
+    } else if (this.wave < 40) {
+      return config.rewards.waveClearTier2  // 30金币
+    } else if (this.wave < 60) {
+      return config.rewards.waveClearTier3  // 50金币
+    } else {
+      return config.rewards.waveClearTier4  // 80金币
+    }
+  }
+
   // 获取观察时间（毫秒）
   getObserveDuration() {
     if (this.wave < 20) {
-      // 1-19 关：2000ms 起，每关 -50ms，最少 1200ms
-      return Math.max(1200, 2000 - (this.wave - 1) * 50)
+      // 1-19 关：2500ms 起，每关 -60ms，最少 1500ms
+      return Math.max(1500, 2500 - (this.wave - 1) * 60)
     } else if (this.wave < 40) {
-      // 20-39 关：2000ms 起，每关 -30ms，最少 1400ms
-      return Math.max(1400, 2000 - (this.wave - 1) * 30)
+      // 20-39 关：2200ms 起，每关 -40ms，最少 1400ms
+      return Math.max(1400, 2200 - (this.wave - 1) * 40)
     } else if (this.wave < 60) {
-      // 40-59 关：2000ms 起，每关 -20ms，最少 1800ms
-      return Math.max(1800, 2000 - (this.wave - 1) * 20)
+      // 40-59 关：2000ms 起，每关 -30ms，最少 1400ms
+      return Math.max(1400, 2000 - (this.wave - 1) * 30)
     } else {
-      // 60+ 关：2000ms 起，每关 -15ms，最少 1900ms
-      return Math.max(1900, 2000 - (this.wave - 1) * 15)
+      // 60+ 关：1800ms 起，每关 -20ms，最少 1400ms
+      return Math.max(1400, 1800 - (this.wave - 1) * 20)
     }
   }
 
   // 获取点击时间（毫秒）
   getPlayDuration() {
     if (this.wave < 20) {
-      // 1-19 关：4500ms 起，每关 -80ms，最少 3000ms
-      return Math.max(3000, 4500 - (this.wave - 1) * 80)
+      // 1-19 关：5000ms 起，每关 -100ms，最少 3200ms
+      return Math.max(3200, 5000 - (this.wave - 1) * 100)
     } else if (this.wave < 40) {
-      // 20-39 关：4500ms 起，每关 -50ms，最少 3200ms
-      return Math.max(3200, 4500 - (this.wave - 1) * 50)
+      // 20-39 关：4800ms 起，每关 -70ms，最少 3400ms
+      return Math.max(3400, 4800 - (this.wave - 1) * 70)
     } else if (this.wave < 60) {
-      // 40-59 关：4500ms 起，每关 -35ms，最少 3800ms
-      return Math.max(3800, 4500 - (this.wave - 1) * 35)
+      // 40-59 关：4500ms 起，每关 -50ms，最少 3500ms
+      return Math.max(3500, 4500 - (this.wave - 1) * 50)
     } else {
-      // 60+ 关：4500ms 起，每关 -25ms，最少 4100ms
-      return Math.max(4100, 4500 - (this.wave - 1) * 25)
+      // 60+ 关：4200ms 起，每关 -30ms，最少 3600ms
+      return Math.max(3600, 4200 - (this.wave - 1) * 30)
     }
   }
 
@@ -556,10 +654,19 @@ export class GameState {
         avatarUrl: this.userInfo.avatarUrl ? this.userInfo.avatarUrl.substring(0, 50) + '...' : 'null'
       })
       
-      const result = await wechatAPI.saveGameData({
+      const saveData = {
         nickname: this.userInfo.nickname || '',
         avatarUrl: this.userInfo.avatarUrl || ''
-      })
+      }
+
+      // 同时传入赛季数据，确保 seasonRecords 中的昵称/头像也被更新
+      if (this.seasonInfo && this.seasonInfo.currentSeasonId) {
+        saveData.seasonId = this.seasonInfo.currentSeasonId
+        saveData.seasonScore = this.seasonData.seasonScore || 0
+        saveData.seasonWave = this.seasonData.seasonWave || 0
+      }
+
+      const result = await wechatAPI.saveGameData(saveData)
       console.log('用户信息保存到云端结果:', JSON.stringify(result))
     } catch (err) {
       console.log('保存用户信息到云端失败:', err.message || err)
@@ -793,9 +900,8 @@ export class GameState {
         totalGames: this.seasonData.totalGames,
         totalClears: this.seasonData.totalClears,
         bestStreak: this.seasonData.bestStreak,
-        // 注意：昵称和头像只在授权时保存，这里不主动保存
-        // nickname: this.userInfo.nickname || '',
-        // avatarUrl: this.userInfo.avatarUrl || ''
+        nickname: this.userInfo.nickname || '',
+        avatarUrl: this.userInfo.avatarUrl || ''
       }
       
       console.log('准备保存到云端（游戏数据）')

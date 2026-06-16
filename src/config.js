@@ -11,6 +11,7 @@ export const config = {
     maxPurchaseCount: 3,       // 最大购买次数
     purchasePrices: [300, 500, 1000],  // 购买价格
     maxShareCountPerDay: 10,   // 每日最大分享次数
+    maxShareReviveCount: 3,    // 每局最多分享复活次数
   },
   
   // 签到配置
@@ -19,19 +20,32 @@ export const config = {
       1: { base: 300, bonus: 0 },
       2: { base: 500, bonus: 0 },
     },
-    defaultBase: 1000,         // 默认基础奖励
+    defaultBase: 500,         // 默认基础奖励
     bonusDay: 7,               //  bonus 天数（7 的倍数）
-    bonusAmount: 2000,         // bonus 额外奖励
+    bonusAmount: 1000,         // bonus 额外奖励
   },
   
   // 奖励配置
   rewards: {
-    waveClear: 30,             // 通关奖励
+    waveClear: 15,           // 基础通关奖励（1-19关）
+    waveClearTier2: 30,      // 20-39关奖励
+    waveClearTier3: 50,      // 40-59关奖励
+    waveClearTier4: 80,      // 60关+奖励
     share: 50,                 // 分享奖励
     shareGift: 1000,           // 分享礼包奖励
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔
   },
   
+  // 激励视频广告配置
+  ads: {
+    adUnits: {
+      checkinDouble: 'adunit-xxxxxxxxxx',  // 签到双倍广告位（替换为真实 ID）
+      giftDouble: 'adunit-yyyyyyyyyy',     // 礼包双倍广告位（替换为真实 ID）
+      revive: 'adunit-zzzzzzzzzz',         // 复活广告位（替换为真实 ID）
+    },
+    maxAdRevivePerLevel: 3,   // 每局看广告复活上限次数
+  },
+
   // 游戏圈配置
   gameClub: {
     openlink: '-SSEykJvFV3pORt5kTNpSwf9v-nO8w-RltZQZE2rBIVXb7phpwakvShxowg8mzrNcJYcdNO5WDO26mdXbRWneklavyMsSHiDXTw6t9McAzz8JBJXjxWYMGOC2WQZOcGebAorBfoC4LgNfVgedG1Ptl1V6jnazLovHcaN7sIiMVrrKYKs0VLdIBsm7dWz8EDLgCcbTNgBWeIGR2TkS_w8NJ8At-pVdIXCxBJhrrhgq8Ax5R3aCuaf2vIKkljucoZ-M7q-z355b3iIf_sPFXk7SV2QjWoSTR-EIK4d9NOmT1DMdm0IUBAbITMhPsX1FIjN-uKX5j0qzWgvIlXhnXAFvA',

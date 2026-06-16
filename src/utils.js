@@ -266,8 +266,8 @@ export function getGameScreenLayout(width, height) {
 
   // 两行文字在提示区内垂直居中（对应 HTML justify-center）
   const textLineGap = 26 // 标题(24px) + 间距(8px) + 副标题(12px) 的中心距
-  const titleY = phaseCenterY - textLineGap / 2
-  const descY = phaseCenterY + textLineGap / 2
+  const titleY = phaseCenterY - textLineGap / 2 + 12
+  const descY = phaseCenterY + textLineGap / 2 + 12
 
   // 网格在提示区下方剩余空间中垂直居中（对应 HTML my-auto）
   const gridAreaTop = phaseTop + phaseBlockHeight + 12

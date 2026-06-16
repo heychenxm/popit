@@ -42,13 +42,36 @@ exports.main = async (event, context) => {
       .field({ _openid: true, nickname: true, avatarUrl: true, highScore: true, bestWave: true, totalGames: true, totalClears: true, bestStreak: true })
       .get()
 
-    const leaderboard = topList.map((item, index) => ({
-      rank: index + 1,
-      nickname: item.nickname || '',
-      avatarUrl: item.avatarUrl || '',
-      value: item[field] || 0,
-      isUser: item._openid === openid
-    }))
+    // 收集所有 openid，批量从 gameData 获取最新用户信息
+    const openids = topList.map(item => item._openid).filter(Boolean)
+    let userProfileMap = {}
+    
+    if (openids.length > 0) {
+      const { data: gameDataList } = await db.collection('gameData')
+        .where({ _openid: _.in(openids) })
+        .field({ _openid: true, nickname: true, avatarUrl: true })
+        .limit(100)
+        .get()
+      
+      // 构建 openid -> 用户信息 的映射
+      gameDataList.forEach(item => {
+        userProfileMap[item._openid] = {
+          nickname: item.nickname || '',
+          avatarUrl: item.avatarUrl || ''
+        }
+      })
+    }
+
+    const leaderboard = topList.map((item, index) => {
+      const userProfile = userProfileMap[item._openid] || {}
+      return {
+        rank: index + 1,
+        nickname: item.nickname || userProfile.nickname || '',
+        avatarUrl: item.avatarUrl || userProfile.avatarUrl || '',
+        value: item[field] || 0,
+        isUser: item._openid === openid
+      }
+    })
 
     // 查询当前用户赛季数据和排名
     let userRank = 0

@@ -20,6 +20,7 @@ export class UIManager {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
     this.pixelRatio = options.pixelRatio || 1
+    this.adManager = options.adManager || null
     
     // 使用逻辑像素（canvas 已缩放，所以直接用 width/height 即可）
     this.width = canvas.width / this.pixelRatio
@@ -1120,6 +1121,37 @@ export class UIManager {
         w: btnWidth,
         h: btnHeight
       })
+
+      // 看广告双倍奖励按钮（签到按钮下方）
+      const canAdDouble = this.adManager && this.adManager.isAdReady('checkinDouble')
+      if (canAdDouble) {
+        const adBtnY = btnY + btnHeight + 12
+        const adBtnH = 40
+        const adBtnGrad = ctx.createLinearGradient(btnX, adBtnY, btnX + btnWidth, adBtnY + adBtnH)
+        adBtnGrad.addColorStop(0, '#f59e0b')
+        adBtnGrad.addColorStop(1, '#d97706')
+
+        ctx.fillStyle = adBtnGrad
+        drawRoundRect(ctx, btnX, adBtnY, btnWidth, adBtnH, 12)
+        ctx.fill()
+        ctx.strokeStyle = '#fde68a'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        ctx.font = 'bold 14px sans-serif'
+        ctx.fillStyle = Colors.white
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText('▶ 看广告，签到奖励翻倍', modalX + modalW / 2, adBtnY + adBtnH / 2)
+
+        this.buttons.push({
+          id: 'ad_checkin_double',
+          x: btnX,
+          y: adBtnY,
+          w: btnWidth,
+          h: adBtnH
+        })
+      }
     } else {
       ctx.fillStyle = '#374151'
       drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 16)
@@ -1379,7 +1411,38 @@ export class UIManager {
       w: btnWidth,
       h: btnHeight
     })
-    
+
+    // 看广告双倍奖励按钮（分享按钮下方）
+    const canAdDouble = this.adManager && this.adManager.isAdReady('giftDouble')
+    if (canAdDouble) {
+      const adBtnY = btnY + btnHeight + 12
+      const adBtnH = 40
+      const adBtnGrad = ctx.createLinearGradient(btnX, adBtnY, btnX + btnWidth, adBtnY + adBtnH)
+      adBtnGrad.addColorStop(0, '#f59e0b')
+      adBtnGrad.addColorStop(1, '#d97706')
+
+      ctx.fillStyle = adBtnGrad
+      drawRoundRect(ctx, btnX, adBtnY, btnWidth, adBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('▶ 看广告，礼包奖励翻倍', modalX + modalW / 2, adBtnY + adBtnH / 2)
+
+      this.buttons.push({
+        id: 'ad_gift_double',
+        x: btnX,
+        y: adBtnY,
+        w: btnWidth,
+        h: adBtnH
+      })
+    }
+
     ctx.restore()
   }
   
@@ -2210,6 +2273,7 @@ export class UIManager {
   drawPhaseIndicator(gameState) {
     const ctx = this.ctx
     const { titleY, descY } = getPhaseIndicatorLayout(this.width, this.height)
+    const centerX = this.width / 2 + 2 // 微调视觉居中
     
     ctx.save()
     
@@ -2220,13 +2284,13 @@ export class UIManager {
       ctx.fillStyle = Colors.purple500
       ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('请观察！', this.width / 2, titleY)
+      ctx.fillText('请观察！', centerX, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('记住闪烁的气泡', this.width / 2, descY)
+      ctx.fillText('记住闪烁的气泡', centerX, descY)
     } else if (gameState.phase === 'PLAY') {
       ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
@@ -2234,13 +2298,13 @@ export class UIManager {
       ctx.fillStyle = Colors.yellow300
       ctx.shadowColor = 'rgba(234, 179, 8, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('点它！', this.width / 2, titleY)
+      ctx.fillText('点它！', centerX, titleY)
       
       ctx.font = '12px sans-serif'
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
-      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', this.width / 2, descY)
+      ctx.fillText('在倒计时结束前点破所有闪烁的气泡', centerX, descY)
     }
     
     ctx.restore()
@@ -2586,7 +2650,7 @@ export class UIManager {
   drawFailModal(gameState) {
     const ctx = this.ctx
     const modalW = 320
-    const modalH = 380
+    const modalH = 480  // 增加高度以容纳广告复活按钮
     const modalX = (this.width - modalW) / 2
     const modalY = (this.height - modalH) / 2
     
@@ -2669,6 +2733,8 @@ export class UIManager {
     const infoH = 50
     const canPurchase = gameState.canPurchaseLife()
     const purchasePrice = gameState.getPurchasePrice()
+    const canShareRevive = gameState.canShareRevive()
+    const shareReviveRemaining = gameState.getShareReviveRemaining()
     
     ctx.fillStyle = canPurchase ? 'rgba(34, 197, 94, 0.15)' : 'rgba(75, 85, 99, 0.2)'
     drawRoundRect(ctx, modalX + 20, infoY, modalW - 40, infoH, 12)
@@ -2683,89 +2749,203 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.fillText(`当前金币：${gameState.coins}`, this.width / 2, infoY + infoH / 2)
     
-    // 按钮区域
-    const btnY = infoY + infoH + 20
+    // 按钮区域 - 第一行：金币购买 + 分享复活
+    const btnY1 = infoY + infoH + 15
     const btnW = (modalW - 60) / 2
     const btnH = 42
     
-    // 返回首页
-    ctx.fillStyle = Colors.gray700
-    drawRoundRect(ctx, modalX + 20, btnY, btnW, btnH, 12)
-    ctx.fill()
-    ctx.strokeStyle = Colors.gray500
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 14px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('返回首页', modalX + 20 + btnW / 2, btnY + btnH / 2)
-    
-    this.buttons.push({
-      id: 'home',
-      x: modalX + 20,
-      y: btnY,
-      w: btnW,
-      h: btnH
-    })
-    
-    const continueBtnX = modalX + 40 + btnW
+    // 金币购买按钮
     const hasPurchaseAttempts = gameState.purchaseCount < config.game.maxPurchaseCount
-    
     if (hasPurchaseAttempts) {
       if (canPurchase) {
-        const purchaseBtnGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX + btnW, btnY + btnH)
+        const purchaseBtnGradient = ctx.createLinearGradient(modalX + 20, btnY1, modalX + 20 + btnW, btnY1 + btnH)
         purchaseBtnGradient.addColorStop(0, '#22c55e')
         purchaseBtnGradient.addColorStop(1, '#16a34a')
         
         ctx.fillStyle = purchaseBtnGradient
-        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
+        drawRoundRect(ctx, modalX + 20, btnY1, btnW, btnH, 12)
         ctx.fill()
         ctx.strokeStyle = '#86efac'
         ctx.lineWidth = 2
         ctx.stroke()
       } else {
         ctx.fillStyle = Colors.gray700
-        drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
+        drawRoundRect(ctx, modalX + 20, btnY1, btnW, btnH, 12)
         ctx.fill()
         ctx.strokeStyle = Colors.gray500
         ctx.lineWidth = 1
         ctx.stroke()
       }
       
-      this.drawContinuePurchaseButton(ctx, continueBtnX, btnY, btnW, btnH, purchasePrice, canPurchase)
+      this.drawContinuePurchaseButton(ctx, modalX + 20, btnY1, btnW, btnH, purchasePrice, canPurchase)
       
       this.buttons.push({
         id: 'purchase',
-        x: continueBtnX,
-        y: btnY,
+        x: modalX + 20,
+        y: btnY1,
         w: btnW,
         h: btnH
       })
-    } else {
-      const retryGradient = ctx.createLinearGradient(continueBtnX, btnY, continueBtnX, btnY + btnH)
-      retryGradient.addColorStop(0, '#ffd13b')
-      retryGradient.addColorStop(1, '#ff9e00')
+    }
+    
+    // 分享复活按钮
+    const shareReviveBtnX = hasPurchaseAttempts ? modalX + 40 + btnW : modalX + 20
+    const shareReviveBtnW = hasPurchaseAttempts ? btnW : modalW - 40
+    
+    if (canShareRevive) {
+      const shareBtnGradient = ctx.createLinearGradient(shareReviveBtnX, btnY1, shareReviveBtnX + shareReviveBtnW, btnY1 + btnH)
+      shareBtnGradient.addColorStop(0, '#3b82f6')
+      shareBtnGradient.addColorStop(1, '#2563eb')
       
-      ctx.fillStyle = retryGradient
-      drawRoundRect(ctx, continueBtnX, btnY, btnW, btnH, 12)
+      ctx.fillStyle = shareBtnGradient
+      drawRoundRect(ctx, shareReviveBtnX, btnY1, shareReviveBtnW, btnH, 12)
       ctx.fill()
-      ctx.strokeStyle = '#fffdf0'
-      ctx.lineWidth = 3
+      ctx.strokeStyle = '#93c5fd'
+      ctx.lineWidth = 2
       ctx.stroke()
       
       ctx.font = 'bold 14px sans-serif'
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('重新开始', continueBtnX + btnW / 2, btnY + btnH / 2)
+      ctx.fillText('分享复活', shareReviveBtnX + shareReviveBtnW / 2, btnY1 + btnH / 2)
+    } else {
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, shareReviveBtnX, btnY1, shareReviveBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
       
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.gray400
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('分享复活（已用完）', shareReviveBtnX + shareReviveBtnW / 2, btnY1 + btnH / 2)
+    }
+    
+    this.buttons.push({
+      id: 'shareRevive',
+      x: shareReviveBtnX,
+      y: btnY1,
+      w: shareReviveBtnW,
+      h: btnH
+    })
+
+    // 广告复活按钮行（仅在金币购买和分享都用完后显示）
+    const allOtherRevivalExhausted = !hasPurchaseAttempts && !canShareRevive
+    const canAdRevive = allOtherRevivalExhausted && this.adManager && this.adManager.isAdReady('revive') && gameState.canAdRevive()
+    const adReviveBtnH = 42
+    let btnY2 = btnY1 + btnH + 15  // 默认第二行位置
+
+    if (canAdRevive) {
+      const adBtnY = btnY1 + btnH + 12
+      const adBtnGradient = ctx.createLinearGradient(modalX + 20, adBtnY, modalX + modalW - 20, adBtnY + adReviveBtnH)
+      adBtnGradient.addColorStop(0, '#8b5cf6')
+      adBtnGradient.addColorStop(1, '#7c3aed')
+
+      ctx.fillStyle = adBtnGradient
+      drawRoundRect(ctx, modalX + 20, adBtnY, modalW - 40, adReviveBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#c4b5fd'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // 播放图标 + 文字
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const adReviveRemaining = gameState.getAdReviveRemaining()
+      ctx.fillText(`▶ 观看广告恢复生命（剩余${adReviveRemaining}次）`, modalX + modalW / 2, adBtnY + adReviveBtnH / 2)
+
+      this.buttons.push({
+        id: 'ad_revive',
+        x: modalX + 20,
+        y: adBtnY,
+        w: modalW - 40,
+        h: adReviveBtnH
+      })
+
+      btnY2 = adBtnY + adReviveBtnH + 12
+    }
+
+    // 第二行：返回首页按钮（或重新开始 + 返回首页）
+    const allRevivalExhausted = !hasPurchaseAttempts && !canShareRevive && !canAdRevive
+
+    if (allRevivalExhausted) {
+      // 两种方式都用完，显示"重新开始"和"返回首页"并排
+      const rowBtnW = (modalW - 60) / 2
+
+      // 重新开始按钮
+      const restartGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + rowBtnW, btnY2 + btnH)
+      restartGradient.addColorStop(0, '#f59e0b')
+      restartGradient.addColorStop(1, '#d97706')
+
+      ctx.fillStyle = restartGradient
+      drawRoundRect(ctx, modalX + 20, btnY2, rowBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('重新开始', modalX + 20 + rowBtnW / 2, btnY2 + btnH / 2)
+
       this.buttons.push({
         id: 'restart',
-        x: continueBtnX,
-        y: btnY,
-        w: btnW,
+        x: modalX + 20,
+        y: btnY2,
+        w: rowBtnW,
+        h: btnH
+      })
+
+      // 返回首页按钮
+      const homeBtnX = modalX + 40 + rowBtnW
+
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, homeBtnX, btnY2, rowBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('返回首页', homeBtnX + rowBtnW / 2, btnY2 + btnH / 2)
+
+      this.buttons.push({
+        id: 'home',
+        x: homeBtnX,
+        y: btnY2,
+        w: rowBtnW,
+        h: btnH
+      })
+    } else {
+      // 还有复活方式可用，只显示"返回首页"
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY2, modalW - 40, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
+
+      this.buttons.push({
+        id: 'home',
+        x: modalX + 20,
+        y: btnY2,
+        w: modalW - 40,
         h: btnH
       })
     }

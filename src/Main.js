@@ -2,6 +2,7 @@ import { GameState } from './GameState.js'
 import { AudioManager } from './AudioManager.js'
 import { BubbleGrid } from './BubbleGrid.js'
 import { UIManager } from './UIManager.js'
+import { AdManager } from './AdManager.js'
 import { wechatAPI } from './WechatAPI.js'
 import { getUniqueRandomIndices, setStorage, getColorClass, safeRequestAnimationFrame } from './utils.js'
 import { config } from './config.js'
@@ -34,8 +35,9 @@ export class Main {
     // 初始化模块（传入 pixelRatio）
     this.gameState = new GameState()
     this.audioManager = new AudioManager()
+    this.adManager = new AdManager()
     this.bubbleGrid = new BubbleGrid(this.canvas, { pixelRatio: this.pixelRatio })
-    this.uiManager = new UIManager(this.canvas, { pixelRatio: this.pixelRatio })
+    this.uiManager = new UIManager(this.canvas, { pixelRatio: this.pixelRatio, adManager: this.adManager })
     
     // 游戏循环
     this.lastTime = 0
@@ -60,7 +62,10 @@ export class Main {
     
     // 设置分享
     this.setupShare()
-    
+
+    // 绑定广告关闭事件
+    this.setupAdHandlers()
+
     // 绑定触摸事件
     this.bindEvents()
     
@@ -113,6 +118,12 @@ export class Main {
     // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
+      
+      // 检查是否正在等待分享复活返回
+      if (this.gameState.isWaitingShareRevive) {
+        this.gameState.isWaitingShareRevive = false
+        this.executeShareRevive()
+      }
     })
   }
 
@@ -310,7 +321,7 @@ export class Main {
   // 处理签到触摸
   async handleCheckinTouch(x, y) {
     const buttonId = this.uiManager.handleTouch(x, y)
-    
+
     if (buttonId) {
       switch (buttonId) {
         case 'close':
@@ -318,6 +329,9 @@ export class Main {
           break
         case 'checkin':
           await this.doCheckin()
+          break
+        case 'ad_checkin_double':
+          this.watchAdForCheckinDouble()
           break
       }
     }
@@ -335,6 +349,8 @@ export class Main {
       if (this.uiManager.currentScreen === 'share') {
         if (buttonId === 'share_wechat') {
           this.handleWechatShare()
+        } else if (buttonId === 'ad_gift_double') {
+          this.watchAdForGiftDouble()
         } else if (buttonId === 'close') {
           this.uiManager.currentScreen = 'menu'
         }
@@ -441,6 +457,12 @@ export class Main {
           break
         case 'purchase':
           this.purchaseLifeAndContinue()
+          break
+        case 'shareRevive':
+          this.shareReviveAndContinue()
+          break
+        case 'ad_revive':
+          this.adReviveAndContinue()
           break
         case 'restart':
           this.restartGame()
@@ -705,9 +727,10 @@ export class Main {
       this.uiManager.showToast(`连续 ${config.rewards.consecutiveWin} 胜！恢复 1 生命 ❤️`)
     }
     
-    // 发放通关奖励：金币
-    this.gameState.addCoins(config.rewards.waveClear)
-    this.uiManager.showToast(`通关奖励：+${config.rewards.waveClear} 金币 `)
+    // 发放通关奖励：金币（阶梯式奖励）
+    const waveReward = this.gameState.getWaveReward()
+    this.gameState.addCoins(waveReward)
+    this.uiManager.showToast(`通关奖励：+${waveReward} 金币 `)
     
     // ✅ 优化：只更新本地数据，不调用云函数
     this.gameState.updateSeasonDataLocal(
@@ -826,6 +849,137 @@ export class Main {
       this.vibrate('light')
       this.uiManager.showToast(`金币不足或已达到购买上限（需要${currentPrice}金币，最多${config.game.maxPurchaseCount}次）`)
     }
+  }
+
+  // 分享复活并继续
+  shareReviveAndContinue() {
+    this.audioManager.play('click')
+    
+    if (this.gameState.canShareRevive()) {
+      // 设置等待标志
+      this.gameState.isWaitingShareRevive = true
+      
+      // 触发微信分享
+      wx.shareAppMessage({
+        title: '来挑战泡泡大师！',
+        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
+      })
+      
+      // 用户分享后返回游戏，会在 onShow 中执行复活
+    } else {
+      this.vibrate('light')
+      this.uiManager.showToast('分享复活次数已用完')
+    }
+  }
+
+  // 执行分享复活（分享返回后调用）
+  executeShareRevive() {
+    if (this.gameState.useShareRevive()) {
+      this.vibrate('medium')
+      const remaining = this.gameState.getShareReviveRemaining()
+      this.uiManager.showToast(`分享成功！生命 +1 ❤️（剩余${remaining}次）`)
+
+      // 关闭失败弹窗
+      this.gameState.isNewScoreRecord = false
+      this.uiManager.currentScreen = 'game'
+
+      // 重置当前关卡（重新开始，包括观察阶段）
+      this.restartCurrentWave()
+    }
+  }
+
+  // ==================== 广告相关方法 ====================
+
+  // 绑定广告关闭事件处理器
+  setupAdHandlers() {
+    // 复活广告关闭处理
+    this.adManager.bindCloseHandler('revive', (isEnded) => {
+      if (isEnded) {
+        // 用户看完广告，执行复活
+        if (this.gameState.useAdRevive()) {
+          this.vibrate('medium')
+          const remaining = this.gameState.getAdReviveRemaining()
+          this.uiManager.showToast(`广告完成！生命 +1 ❤️（剩余${remaining}次）`)
+
+          this.gameState.isNewScoreRecord = false
+          this.uiManager.currentScreen = 'game'
+          this.restartCurrentWave()
+        }
+      } else {
+        this.uiManager.showToast('需要看完广告才能恢复生命哦')
+      }
+    })
+
+    // 签到双倍广告关闭处理
+    this.adManager.bindCloseHandler('checkinDouble', (isEnded) => {
+      if (isEnded) {
+        this.gameState.setAdDoubleCheckin()
+        this.uiManager.showToast('已激活双倍奖励，正在签到...')
+        this.doCheckin()
+      } else {
+        this.uiManager.showToast('需要看完广告才能激活双倍奖励哦')
+      }
+    })
+
+    // 礼包双倍广告关闭处理
+    this.adManager.bindCloseHandler('giftDouble', (isEnded) => {
+      if (isEnded) {
+        this.gameState.setAdDoubleGift()
+        this.uiManager.showToast('已激活双倍奖励，正在领取礼包...')
+        this.applyShareReward('gift')
+      } else {
+        this.uiManager.showToast('需要看完广告才能激活双倍奖励哦')
+      }
+    })
+  }
+
+  // 观看广告复活
+  adReviveAndContinue() {
+    this.audioManager.play('click')
+
+    if (!this.gameState.canAdRevive()) {
+      this.vibrate('light')
+      this.uiManager.showToast('广告复活次数已用完')
+      return
+    }
+
+    this.adManager.showRewardedAd('revive', {
+      onError: (err) => {
+        this.uiManager.showToast('广告暂时不可用，请稍后再试')
+      }
+    })
+  }
+
+  // 观看广告激活签到双倍
+  watchAdForCheckinDouble() {
+    this.audioManager.play('click')
+
+    if (!this.gameState.canCheckin()) {
+      this.uiManager.showToast('今日已签到')
+      return
+    }
+
+    this.adManager.showRewardedAd('checkinDouble', {
+      onError: (err) => {
+        this.uiManager.showToast('广告暂时不可用，请稍后再试')
+      }
+    })
+  }
+
+  // 观看广告激活礼包双倍
+  watchAdForGiftDouble() {
+    this.audioManager.play('click')
+
+    if (!this.gameState.canShareGift()) {
+      this.uiManager.showToast('今日礼包已领取')
+      return
+    }
+
+    this.adManager.showRewardedAd('giftDouble', {
+      onError: (err) => {
+        this.uiManager.showToast('广告暂时不可用，请稍后再试')
+      }
+    })
   }
 
   // 重新开始当前关卡（生命扣除后）
@@ -1016,14 +1170,27 @@ export class Main {
 
   // 执行签到（优先云端，降级本地）
   async doCheckin() {
+    // 检查是否有双倍奖励标记
+    const isDouble = this.gameState.consumeAdDoubleCheckin()
+
     const result = await this.gameState.doCloudCheckin()
-    
+
     if (result) {
       this.vibrate('medium')
       this.audioManager.play('success')
-      this.uiManager.showToast(
-        `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币'}`
-      )
+
+      // 如果是双倍奖励，额外发放一份
+      if (isDouble) {
+        const bonusAmount = result.amount
+        this.gameState.addCoins(bonusAmount)
+        this.uiManager.showToast(
+          `签到成功！双倍奖励 ${result.amount * 2} 金币 🪙`
+        )
+      } else {
+        this.uiManager.showToast(
+          `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币'}`
+        )
+      }
       return true
     } else {
       this.vibrate('light')
@@ -1085,9 +1252,20 @@ export class Main {
         this.uiManager.currentScreen = 'menu'
         return
       }
-      this.gameState.claimShareGift()
-      this.uiManager.currentScreen = 'menu'
-      this.uiManager.showToast(`分享成功！金币 +${config.rewards.shareGift}`)
+
+      // 检查是否有双倍奖励标记
+      const isDouble = this.gameState.consumeAdDoubleGift()
+      const result = this.gameState.claimShareGift()
+
+      if (isDouble) {
+        // 双倍奖励：额外发放一份
+        this.gameState.addCoins(result.amount)
+        this.uiManager.currentScreen = 'menu'
+        this.uiManager.showToast(`分享成功！双倍奖励 ${result.amount * 2} 金币 🪙`)
+      } else {
+        this.uiManager.currentScreen = 'menu'
+        this.uiManager.showToast(`分享成功！金币 +${result.amount}`)
+      }
     }
   }
 
