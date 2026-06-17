@@ -55,29 +55,35 @@ export class Main {
 
   // 初始化
   async init() {
-    // 设置屏幕常亮
-    wechatAPI.keepScreenOn(true)
-    
-    // 设置分享
-    this.setupShare()
-    
-    // 绑定触摸事件
-    this.bindEvents()
-    
-    // 绑定游戏生命周期事件
-    this.bindLifecycleEvents()
-    
-    // 从云端加载数据（异步，不阻塞游戏启动）
-    this.gameState.loadCloudData()
-    
-    // 阶段 1：立即创建必要的缓存（背景）
-    this.bubbleGrid.createBgCache()
-    
-    // 开始游戏循环（先启动，保证快速响应）
-    this.start()
-    
-    // 阶段 2：延迟创建非必要的缓存（使用 requestIdleCallback 或 setTimeout）
-    this.createDeferredCaches()
+    try {
+      // 设置屏幕常亮
+      wechatAPI.keepScreenOn(true)
+      
+      // 设置分享
+      this.setupShare()
+      
+      // 绑定触摸事件
+      this.bindEvents()
+      
+      // 绑定游戏生命周期事件
+      this.bindLifecycleEvents()
+      
+      // 从云端加载数据（异步，不阻塞游戏启动）
+      this.gameState.loadCloudData()
+      
+      // 阶段 1：立即创建必要的缓存（背景）
+      this.bubbleGrid.createBgCache()
+      
+      // 开始游戏循环（先启动，保证快速响应）
+      this.start()
+      
+      // 阶段 2：延迟创建非必要的缓存（使用 requestIdleCallback 或 setTimeout）
+      this.createDeferredCaches()
+    } catch (error) {
+      console.error('初始化失败:', error)
+      // 即使初始化失败，也尝试启动游戏循环
+      this.start()
+    }
   }
   
   // 延迟创建缓存（在空闲时执行）
@@ -124,18 +130,28 @@ export class Main {
 
   // 设置分享
   setupShare() {
-    wx.showShareMenu({
-      withShareTicket: true,
-      menus: ['shareAppMessage', 'shareTimeline']
-    })
-    
-    // 监听分享
-    wx.onShareAppMessage(() => {
-      return {
-        title: '来挑战泡泡大师！',
-        query: `score=${this.gameState.score}&wave=${this.gameState.wave}`
-      }
-    })
+    try {
+      wx.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+        success: () => {
+          console.log('分享菜单设置成功')
+        },
+        fail: (err) => {
+          console.warn('分享菜单设置失败:', err)
+        }
+      })
+      
+      // 监听分享
+      wx.onShareAppMessage(() => {
+        return {
+          title: '来挑战泡泡大师！',
+          query: `score=${this.gameState.score}&wave=${this.gameState.wave}`
+        }
+      })
+    } catch (error) {
+      console.warn('设置分享失败:', error)
+    }
   }
 
   // 绑定事件
@@ -843,16 +859,30 @@ export class Main {
     this.audioManager.play('click')
     
     if (this.gameState.canShareRevive()) {
-      // 设置等待标志
-      this.gameState.isWaitingShareRevive = true
-      
-      // 触发微信分享
-      wx.shareAppMessage({
-        title: '来挑战泡泡大师！',
-        query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
-      })
-      
-      // 用户分享后返回游戏，会在 onShow 中执行复活
+      try {
+        // 设置等待标志
+        this.gameState.isWaitingShareRevive = true
+        
+        // 触发微信分享
+        wx.shareAppMessage({
+          title: '来挑战泡泡大师！',
+          query: `wave=${this.gameState.wave}&score=${this.gameState.score}`,
+          success: () => {
+            console.log('分享调用成功')
+          },
+          fail: (err) => {
+            console.warn('分享调用失败:', err)
+            // 分享失败时清除等待标志
+            this.gameState.isWaitingShareRevive = false
+          }
+        })
+        
+        // 用户分享后返回游戏，会在 onShow 中执行复活
+      } catch (error) {
+        console.warn('分享复活失败:', error)
+        this.gameState.isWaitingShareRevive = false
+        this.uiManager.showToast('分享功能暂不可用')
+      }
     } else {
       this.vibrate('light')
       this.uiManager.showToast('分享复活次数已用完')

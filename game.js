@@ -35,16 +35,18 @@ function startGameWithPrivacy() {
     wx.requirePrivacyAuthorize({
       success: () => {
         // 用户已同意隐私政策，启动游戏
+        console.log('用户已同意隐私政策')
         launchGame()
       },
-      fail: () => {
+      fail: (err) => {
         // 用户拒绝隐私政策，仍然启动游戏（但某些功能可能受限）
-        console.log('用户拒绝隐私政策，部分功能可能受限')
+        console.log('用户拒绝隐私政策，部分功能可能受限:', err)
         launchGame()
       }
     })
   } else {
     // 旧版本基础库或非微信环境，直接启动
+    console.log('无需隐私授权，直接启动')
     launchGame()
   }
 }
