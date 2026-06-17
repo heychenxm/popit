@@ -994,6 +994,13 @@ export class Main {
     
     if (result.success) {
       this.uiManager.leaderboardData = result.data
+      console.log('排行榜数据:', JSON.stringify({
+        userRank: result.data && result.data.userRank,
+        userValue: result.data && result.data.userValue,
+        leaderboardLen: result.data && result.data.leaderboard && result.data.leaderboard.length,
+        hasUser: result.data && result.data.leaderboard && result.data.leaderboard.some(u => u.isUser),
+        fromCache: result.fromCache
+      }))
       // 显示同步状态
       if (result.fromCache) {
         console.log('使用缓存的排行榜数据')

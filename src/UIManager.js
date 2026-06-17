@@ -1419,7 +1419,7 @@ export class UIManager {
   drawLeaderboardModal(gameState) {
     const ctx = this.ctx
     const modalW = 360
-    const modalH = 520
+    const modalH = 560
     const modalX = (this.width - modalW) / 2
     const modalY = (this.height - modalH) / 2
     
@@ -1617,9 +1617,19 @@ export class UIManager {
     const listContainerX = modalX + modalPadding
     const listContainerW = modalW - modalPadding * 2
     const listContainerY = top3ContainerY + top3ContainerH + 10
-    const listContainerH = 160
     const listItemH = 40
     const listItemGap = 8
+    
+    // 判断用户是否在前 6 名
+    const userInTop6 = this.leaderboardData && this.leaderboardData.leaderboard && 
+      this.leaderboardData.leaderboard.some(u => u.isUser)
+    // 用户不在前 6 名时，在第 7 行显示「未上榜」
+    const showUserUnranked = !showSkeleton && !userInTop6
+    console.log('排行榜渲染调试:', { showSkeleton, userInTop6, showUserUnranked,
+      userRank: this.leaderboardData && this.leaderboardData.userRank,
+      userValue: this.leaderboardData && this.leaderboardData.userValue })
+    const listCount = showUserUnranked ? 4 : 3
+    const listContainerH = listInnerPadding + listCount * listItemH + (listCount - 1) * listItemGap + listInnerPadding
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
@@ -1657,6 +1667,16 @@ export class UIManager {
           isHighlight, user.isUser
         )
       })
+      
+      // 如果用户不在前 6 名但已上榜，在第 7 行显示「未上榜」
+      if (showUserUnranked) {
+        const itemY = listContainerY + listInnerPadding + 3 * (listItemH + listItemGap)
+        this.drawLeaderboardListItem(
+          itemX, itemY, itemW, listItemH,
+          0, gameState.userInfo.nickname, gameState.userInfo.avatarUrl, 0,
+          false, true, true
+        )
+      }
     }
     
     // 游戏圈按钮
@@ -1669,7 +1689,7 @@ export class UIManager {
   drawSeasonLeaderboardModal(gameState) {
     const ctx = this.ctx
     const modalW = 360
-    const modalH = 520
+    const modalH = 560
     const modalX = (this.width - modalW) / 2
     const modalY = (this.height - modalH) / 2
     
@@ -1872,9 +1892,16 @@ export class UIManager {
     const listContainerX = modalX + modalPadding
     const listContainerW = modalW - modalPadding * 2
     const listContainerY = topContainerY + topContainerH + 10
-    const listContainerH = 160
     const listItemH = 40
     const listItemGap = 8
+    
+    // 判断用户是否在前 6 名
+    const seasonUserInTop6 = this.seasonLeaderboardData && this.seasonLeaderboardData.leaderboard && 
+      this.seasonLeaderboardData.leaderboard.some(u => u.isUser)
+    // 用户不在前 6 名时，在第 7 行显示「未上榜」
+    const showSeasonUserUnranked = !showSeasonSkeleton && !seasonUserInTop6
+    const seasonListCount = showSeasonUserUnranked ? 4 : 3
+    const listContainerH = listInnerPadding + seasonListCount * listItemH + (seasonListCount - 1) * listItemGap + listInnerPadding
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
@@ -1912,6 +1939,16 @@ export class UIManager {
           isHighlight, user.isUser
         )
       })
+      
+      // 如果用户不在前 6 名但已上榜，在第 7 行显示「未上榜」
+      if (showSeasonUserUnranked) {
+        const itemY = listContainerY + listInnerPadding + 3 * (listItemH + listItemGap)
+        this.drawLeaderboardListItem(
+          itemX, itemY, itemW, listItemH,
+          0, gameState.userInfo.nickname, gameState.userInfo.avatarUrl, 0,
+          false, true, true
+        )
+      }
     }
     
     // 底部提示
@@ -2158,7 +2195,7 @@ export class UIManager {
   }
 
   // 绘制排行榜列表项
-  drawLeaderboardListItem(x, y, w, h, rank, nickname, avatarUrl, value, isHighlight, isUser) {
+  drawLeaderboardListItem(x, y, w, h, rank, nickname, avatarUrl, value, isHighlight, isUser, isUnranked = false) {
     const ctx = this.ctx
     const itemPadding = 12
     
@@ -2179,12 +2216,17 @@ export class UIManager {
       ctx.stroke()
     }
     
-    ctx.font = isHighlight ? 'bold 12px sans-serif' : '11px sans-serif'
-    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.gray400
+    // 排名列：未上榜时显示「未上榜」
+    ctx.font = isUnranked ? 'bold 11px sans-serif' : (isHighlight ? 'bold 12px sans-serif' : '11px sans-serif')
+    ctx.fillStyle = isUnranked ? '#f87171' : (isHighlight ? '#fbbf24' : Colors.gray400)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    const rankText = typeof rank === 'number' ? `${rank}.` : rank
-    ctx.fillText(rankText, x + itemPadding, y + h / 2)
+    if (isUnranked) {
+      ctx.fillText('未上榜', x + itemPadding, y + h / 2)
+    } else {
+      const rankText = typeof rank === 'number' ? `${rank}.` : rank
+      ctx.fillText(rankText, x + itemPadding, y + h / 2)
+    }
     
     const avatarSize = 32
     const avatarX = x + itemPadding + 28
@@ -2198,10 +2240,13 @@ export class UIManager {
     const displayNickname = safeNickname.length > 10 ? safeNickname.substring(0, 9) + '...' : safeNickname
     ctx.fillText(displayNickname, avatarX + avatarSize / 2 + 12, y + h / 2)
     
-    ctx.font = 'bold 13px sans-serif'
-    ctx.fillStyle = '#a5b4fc'
-    ctx.textAlign = 'right'
-    ctx.fillText(value.toString(), x + w - itemPadding, y + h / 2)
+    // 未上榜时不显示分数
+    if (!isUnranked) {
+      ctx.font = 'bold 13px sans-serif'
+      ctx.fillStyle = '#a5b4fc'
+      ctx.textAlign = 'right'
+      ctx.fillText(value.toString(), x + w - itemPadding, y + h / 2)
+    }
     
     ctx.restore()
   }
