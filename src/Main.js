@@ -994,13 +994,6 @@ export class Main {
     
     if (result.success) {
       this.uiManager.leaderboardData = result.data
-      console.log('排行榜数据:', JSON.stringify({
-        userRank: result.data && result.data.userRank,
-        userValue: result.data && result.data.userValue,
-        leaderboardLen: result.data && result.data.leaderboard && result.data.leaderboard.length,
-        hasUser: result.data && result.data.leaderboard && result.data.leaderboard.some(u => u.isUser),
-        fromCache: result.fromCache
-      }))
       // 显示同步状态
       if (result.fromCache) {
         console.log('使用缓存的排行榜数据')
@@ -1263,181 +1256,67 @@ export class Main {
   
   // 显示头像昵称选择组件（高版本微信降级方案）
   showAvatarNicknamePicker() {
-    if (this.showingAvatarPicker) return // 防止重复创建
+    if (this.showingAvatarPicker) return
     
     this.showingAvatarPicker = true
     
-    const systemInfo = wx.getSystemInfoSync()
-    const windowWidth = systemInfo.windowWidth
-    const windowHeight = systemInfo.windowHeight
-    
-    // 创建半透明遮罩
-    const mask = wx.createInput({
-      type: 'text',
-      style: {
-        left: 0,
-        top: 0,
-        width: windowWidth,
-        height: windowHeight,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        borderWidth: 0,
-        borderColor: 'transparent'
-      }
-    })
-    
-    // 点击遮罩关闭
-    mask.onTap(() => {
-      this.hideAvatarNicknamePicker()
-    })
-    
-    // 创建头像选择按钮
-    const btnWidth = 200
-    const btnHeight = 44
-    const avatarBtnX = (windowWidth - btnWidth) / 2
-    const avatarBtnY = windowHeight * 0.45
-    
-    this.avatarButton = wx.createButton({
-      type: 'text',
-      text: '选择头像',
-      style: {
-        left: avatarBtnX,
-        top: avatarBtnY,
-        width: btnWidth,
-        height: btnHeight,
-        backgroundColor: '#6366f1',
-        color: '#ffffff',
-        fontSize: 14,
-        borderRadius: 22,
-        textAlign: 'center',
-        lineHeight: btnHeight
-      }
-    })
-    
-    this.avatarButton.onTap(() => {
-      // 调用 chooseAvatar API
-      wx.chooseAvatar({
-        success: (res) => {
-          const avatarUrl = res.avatarUrl
-          // 保存头像（不立即同步到云端）
-          this.gameState.saveUserProfileLocally(
-            this.gameState.userInfo.nickname,
-            avatarUrl
-          )
-          this.uiManager.showToast('头像设置成功！')
-          // 不立即同步，等待用户点击完成按钮时统一保存
-          this.hideAvatarNicknamePicker()
-        },
-        fail: (err) => {
-          console.log('选择头像失败', err)
-          this.uiManager.showToast('已取消选择')
+    // 先提示用户选择头像
+    wx.showModal({
+      title: '设置头像',
+      content: '是否要设置头像？',
+      confirmText: '选择头像',
+      cancelText: '跳过',
+      success: (res) => {
+        if (res.confirm) {
+          wx.chooseAvatar({
+            success: (avatarRes) => {
+              this.gameState.saveUserProfileLocally(
+                this.gameState.userInfo.nickname,
+                avatarRes.avatarUrl
+              )
+              this.uiManager.showToast('头像设置成功！')
+              // 继续设置昵称
+              this._showNicknameInput()
+            },
+            fail: () => {
+              this.uiManager.showToast('已取消选择')
+              // 继续设置昵称
+              this._showNicknameInput()
+            }
+          })
+        } else {
+          // 跳过头像，直接设置昵称
+          this._showNicknameInput()
         }
-      })
-    })
-    
-    // 创建昵称输入框
-    const inputWidth = 240
-    const inputHeight = 40
-    const inputX = (windowWidth - inputWidth) / 2
-    const inputY = avatarBtnY + 70
-    
-    this.nicknameInput = wx.createInput({
-      type: 'text',
-      value: this.gameState.userInfo.nickname || '',
-      placeholder: '请输入昵称',
-      style: {
-        left: inputX,
-        top: inputY,
-        width: inputWidth,
-        height: inputHeight,
-        backgroundColor: '#ffffff',
-        color: '#333333',
-        fontSize: 14,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#cccccc',
-        textAlign: 'center'
       }
     })
-    
-    this.nicknameInput.onTap(() => {
-      // 输入框获得焦点
-    })
-    
-    this.nicknameInput.onConfirm((res) => {
-      const nickname = res.value.trim()
-      if (nickname) {
-        // 保存昵称（不立即同步到云端）
-        this.gameState.saveUserProfileLocally(
-          nickname,
-          this.gameState.userInfo.avatarUrl
-        )
-        this.uiManager.showToast('昵称设置成功！')
-        // 不立即同步，等待用户点击完成按钮时统一保存
-        this.hideAvatarNicknamePicker()
-      } else {
-        this.uiManager.showToast('昵称不能为空')
+  }
+  
+  // 显示昵称输入框
+  _showNicknameInput() {
+    wx.showModal({
+      title: '设置昵称',
+      placeholderText: '请输入昵称',
+      editable: true,
+      confirmText: '完成',
+      success: (res) => {
+        if (res.confirm && res.content && res.content.trim()) {
+          this.gameState.saveUserProfileLocally(
+            res.content.trim(),
+            this.gameState.userInfo.avatarUrl
+          )
+          this.uiManager.showToast('昵称设置成功！')
+          // 同步到云端
+          this.gameState.saveUserProfileToCloud().catch(() => {})
+        }
+        this.showingAvatarPicker = false
       }
     })
-    
-    // 创建确认按钮
-    const confirmBtn = wx.createButton({
-      type: 'text',
-      text: '完成设置',
-      style: {
-        left: avatarBtnX,
-        top: inputY + 60,
-        width: btnWidth,
-        height: btnHeight,
-        backgroundColor: '#10b981',
-        color: '#ffffff',
-        fontSize: 14,
-        borderRadius: 22,
-        textAlign: 'center',
-        lineHeight: btnHeight
-      }
-    })
-    
-    confirmBtn.onTap(() => {
-      const nickname = this.nicknameInput ? this.nicknameInput.getValue() : ''
-      if (nickname && nickname.trim()) {
-        // 保存用户信息并同步到云端
-        this.gameState.saveUserProfileLocally(
-          nickname.trim(),
-          this.gameState.userInfo.avatarUrl
-        )
-        this.uiManager.showToast('设置成功！')
-        // 只在点击完成按钮时同步到云端（只保存用户信息）
-        this.gameState.saveUserProfileToCloud().catch(() => {})
-      }
-      this.hideAvatarNicknamePicker()
-    })
-    
-    // 存储遮罩引用以便销毁
-    this._avatarPickerMask = mask
-    this._avatarPickerConfirm = confirmBtn
   }
   
   // 隐藏头像昵称填写组件
   hideAvatarNicknamePicker() {
     this.showingAvatarPicker = false
-    
-    // 销毁所有组件
-    if (this.avatarButton) {
-      this.avatarButton.destroy()
-      this.avatarButton = null
-    }
-    if (this.nicknameInput) {
-      this.nicknameInput.destroy()
-      this.nicknameInput = null
-    }
-    if (this._avatarPickerMask) {
-      this._avatarPickerMask.destroy()
-      this._avatarPickerMask = null
-    }
-    if (this._avatarPickerConfirm) {
-      this._avatarPickerConfirm.destroy()
-      this._avatarPickerConfirm = null
-    }
   }
 
   // 开始游戏循环
