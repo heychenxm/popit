@@ -1,4 +1,4 @@
-import { Colors, drawRoundRect, drawText, drawTextWithShadow, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
+import { Colors, drawRoundRect, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
 import { config } from './config.js'
 import { 
   drawBarChartIcon, 
@@ -62,6 +62,20 @@ export class UIManager {
     
     // 缓存文字测量结果（优化：避免重复测量）
     this.textMeasureCache = new Map()
+    
+    // 缓存微信 SDK 版本（避免重复调用 wx.getSystemInfoSync）
+    this._sdkVersion = ''
+    this._isOldWxVersion = false
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync) {
+      try {
+        const systemInfo = wx.getSystemInfoSync()
+        this._sdkVersion = systemInfo.SDKVersion || ''
+        const [major, minor] = this._sdkVersion.split('.').map(Number)
+        this._isOldWxVersion = major < 2 || (major === 2 && minor < 27)
+      } catch (e) {
+        // 忽略错误
+      }
+    }
     
     // 预计算常用数值宽度（优化：避免重复 measureText）
     this.numberWidths = []
@@ -175,6 +189,11 @@ export class UIManager {
     let cached = this.textMeasureCache.get(cacheKey)
     if (cached === undefined) {
       cached = this.ctx.measureText(text).width
+      // 限制缓存大小，防止内存泄漏
+      if (this.textMeasureCache.size >= 500) {
+        const firstKey = this.textMeasureCache.keys().next().value
+        this.textMeasureCache.delete(firstKey)
+      }
       this.textMeasureCache.set(cacheKey, cached)
     }
     return cached
@@ -406,12 +425,6 @@ export class UIManager {
     const btnX = (this.width - btnWidth) / 2
     const btnY = this.height * 0.44
     
-    // 检测微信版本
-    const systemInfo = wx.getSystemInfoSync()
-    const version = systemInfo.SDKVersion || ''
-    const [major, minor] = version.split('.').map(Number)
-    const isOldVersion = major < 2 || (major === 2 && minor < 27)
-    
     ctx.save()
     
     // 使用预创建的渐变
@@ -440,7 +453,7 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
-    const buttonText = isOldVersion ? '授权获取昵称和头像' : '设置昵称和头像'
+    const buttonText = this._isOldWxVersion ? '授权获取昵称和头像' : '设置昵称和头像'
     ctx.fillText(buttonText, this.width / 2, btnY + btnHeight / 2)
     
     // 添加按钮到按钮列表
@@ -997,32 +1010,7 @@ export class UIManager {
     ctx.stroke()
     
     // 关闭按钮
-    const closeBtnSize = 32
-    const closeBtnPadding = 20
-    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
-    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.beginPath()
-    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('✕', closeBtnX, closeBtnY)
-    
-    this.buttons.push({
-      id: 'close',
-      x: closeBtnX - closeBtnSize / 2,
-      y: closeBtnY - closeBtnSize / 2,
-      w: closeBtnSize,
-      h: closeBtnSize
-    })
+    this._drawCloseButton(modalX, modalW, modalY)
     
     // 标题
     const titleY = modalY + 35
@@ -1228,32 +1216,7 @@ export class UIManager {
     ctx.stroke()
     
     // 关闭按钮
-    const closeBtnSize = 32
-    const closeBtnPadding = 20
-    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
-    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.beginPath()
-    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('✕', closeBtnX, closeBtnY)
-    
-    this.buttons.push({
-      id: 'close',
-      x: closeBtnX - closeBtnSize / 2,
-      y: closeBtnY - closeBtnSize / 2,
-      w: closeBtnSize,
-      h: closeBtnSize
-    })
+    this._drawCloseButton(modalX, modalW, modalY)
     
     // 礼物图标容器
     const iconContainerSize = 64
@@ -1417,7 +1380,42 @@ export class UIManager {
 
   // 绘制排行榜弹窗
   drawLeaderboardModal(gameState) {
+    this._drawLeaderboardModal(gameState, {
+      title: '🏆 排行榜',
+      data: this.leaderboardData,
+      loading: this.leaderboardLoading,
+      type: this.leaderboardType,
+      btnPrefix: 'leaderboard',
+      gradientKey: 'rankSwitchActive',
+      rankCardMethod: 'drawLeaderboardRankCard',
+      showFooter: false
+    })
+  }
+
+  // 绘制赛季排名弹窗
+  drawSeasonLeaderboardModal(gameState) {
+    let titleText = ' 赛季排名'
+    if (gameState && gameState.seasonInfo && gameState.seasonInfo.currentSeasonId) {
+      const seasonNum = gameState.seasonInfo.currentSeasonId.replace(/^\d+-S/, 'S')
+      titleText = `🏆 ${seasonNum} 赛季排名`
+    }
+    
+    this._drawLeaderboardModal(gameState, {
+      title: titleText,
+      data: this.seasonLeaderboardData,
+      loading: this.seasonLeaderboardLoading,
+      type: this.seasonLeaderboardType,
+      btnPrefix: 'season_leaderboard',
+      gradientKey: 'seasonSwitchActive',
+      rankCardMethod: 'drawSeasonLeaderboardRankCard',
+      showFooter: true
+    })
+  }
+
+  // 通用排行榜弹窗绘制方法
+  _drawLeaderboardModal(gameState, options) {
     const ctx = this.ctx
+    const { title, data, loading, type, btnPrefix, gradientKey, rankCardMethod, showFooter } = options
     const modalW = 360
     const modalH = 560
     const modalX = (this.width - modalW) / 2
@@ -1445,32 +1443,7 @@ export class UIManager {
     ctx.stroke()
     
     // 关闭按钮
-    const closeBtnSize = 32
-    const closeBtnPadding = 20
-    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
-    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.beginPath()
-    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('✕', closeBtnX, closeBtnY)
-    
-    this.buttons.push({
-      id: 'close',
-      x: closeBtnX - closeBtnSize / 2,
-      y: closeBtnY - closeBtnSize / 2,
-      w: closeBtnSize,
-      h: closeBtnSize
-    })
+    this._drawCloseButton(modalX, modalW, modalY)
     
     // 标题
     const titleY = modalY + 35
@@ -1478,7 +1451,7 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#a5b4fc'
-    ctx.fillText('🏆 排行榜', this.width / 2, titleY)
+    ctx.fillText(title, this.width / 2, titleY)
     
     // 切换按钮容器
     const switchContainerY = titleY + 35
@@ -1494,19 +1467,18 @@ export class UIManager {
     // 切换按钮：最高分
     const scoreBtnW = switchContainerW / 2
     const scoreBtnX = switchContainerX
-    const scoreBtnActive = this.leaderboardType === 'score'
+    const scoreBtnActive = type === 'score'
     
     if (scoreBtnActive) {
-      // 使用预创建的渐变
       if (!this.cachedGradients) {
         this.cachedGradients = {}
       }
-      if (!this.cachedGradients.rankSwitchActive) {
-        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
-        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
-        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      if (!this.cachedGradients[gradientKey]) {
+        this.cachedGradients[gradientKey] = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients[gradientKey].addColorStop(0, '#fbbf24')
+        this.cachedGradients[gradientKey].addColorStop(1, '#d97706')
       }
-      ctx.fillStyle = this.cachedGradients.rankSwitchActive
+      ctx.fillStyle = this.cachedGradients[gradientKey]
       drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1517,7 +1489,7 @@ export class UIManager {
     ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
     
     this.buttons.push({
-      id: 'leaderboard_score',
+      id: `${btnPrefix}_score`,
       x: scoreBtnX,
       y: switchContainerY,
       w: scoreBtnW,
@@ -1526,19 +1498,18 @@ export class UIManager {
     
     // 切换按钮：最高关卡
     const waveBtnX = switchContainerX + scoreBtnW
-    const waveBtnActive = this.leaderboardType === 'wave'
+    const waveBtnActive = type === 'wave'
     
     if (waveBtnActive) {
-      // 使用预创建的渐变
       if (!this.cachedGradients) {
         this.cachedGradients = {}
       }
-      if (!this.cachedGradients.rankSwitchActive) {
-        this.cachedGradients.rankSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
-        this.cachedGradients.rankSwitchActive.addColorStop(0, '#fbbf24')
-        this.cachedGradients.rankSwitchActive.addColorStop(1, '#d97706')
+      if (!this.cachedGradients[gradientKey]) {
+        this.cachedGradients[gradientKey] = ctx.createLinearGradient(0, 0, 0, 36)
+        this.cachedGradients[gradientKey].addColorStop(0, '#fbbf24')
+        this.cachedGradients[gradientKey].addColorStop(1, '#d97706')
       }
-      ctx.fillStyle = this.cachedGradients.rankSwitchActive
+      ctx.fillStyle = this.cachedGradients[gradientKey]
       drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
       ctx.fill()
     }
@@ -1547,7 +1518,7 @@ export class UIManager {
     ctx.fillText('最高关卡', waveBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
     
     this.buttons.push({
-      id: 'leaderboard_wave',
+      id: `${btnPrefix}_wave`,
       x: waveBtnX,
       y: switchContainerY,
       w: scoreBtnW,
@@ -1560,7 +1531,7 @@ export class UIManager {
     const top3ItemW = (modalW - 60) / 3
     
     // 检查是否需要显示骨架屏
-    const showSkeleton = this.leaderboardLoading || !this.leaderboardData || !this.leaderboardData.leaderboard || this.leaderboardData.leaderboard.length === 0
+    const showSkeleton = loading || !data || !data.leaderboard || data.leaderboard.length === 0
     
     if (showSkeleton) {
       // 显示骨架屏 - 前三名
@@ -1569,25 +1540,23 @@ export class UIManager {
         const itemY = i === 1 ? top3ContainerY - 10 : top3ContainerY
         const itemH = i === 1 ? top3ContainerH + 10 : top3ContainerH
         
-        // 骨架屏背景
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
         drawRoundRect(ctx, itemX, itemY, top3ItemW, itemH, 16)
         ctx.fill()
         
-        // 骨架屏动画（闪烁效果）
-        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500)
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.3)
         ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
         drawRoundRect(ctx, itemX + 5, itemY + 5, top3ItemW - 10, itemH - 10, 12)
         ctx.fill()
       }
     } else {
-      const leaderboard = this.leaderboardData.leaderboard
+      const leaderboard = data.leaderboard
       const top1 = leaderboard[0]
       const top2 = leaderboard[1]
       const top3 = leaderboard[2]
       
       if (top2) {
-        this.drawLeaderboardRankCard(
+        this[rankCardMethod](
           modalX + 20, top3ContainerY, top3ItemW, top3ContainerH,
           top2.rank, top2.nickname, top2.avatarUrl, top2.value,
           2, top2.isUser
@@ -1595,7 +1564,7 @@ export class UIManager {
       }
       
       if (top1) {
-        this.drawLeaderboardRankCard(
+        this[rankCardMethod](
           modalX + 20 + top3ItemW + 10, top3ContainerY - 10, top3ItemW, top3ContainerH + 10,
           top1.rank, top1.nickname, top1.avatarUrl, top1.value,
           1, top1.isUser, true
@@ -1603,7 +1572,7 @@ export class UIManager {
       }
       
       if (top3) {
-        this.drawLeaderboardRankCard(
+        this[rankCardMethod](
           modalX + 20 + (top3ItemW + 10) * 2, top3ContainerY, top3ItemW, top3ContainerH,
           top3.rank, top3.nickname, top3.avatarUrl, top3.value,
           3, top3.isUser
@@ -1621,9 +1590,7 @@ export class UIManager {
     const listItemGap = 8
     
     // 判断用户是否在前 6 名
-    const userInTop6 = this.leaderboardData && this.leaderboardData.leaderboard && 
-      this.leaderboardData.leaderboard.some(u => u.isUser)
-    // 用户不在前 6 名时，在第 7 行显示「未上榜」
+    const userInTop6 = data && data.leaderboard && data.leaderboard.some(u => u.isUser)
     const showUserUnranked = !showSkeleton && !userInTop6
     const listCount = showUserUnranked ? 4 : 3
     const listContainerH = listInnerPadding + listCount * listItemH + (listCount - 1) * listItemGap + listInnerPadding
@@ -1637,19 +1604,17 @@ export class UIManager {
       for (let i = 0; i < 3; i++) {
         const itemY = listContainerY + listInnerPadding + i * (listItemH + listItemGap)
         
-        // 骨架屏背景
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
         drawRoundRect(ctx, listContainerX + listInnerPadding, itemY, listContainerW - listInnerPadding * 2, listItemH, 8)
         ctx.fill()
         
-        // 骨架屏动画
         const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
         ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
         drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
         ctx.fill()
       }
     } else {
-      const leaderboard = this.leaderboardData.leaderboard
+      const leaderboard = data.leaderboard
       const listStartIndex = 3
       const itemX = listContainerX + listInnerPadding
       const itemW = listContainerW - listInnerPadding * 2
@@ -1665,7 +1630,7 @@ export class UIManager {
         )
       })
       
-      // 如果用户不在前 6 名但已上榜，在第 7 行显示「未上榜」
+      // 用户不在前 6 名时，在第 7 行显示「未上榜」
       if (showUserUnranked) {
         const itemY = listContainerY + listInnerPadding + 3 * (listItemH + listItemGap)
         this.drawLeaderboardListItem(
@@ -1676,284 +1641,14 @@ export class UIManager {
       }
     }
     
-    // 游戏圈按钮
-    this.drawGameClubButton(modalX, modalW, modalY, modalH)
-    
-    ctx.restore()
-  }
-
-  // 绘制赛季排名弹窗
-  drawSeasonLeaderboardModal(gameState) {
-    const ctx = this.ctx
-    const modalW = 360
-    const modalH = 560
-    const modalX = (this.width - modalW) / 2
-    const modalY = (this.height - modalH) / 2
-    
-    // 清空按钮数组
-    this.buttons.length = 0
-    
-    ctx.save()
-    
-    // 半透明背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    ctx.fillRect(0, 0, this.width, this.height)
-    
-    // 弹窗背景渐变
-    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
-    gradient.addColorStop(0, '#312e81')
-    gradient.addColorStop(1, '#4c1d95')
-    
-    ctx.fillStyle = gradient
-    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
-    ctx.fill()
-    ctx.strokeStyle = '#818cf8'
-    ctx.lineWidth = 3
-    ctx.stroke()
-    
-    // 关闭按钮
-    const closeBtnSize = 32
-    const closeBtnPadding = 20
-    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
-    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.beginPath()
-    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = 'bold 16px sans-serif'
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('✕', closeBtnX, closeBtnY)
-    
-    this.buttons.push({
-      id: 'close',
-      x: closeBtnX - closeBtnSize / 2,
-      y: closeBtnY - closeBtnSize / 2,
-      w: closeBtnSize,
-      h: closeBtnSize
-    })
-    
-    // 标题
-    const titleY = modalY + 35
-    ctx.font = 'bold 20px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = '#a5b4fc'
-    
-    // 显示赛季编号 + 标题（如：S23 赛季排名）
-    let titleText = '🏆 赛季排名'
-    if (gameState && gameState.seasonInfo && gameState.seasonInfo.currentSeasonId) {
-      const seasonNum = gameState.seasonInfo.currentSeasonId.replace(/^\d+-S/, 'S')
-      titleText = `🏆 ${seasonNum} 赛季排名`
+    // 赛季底部提示
+    if (showFooter) {
+      const footerY = modalY + modalH - 35
+      ctx.font = '10px sans-serif'
+      ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
+      ctx.textAlign = 'center'
+      ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
     }
-    ctx.fillText(titleText, this.width / 2, titleY)
-    
-    // 切换按钮容器
-    const switchContainerY = titleY + 35
-    const switchContainerW = 200
-    const switchContainerH = 36
-    const switchContainerX = modalX + (modalW - switchContainerW) / 2
-    
-    // 切换按钮背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    drawRoundRect(ctx, switchContainerX, switchContainerY, switchContainerW, switchContainerH, 18)
-    ctx.fill()
-    
-    // 切换按钮：最高分
-    const scoreBtnW = switchContainerW / 2
-    const scoreBtnX = switchContainerX
-    const scoreBtnActive = this.seasonLeaderboardType === 'score'
-    
-    if (scoreBtnActive) {
-      // 使用预创建的渐变
-      if (!this.cachedGradients) {
-        this.cachedGradients = {}
-      }
-      if (!this.cachedGradients.seasonSwitchActive) {
-        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
-        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
-        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
-      }
-      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
-      drawRoundRect(ctx, scoreBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
-      ctx.fill()
-    }
-    
-    ctx.font = 'bold 13px sans-serif'
-    ctx.fillStyle = scoreBtnActive ? Colors.white : Colors.gray400
-    ctx.textAlign = 'center'
-    ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
-    
-    this.buttons.push({
-      id: 'season_leaderboard_score',
-      x: scoreBtnX,
-      y: switchContainerY,
-      w: scoreBtnW,
-      h: switchContainerH
-    })
-    
-    // 切换按钮：最高关卡
-    const waveBtnX = switchContainerX + scoreBtnW
-    const waveBtnActive = this.seasonLeaderboardType === 'wave'
-    
-    if (waveBtnActive) {
-      // 使用预创建的渐变
-      if (!this.cachedGradients) {
-        this.cachedGradients = {}
-      }
-      if (!this.cachedGradients.seasonSwitchActive) {
-        this.cachedGradients.seasonSwitchActive = ctx.createLinearGradient(0, 0, 0, 36)
-        this.cachedGradients.seasonSwitchActive.addColorStop(0, '#fbbf24')
-        this.cachedGradients.seasonSwitchActive.addColorStop(1, '#d97706')
-      }
-      ctx.fillStyle = this.cachedGradients.seasonSwitchActive
-      drawRoundRect(ctx, waveBtnX, switchContainerY, scoreBtnW, switchContainerH, 18)
-      ctx.fill()
-    }
-    
-    ctx.fillStyle = waveBtnActive ? Colors.white : Colors.gray400
-    ctx.fillText('最高关卡', waveBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
-    
-    this.buttons.push({
-      id: 'season_leaderboard_wave',
-      x: waveBtnX,
-      y: switchContainerY,
-      w: scoreBtnW,
-      h: switchContainerH
-    })
-    
-    // 前 6 名展示区（2 行 3 列）
-    const topContainerY = switchContainerY + switchContainerH + 20
-    const topContainerH = 140
-    const topItemW = (modalW - 60) / 3
-    
-    // 检查是否需要显示骨架屏
-    const showSeasonSkeleton = this.seasonLeaderboardLoading || !this.seasonLeaderboardData || !this.seasonLeaderboardData.leaderboard || this.seasonLeaderboardData.leaderboard.length === 0
-    
-    if (showSeasonSkeleton) {
-      // 显示骨架屏 - 前三名（与普通排行榜一致）
-      for (let i = 0; i < 3; i++) {
-        const itemX = modalX + 20 + i * (topItemW + 10)
-        const itemY = i === 1 ? topContainerY - 10 : topContainerY
-        const itemH = i === 1 ? topContainerH + 10 : topContainerH
-        
-        // 骨架屏背景
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-        drawRoundRect(ctx, itemX, itemY, topItemW, itemH, 16)
-        ctx.fill()
-        
-        // 骨架屏动画（闪烁效果）
-        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.3)
-        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
-        drawRoundRect(ctx, itemX + 5, itemY + 5, topItemW - 10, itemH - 10, 12)
-        ctx.fill()
-      }
-    } else {
-      const leaderboard = this.seasonLeaderboardData.leaderboard
-      
-      // 第 1 行：第 2、1、3 名
-      if (leaderboard[1]) {
-        this.drawSeasonLeaderboardRankCard(
-          modalX + 20, topContainerY, topItemW, topContainerH,
-          leaderboard[1].rank, leaderboard[1].nickname, leaderboard[1].avatarUrl, leaderboard[1].value,
-          2, leaderboard[1].isUser
-        )
-      }
-      
-      if (leaderboard[0]) {
-        this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + topItemW + 10, topContainerY - 10, topItemW, topContainerH + 10,
-          leaderboard[0].rank, leaderboard[0].nickname, leaderboard[0].avatarUrl, leaderboard[0].value,
-          1, leaderboard[0].isUser, true
-        )
-      }
-      
-      if (leaderboard[2]) {
-        this.drawSeasonLeaderboardRankCard(
-          modalX + 20 + (topItemW + 10) * 2, topContainerY, topItemW, topContainerH,
-          leaderboard[2].rank, leaderboard[2].nickname, leaderboard[2].avatarUrl, leaderboard[2].value,
-          3, leaderboard[2].isUser
-        )
-      }
-    }
-    
-    // 排行榜列表（4-6 名占满容器宽度，左右等距）
-    const modalPadding = 20
-    const listInnerPadding = 10
-    const listContainerX = modalX + modalPadding
-    const listContainerW = modalW - modalPadding * 2
-    const listContainerY = topContainerY + topContainerH + 10
-    const listItemH = 40
-    const listItemGap = 8
-    
-    // 判断用户是否在前 6 名
-    const seasonUserInTop6 = this.seasonLeaderboardData && this.seasonLeaderboardData.leaderboard && 
-      this.seasonLeaderboardData.leaderboard.some(u => u.isUser)
-    // 用户不在前 6 名时，在第 7 行显示「未上榜」
-    const showSeasonUserUnranked = !showSeasonSkeleton && !seasonUserInTop6
-    const seasonListCount = showSeasonUserUnranked ? 4 : 3
-    const listContainerH = listInnerPadding + seasonListCount * listItemH + (seasonListCount - 1) * listItemGap + listInnerPadding
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    drawRoundRect(ctx, listContainerX, listContainerY, listContainerW, listContainerH, 16)
-    ctx.fill()
-    
-    if (showSeasonSkeleton) {
-      // 显示骨架屏 - 列表（与普通排行榜一致）
-      for (let i = 0; i < 3; i++) {
-        const itemY = listContainerY + listInnerPadding + i * (listItemH + listItemGap)
-        
-        // 骨架屏背景
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-        drawRoundRect(ctx, listContainerX + listInnerPadding, itemY, listContainerW - listInnerPadding * 2, listItemH, 8)
-        ctx.fill()
-        
-        // 骨架屏动画
-        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
-        ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
-        drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
-        ctx.fill()
-      }
-    } else {
-      const leaderboard = this.seasonLeaderboardData.leaderboard
-      const listStartIndex = 3
-      const itemX = listContainerX + listInnerPadding
-      const itemW = listContainerW - listInnerPadding * 2
-      
-      leaderboard.slice(listStartIndex, listStartIndex + 3).forEach((user, index) => {
-        const itemY = listContainerY + listInnerPadding + index * (listItemH + listItemGap)
-        const isHighlight = user.isUser || (user.rank <= 3)
-        
-        this.drawLeaderboardListItem(
-          itemX, itemY, itemW, listItemH,
-          user.rank, user.nickname, user.avatarUrl, user.value,
-          isHighlight, user.isUser
-        )
-      })
-      
-      // 如果用户不在前 6 名但已上榜，在第 7 行显示「未上榜」
-      if (showSeasonUserUnranked) {
-        const itemY = listContainerY + listInnerPadding + 3 * (listItemH + listItemGap)
-        this.drawLeaderboardListItem(
-          itemX, itemY, itemW, listItemH,
-          0, gameState.userInfo.nickname, gameState.userInfo.avatarUrl, 0,
-          false, true, true
-        )
-      }
-    }
-    
-    // 底部提示
-    const footerY = modalY + modalH - 35
-    ctx.font = '10px sans-serif'
-    ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
-    ctx.textAlign = 'center'
-    ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
     
     // 游戏圈按钮
     this.drawGameClubButton(modalX, modalW, modalY, modalH)
@@ -2002,51 +1697,6 @@ export class UIManager {
       w: btnW,
       h: btnH
     })
-  }
-
-  // 绘制社区图标
-  drawCommunityIcon(ctx, x, y, size, color) {
-    ctx.save()
-    ctx.translate(x, y)
-    
-    ctx.fillStyle = color
-    
-    // 左侧气泡
-    ctx.beginPath()
-    ctx.moveTo(-size * 0.4, -size * 0.3)
-    ctx.lineTo(size * 0.2, -size * 0.3)
-    ctx.lineTo(size * 0.2, size * 0.1)
-    ctx.lineTo(-size * 0.1, size * 0.1)
-    ctx.lineTo(-size * 0.3, size * 0.4)
-    ctx.lineTo(-size * 0.3, size * 0.1)
-    ctx.lineTo(-size * 0.4, size * 0.1)
-    ctx.closePath()
-    ctx.fill()
-    
-    // 右侧气泡
-    ctx.beginPath()
-    ctx.moveTo(size * 0.1, -size * 0.1)
-    ctx.lineTo(size * 0.5, -size * 0.1)
-    ctx.lineTo(size * 0.5, size * 0.3)
-    ctx.lineTo(size * 0.1, size * 0.3)
-    ctx.closePath()
-    ctx.fill()
-    
-    ctx.restore()
-  }
-  
-  // 绘制骨架屏动画
-  drawSkeletonScreen(ctx, x, y, w, h, delay = 0) {
-    // 骨架屏背景
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-    drawRoundRect(ctx, x, y, w, h, 8)
-    ctx.fill()
-    
-    // 骨架屏动画（闪烁效果）
-    const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + delay)
-    ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
-    drawRoundRect(ctx, x + 5, y + 5, w - 10, h - 10, 6)
-    ctx.fill()
   }
 
   // 绘制赛季排名卡片
@@ -2326,7 +1976,10 @@ export class UIManager {
     ctx.stroke()
     
     // 进度条填充
-    const progress = Math.max(0, gameState.timerRemaining / gameState.playDuration)
+    const totalDuration = gameState.phase === 'OBSERVE' 
+      ? gameState.observeDuration 
+      : gameState.playDuration
+    const progress = Math.max(0, gameState.timerRemaining / totalDuration)
     const fillW = progressW * progress
     
     const gradient = ctx.createLinearGradient(progressX, barY, progressX + fillW, barY)
@@ -3167,6 +2820,37 @@ export class UIManager {
     ctx.restore()
   }
 
+  // 绘制关闭按钮（通用方法）
+  _drawCloseButton(modalX, modalW, modalY) {
+    const ctx = this.ctx
+    const closeBtnSize = 32
+    const closeBtnPadding = 20
+    const closeBtnX = modalX + modalW - closeBtnPadding - closeBtnSize / 2
+    const closeBtnY = modalY + closeBtnPadding + closeBtnSize / 2
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(closeBtnX, closeBtnY, closeBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✕', closeBtnX, closeBtnY)
+    
+    this.buttons.push({
+      id: 'close',
+      x: closeBtnX - closeBtnSize / 2,
+      y: closeBtnY - closeBtnSize / 2,
+      w: closeBtnSize,
+      h: closeBtnSize
+    })
+  }
+
   // 绘制星星
   drawStar(ctx, x, y, size, color) {
     ctx.save()
@@ -3289,6 +2973,13 @@ export class UIManager {
     // 如果已经在加载中或已加载，跳过
     if (this.avatarCache[avatarUrl]) {
       return
+    }
+    
+    // 限制缓存大小，防止内存泄漏（最多缓存 50 个头像）
+    const cacheKeys = Object.keys(this.avatarCache)
+    if (cacheKeys.length >= 50) {
+      // 删除最早的缓存条目
+      delete this.avatarCache[cacheKeys[0]]
     }
     
     // 标记为加载中

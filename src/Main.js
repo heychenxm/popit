@@ -44,10 +44,14 @@ export class Main {
     // 观察阶段计时
     this.observeStartTime = 0
     
+    // 延迟定时器（用于清理）
+    this._pendingTimers = []
+    
     // 头像昵称填写组件引用
-    this.avatarButton = null
-    this.nicknameInput = null
     this.showingAvatarPicker = false
+    
+    // 分享冷却时间戳
+    this._lastShareTime = 0
     
     // 初始化
     this.init()
@@ -119,6 +123,12 @@ export class Main {
     // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
+      
+      // 清除分享复活超时
+      if (this._shareReviveTimeout) {
+        clearTimeout(this._shareReviveTimeout)
+        this._shareReviveTimeout = null
+      }
       
       // 检查是否正在等待分享复活返回
       if (this.gameState.isWaitingShareRevive) {
@@ -541,6 +551,27 @@ export class Main {
     this.startObservePhase()
   }
 
+  // 通用倒计时方法（减少代码重复）
+  _startCountdown(duration, remaining, onExpire) {
+    const startTime = Date.now() - (duration - remaining)
+    this.gameState.clearTimer()
+    
+    const checkTimer = () => {
+      const elapsed = Date.now() - startTime
+      this.gameState.timerRemaining = Math.max(0, duration - elapsed)
+      
+      if (elapsed >= duration) {
+        this.gameState.clearTimer()
+        onExpire()
+      } else {
+        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+        this.gameState.timerType = 'raf'
+      }
+    }
+    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
+    this.gameState.timerType = 'raf'
+  }
+
   // 开始观察阶段
   startObservePhase() {
     this.observeStartTime = Date.now()
@@ -555,44 +586,22 @@ export class Main {
     // 设置计时器
     this.gameState.timerRemaining = this.gameState.observeDuration
     
-    this.gameState.clearTimer()
-    // 使用 requestAnimationFrame 提高计时精度
-    const checkTimer = () => {
-      const elapsed = Date.now() - this.observeStartTime
-      this.gameState.timerRemaining = Math.max(0, this.gameState.observeDuration - elapsed)
-      
-      if (elapsed >= this.gameState.observeDuration) {
-        this.gameState.clearTimer()
-        this.startPlayPhase()
-      } else {
-        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-        this.gameState.timerType = 'raf'
-      }
-    }
-    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-    this.gameState.timerType = 'raf'
+    this._startCountdown(
+      this.gameState.observeDuration,
+      this.gameState.observeDuration,
+      () => this.startPlayPhase()
+    )
   }
   
   // 恢复观察阶段
   resumeObservePhase() {
     this.observeStartTime = Date.now() - (this.gameState.observeDuration - this.gameState.timerRemaining)
     
-    this.gameState.clearTimer()
-    // 使用 requestAnimationFrame 提高计时精度
-    const checkTimer = () => {
-      const elapsed = Date.now() - this.observeStartTime
-      this.gameState.timerRemaining = Math.max(0, this.gameState.observeDuration - elapsed)
-      
-      if (elapsed >= this.gameState.observeDuration) {
-        this.gameState.clearTimer()
-        this.startPlayPhase()
-      } else {
-        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-        this.gameState.timerType = 'raf'
-      }
-    }
-    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-    this.gameState.timerType = 'raf'
+    this._startCountdown(
+      this.gameState.observeDuration,
+      this.gameState.timerRemaining,
+      () => this.startPlayPhase()
+    )
   }
 
   // 开始游戏阶段
@@ -604,48 +613,23 @@ export class Main {
     
     // 开始倒计时
     this.gameState.timerRemaining = this.gameState.playDuration
-    this.gameState.clearTimer()
     
-    const playStartTime = Date.now()
-    // 使用 requestAnimationFrame 提高计时精度
-    const checkTimer = () => {
-      const elapsed = Date.now() - playStartTime
-      this.gameState.timerRemaining = Math.max(0, this.gameState.playDuration - elapsed)
-      
-      if (this.gameState.timerRemaining <= 0) {
-        this.gameState.clearTimer()
-        this.handleTimeOut()
-      } else {
-        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-        this.gameState.timerType = 'raf'
-      }
-    }
-    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-    this.gameState.timerType = 'raf'
+    this._startCountdown(
+      this.gameState.playDuration,
+      this.gameState.playDuration,
+      () => this.handleTimeOut()
+    )
   }
   
   // 恢复游戏阶段
   resumePlayPhase() {
     this.setGameState('PLAY', 'game')
     
-    const playStartTime = Date.now() - (this.gameState.playDuration - this.gameState.timerRemaining)
-    this.gameState.clearTimer()
-    
-    // 使用 requestAnimationFrame 提高计时精度
-    const checkTimer = () => {
-      const elapsed = Date.now() - playStartTime
-      this.gameState.timerRemaining = Math.max(0, this.gameState.playDuration - elapsed)
-      
-      if (this.gameState.timerRemaining <= 0) {
-        this.gameState.clearTimer()
-        this.handleTimeOut()
-      } else {
-        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-        this.gameState.timerType = 'raf'
-      }
-    }
-    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-    this.gameState.timerType = 'raf'
+    this._startCountdown(
+      this.gameState.playDuration,
+      this.gameState.timerRemaining,
+      () => this.handleTimeOut()
+    )
   }
 
   // 处理泡泡点击（单点触控）
@@ -674,7 +658,8 @@ export class Main {
       if (this.gameState.playerClicks.length === this.gameState.targets.length) {
         this.gameState.clearTimer()
         this.gameState.activeWaveCompleted = true
-        setTimeout(() => this.handleWaveSuccess(), 500)
+        const timer = setTimeout(() => this.handleWaveSuccess(), 500)
+        this._pendingTimers.push(timer)
       }
     } else {
       // 错误！
@@ -683,9 +668,10 @@ export class Main {
       
       // 显示红色闪烁
       this.bubbleGrid.setBubbleState(index, 'red', 'red')
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         this.bubbleGrid.setBubbleState(index, 'normal')
       }, 400)
+      this._pendingTimers.push(timer)
       
       // 显示 Toast 提示，但不扣生命
       this.uiManager.showToast('点错了！')
@@ -710,7 +696,8 @@ export class Main {
       
       if (this.gameState.lives > 0) {
         // 还有生命，重新开始当前关卡
-        setTimeout(() => this.restartCurrentWave(), 500)
+        const timer = setTimeout(() => this.restartCurrentWave(), 500)
+        this._pendingTimers.push(timer)
       } else {
         // 生命归零，游戏失败
         this.onGameFail()
@@ -813,11 +800,6 @@ export class Main {
     })
   }
 
-  // 处理游戏结束
-  handleGameOver() {
-    this.onGameFail({ playFeedback: true })
-  }
-
   // 下一关
   nextLevel() {
     this.gameState.isNewScoreRecord = false
@@ -829,6 +811,7 @@ export class Main {
   // 重试关卡
   retryLevel() {
     this.gameState.reset()
+    this.gameState.incrementSeasonGames()
     this.uiManager.currentScreen = 'game'
     this.startNewWave()
   }
@@ -863,6 +846,14 @@ export class Main {
         // 设置等待标志
         this.gameState.isWaitingShareRevive = true
         
+        // 添加超时保护：如果 10 秒内 onShow 未触发，自动清除标志
+        this._shareReviveTimeout = setTimeout(() => {
+          if (this.gameState.isWaitingShareRevive) {
+            this.gameState.isWaitingShareRevive = false
+            console.log('分享复活超时，自动清除标志')
+          }
+        }, 10000)
+        
         // 触发微信分享
         wx.shareAppMessage({
           title: '来挑战泡泡大师！',
@@ -874,6 +865,10 @@ export class Main {
             console.warn('分享调用失败:', err)
             // 分享失败时清除等待标志
             this.gameState.isWaitingShareRevive = false
+            if (this._shareReviveTimeout) {
+              clearTimeout(this._shareReviveTimeout)
+              this._shareReviveTimeout = null
+            }
           }
         })
         
@@ -907,6 +902,9 @@ export class Main {
 
   // 重新开始当前关卡（生命扣除后）
   restartCurrentWave() {
+    // 清除待执行的定时器
+    this._clearPendingTimers()
+    
     // 重置关卡状态
     this.gameState.activeWaveCompleted = false
     this.gameState.playerClicks = []
@@ -925,10 +923,19 @@ export class Main {
     this.startObservePhase()
   }
 
+  // 清除待执行的定时器
+  _clearPendingTimers() {
+    this._pendingTimers.forEach(timer => clearTimeout(timer))
+    this._pendingTimers = []
+  }
+
   // 返回主菜单
   async navigateToMenu() {
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
+    
+    // 清除待执行的定时器
+    this._clearPendingTimers()
     
     // ✅ 修复：先切换 UI，再异步保存数据（不阻塞用户）
     this.uiManager.currentScreen = 'menu'
@@ -1134,6 +1141,14 @@ export class Main {
   startShareForReward(type) {
     this.vibrate('light')
     
+    // 冷却检查：防止快速连续点击刷奖励
+    const now = Date.now()
+    if (this._lastShareTime && now - this._lastShareTime < 3000) {
+      this.uiManager.showToast('请勿频繁操作')
+      return
+    }
+    this._lastShareTime = now
+    
     wx.shareAppMessage({
       title: '来挑战泡泡大师！',
       query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
@@ -1232,35 +1247,9 @@ export class Main {
         }
       })
     } else {
-      // 高版本微信：wx.getUserProfile 已失效，返回默认值
-      // 提示用户手动选择头像和填写昵称
+      // 高版本微信：wx.getUserProfile 已失效，直接显示手动填写组件
       this.uiManager.showToast('请点击头像和昵称进行设置')
-      
-      // 尝试获取，如果返回的是默认值则提示
-      wx.getUserProfile({
-        desc: '用于完善用户资料和排行榜展示',
-        success: (res) => {
-          const userInfo = res.userInfo
-          // 检查是否返回默认值（微信用户 + 灰色头像）
-          const isDefault = userInfo.nickName === '微信用户' || 
-                           !userInfo.avatarUrl || 
-                           userInfo.avatarUrl.includes('default') ||
-                           userInfo.avatarUrl.includes('anonymous')
-          
-          if (isDefault) {
-            // 高版本已无法通过 API 获取，提示用户使用头像昵称填写组件
-            this.uiManager.showToast('请使用下方头像和昵称组件设置')
-            // 显示头像昵称填写组件（如果已实现）
-            this.showAvatarNicknamePicker()
-          } else {
-            this.saveAndSyncUserInfo(userInfo.nickName, userInfo.avatarUrl)
-          }
-        },
-        fail: (err) => {
-          console.log('授权失败，显示填写组件')
-          this.showAvatarNicknamePicker()
-        }
-      })
+      this.showAvatarNicknamePicker()
     }
   }
   
