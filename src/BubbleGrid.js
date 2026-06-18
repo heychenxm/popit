@@ -152,10 +152,10 @@ export class BubbleGrid {
   _createOffscreenCanvas(w, h) {
     try {
       if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
-        return wx.createOffscreenCanvas(w, h)
+        return wx.createOffscreenCanvas({ type: '2d', width: Math.ceil(w), height: Math.ceil(h) })
       }
       if (typeof OffscreenCanvas !== 'undefined') {
-        return new OffscreenCanvas(w, h)
+        return new OffscreenCanvas(Math.ceil(w), Math.ceil(h))
       }
     } catch (e) {
       // 降级：返回 null

@@ -28,29 +28,6 @@ if (typeof wx !== 'undefined') {
   })
 }
 
-// 隐私政策处理：确保用户同意隐私政策后再启动游戏
-function startGameWithPrivacy() {
-  // 检查是否需要隐私授权（使用平台组件模式）
-  if (typeof wx !== 'undefined' && wx.requirePrivacyAuthorize) {
-    wx.requirePrivacyAuthorize({
-      success: () => {
-        // 用户已同意隐私政策，启动游戏
-        console.log('用户已同意隐私政策')
-        launchGame()
-      },
-      fail: (err) => {
-        // 用户拒绝隐私政策，仍然启动游戏（但某些功能可能受限）
-        console.log('用户拒绝隐私政策，部分功能可能受限:', err)
-        launchGame()
-      }
-    })
-  } else {
-    // 旧版本基础库或非微信环境，直接启动
-    console.log('无需隐私授权，直接启动')
-    launchGame()
-  }
-}
-
 // 启动游戏
 function launchGame() {
   let game = null
@@ -74,5 +51,5 @@ function launchGame() {
   }
 }
 
-// 启动游戏（带隐私政策检查）
-startGameWithPrivacy()
+// 直接启动游戏（隐私授权延迟到用户点击设置昵称和头像时再触发）
+launchGame()

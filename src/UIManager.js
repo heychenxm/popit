@@ -102,9 +102,9 @@ export class UIManager {
     try {
       let offscreen = null
       if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
-        offscreen = wx.createOffscreenCanvas(this.width, this.height)
+        offscreen = wx.createOffscreenCanvas({ type: '2d', width: Math.ceil(this.width), height: Math.ceil(this.height) })
       } else if (typeof OffscreenCanvas !== 'undefined') {
-        offscreen = new OffscreenCanvas(this.width, this.height)
+        offscreen = new OffscreenCanvas(Math.ceil(this.width), Math.ceil(this.height))
       }
       if (offscreen) {
         // 释放旧引用（防止内存泄漏）

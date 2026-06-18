@@ -1194,6 +1194,24 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     
+    // 先触发隐私授权，用户同意后再继续
+    if (typeof wx !== 'undefined' && wx.requirePrivacyAuthorize) {
+      wx.requirePrivacyAuthorize({
+        success: () => {
+          this._doAuthorize()
+        },
+        fail: (err) => {
+          console.log('用户拒绝隐私授权:', err)
+          this.uiManager.showToast('需要同意隐私政策才能设置昵称和头像')
+        }
+      })
+    } else {
+      this._doAuthorize()
+    }
+  }
+  
+  // 执行授权流程（隐私授权通过后调用）
+  _doAuthorize() {
     // 获取基础库版本
     const systemInfo = wx.getSystemInfoSync()
     const version = systemInfo.SDKVersion || ''
