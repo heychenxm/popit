@@ -90,13 +90,20 @@ export class AudioManager {
       // 断开连接并重置参数
       try {
         gain.disconnect()
-        gain.gain.cancelScheduledValues(this.ctx.currentTime)
+        if (this.ctx.currentTime) {
+          gain.gain.cancelScheduledValues(this.ctx.currentTime)
+        }
         gain.gain.value = 0
         this._gainNodePool.push(gain)
       } catch (e) {
         // 忽略错误
       }
     }
+  }
+  
+  // 清理音频对象池（防止内存泄漏）
+  clearAudioPool() {
+    this._gainNodePool.length = 0
   }
 
   // ==================== 音效合成方法（与 index.html 保持一致）====================

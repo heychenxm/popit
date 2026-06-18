@@ -131,7 +131,7 @@ export class GameState {
     if (!this._storageFlushTimer) {
       this._storageFlushTimer = setTimeout(() => {
         this._flushStorageWrites()
-      }, 0)
+      }, 16)  // 改为 16ms（约 1 帧），减少频繁写入
     }
   }
 
@@ -197,6 +197,11 @@ export class GameState {
       safeCancelAnimationFrame(this.timerInterval)
       this.timerInterval = null
       this.timerType = null
+    }
+    // 清理待执行的 Storage 写入定时器
+    if (this._storageFlushTimer) {
+      clearTimeout(this._storageFlushTimer)
+      this._storageFlushTimer = null
     }
   }
 

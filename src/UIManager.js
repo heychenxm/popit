@@ -189,8 +189,8 @@ export class UIManager {
     let cached = this.textMeasureCache.get(cacheKey)
     if (cached === undefined) {
       cached = this.ctx.measureText(text).width
-      // 限制缓存大小，防止内存泄漏
-      if (this.textMeasureCache.size >= 500) {
+      // 限制缓存大小，防止内存泄漏（减少到 200 个）
+      if (this.textMeasureCache.size >= 200) {
         const firstKey = this.textMeasureCache.keys().next().value
         this.textMeasureCache.delete(firstKey)
       }
@@ -549,7 +549,9 @@ export class UIManager {
       { id: 'share', icon: 'share', label: '分享', color1: '#ec4899', color2: '#f43f5e', borderColor: '#f9a8d4', hasBadge: true }
     ]
     
-    buttons.forEach((btn, i) => {
+    const btnCount = buttons.length
+    for (let i = 0; i < btnCount; i++) {
+      const btn = buttons[i]
       const x = startX + i * (btnSize + gap)
       const y = btnY
       
@@ -647,7 +649,7 @@ export class UIManager {
       })
       
       ctx.restore()
-    })
+    }  // 结束 for 循环
   }
 
   // 绘制赛季横幅 - 精确匹配 index.html
@@ -823,7 +825,8 @@ export class UIManager {
     const padding = 20
     const topPadding = 60
     
-    ctx.save()
+    // 优化：减少 save/restore 调用
+    // ctx.save()  // 移除不必要的 save
     
     // 暂停按钮
     const pauseBtnX = padding
@@ -918,14 +921,15 @@ export class UIManager {
     // 生命
     this.drawLifeCard(padding + (cardWidth + cardGap) * 2, cardY, cardWidth, cardHeight, gameState)
     
-    ctx.restore()
+    // ctx.restore()  // 移除不必要的 restore
   }
 
   // 绘制分数卡片
   drawScoreCard(x, y, w, h, label, value, valueColor) {
     const ctx = this.ctx
     
-    ctx.save()
+    // 优化：减少 save/restore
+    // ctx.save()
     ctx.fillStyle = 'rgba(15, 23, 42, 0.5)'
     drawRoundRect(ctx, x, y, w, h, 12)
     ctx.fill()
@@ -943,14 +947,15 @@ export class UIManager {
     ctx.fillStyle = valueColor
     ctx.fillText(value, x + w / 2, y + h - 14)
     
-    ctx.restore()
+    // ctx.restore()
   }
 
   // 绘制生命卡片
   drawLifeCard(x, y, w, h, gameState) {
     const ctx = this.ctx
     
-    ctx.save()
+    // 优化：减少 save/restore
+    // ctx.save()
     ctx.fillStyle = 'rgba(15, 23, 42, 0.5)'
     drawRoundRect(ctx, x, y, w, h, 12)
     ctx.fill()
@@ -977,7 +982,7 @@ export class UIManager {
       drawHeartIcon(ctx, heartX, heartY, heartSize, color)
     }
     
-    ctx.restore()
+    // ctx.restore()
   }
 
   // 绘制签到弹窗（新布局：8 个格子 + 7 天连签奖励）
@@ -2746,7 +2751,8 @@ export class UIManager {
 
   // 更新动画
   update(deltaTime) {
-    this.animationFrame++
+    // 限制动画帧计数器，防止数值溢出（约 16 分钟后重置）
+    this.animationFrame = (this.animationFrame + 1) % 600000
   }
 
   // 渲染
@@ -2975,11 +2981,18 @@ export class UIManager {
       return
     }
     
-    // 限制缓存大小，防止内存泄漏（最多缓存 50 个头像）
+    // 限制缓存大小，防止内存泄漏（减少到 20 个，每个 Image 对象占用较大）
     const cacheKeys = Object.keys(this.avatarCache)
-    if (cacheKeys.length >= 50) {
+    if (cacheKeys.length >= 20) {
       // 删除最早的缓存条目
-      delete this.avatarCache[cacheKeys[0]]
+      const oldestKey = cacheKeys[0]
+      const oldest = this.avatarCache[oldestKey]
+      // 显式清除图片引用
+      if (oldest && oldest.image) {
+        oldest.image.src = ''
+        oldest.image = null
+      }
+      delete this.avatarCache[oldestKey]
     }
     
     // 标记为加载中

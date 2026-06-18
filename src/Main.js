@@ -794,6 +794,9 @@ export class Main {
     this.setGameState('FAIL', 'fail')
     this.uiManager.showToast(`本局得分：${this.gameState.score}`)
     
+    // 清理音频对象池（防止内存泄漏）
+    this.audioManager.clearAudioPool()
+    
     // 保存最高分
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
@@ -925,8 +928,10 @@ export class Main {
 
   // 清除待执行的定时器
   _clearPendingTimers() {
-    this._pendingTimers.forEach(timer => clearTimeout(timer))
-    this._pendingTimers = []
+    for (const timer of this._pendingTimers) {
+      clearTimeout(timer)
+    }
+    this._pendingTimers.length = 0  // 使用 length = 0 而不是重新赋值，减少内存分配
   }
 
   // 返回主菜单
@@ -940,6 +945,9 @@ export class Main {
     // ✅ 修复：先切换 UI，再异步保存数据（不阻塞用户）
     this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
+    
+    // 清理音频对象池（防止内存泄漏）
+    this.audioManager.clearAudioPool()
     
     // 异步保存到云端（不 await，用户无感知）
     this.gameState.saveToCloud().catch(err => {
@@ -1341,8 +1349,11 @@ export class Main {
     const deltaTime = now - this.lastTime
     this.lastTime = now
     
+    // 限制 deltaTime 防止跳帧（安卓端可能出现的大跳帧）
+    const cappedDelta = Math.min(deltaTime, 100)  // 最大 100ms
+    
     // 更新
-    this.update(deltaTime)
+    this.update(cappedDelta)
     
     // 渲染
     this.render()

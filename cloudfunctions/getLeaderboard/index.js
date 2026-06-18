@@ -19,18 +19,34 @@ exports.main = async (event, context) => {
     const { data: topList } = await db.collection('gameData')
       .where({ [field]: _.gt(0) })
       .orderBy(field, 'desc')
+      .orderBy('_openid', 'asc')  // 添加次级排序，确保相同分数时顺序一致
       .limit(limit)
       .field({ _openid: true, nickname: true, avatarUrl: true, highScore: true, bestWave: true })
       .get()
 
-    // 构造排行榜列表
-    const leaderboard = topList.map((item, index) => ({
-      rank: index + 1,
-      nickname: item.nickname || '',
-      avatarUrl: item.avatarUrl || '',
-      value: item[field] || 0,
-      isUser: item._openid === openid
-    }))
+    // 构造排行榜列表（处理相同分数的情况）
+    const leaderboard = []
+    let currentRank = 1
+    let lastValue = -1
+    
+    for (let index = 0; index < topList.length; index++) {
+      const item = topList[index]
+      const value = item[field] || 0
+      
+      // 如果分数与上一个不同，更新排名为当前位置 +1
+      if (value !== lastValue) {
+        currentRank = index + 1
+        lastValue = value
+      }
+      
+      leaderboard.push({
+        rank: currentRank,
+        nickname: item.nickname || '',
+        avatarUrl: item.avatarUrl || '',
+        value: value,
+        isUser: item._openid === openid
+      })
+    }
 
     // 查询当前用户排名
     let userRank = 0

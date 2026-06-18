@@ -4,7 +4,14 @@
  */
 
 // 先导入兼容性补丁（确保 setTimeout 等可用）
+// 注意：必须使用 import 而不是动态导入，确保在模块解析时最先执行
 import './src/polyfill.js'
+
+// 验证 polyfill 是否成功
+if (typeof globalThis.__POLYFILL_LOADED__ === 'undefined') {
+  console.error('Polyfill 加载失败！')
+}
+
 import { Main } from './src/Main.js'
 
 // 初始化云开发（仅在微信环境中）
