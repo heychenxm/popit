@@ -2163,7 +2163,7 @@ export class UIManager {
     const rewardCenterX = this.width / 2
     const rewardCenterY = rewardY + rewardBoxH / 2
     const coinSize = 24
-    const valueText = `+${config.rewards.waveClear}`
+    const valueText = `+${gameState.getWaveReward()}`
     
     ctx.font = 'bold 14px sans-serif'
     ctx.textBaseline = 'middle'

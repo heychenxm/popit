@@ -643,7 +643,7 @@ export class Main {
     if (this.gameState.targets.includes(index)) {
       // 正确！
       this.audioManager.play('pop')
-      this.vibrate('light')
+      this.vibrate('heavy')
       
       // 设置泡泡状态（根据索引分配颜色）
       const colorClass = getColorClass(index)
@@ -664,7 +664,7 @@ export class Main {
     } else {
       // 错误！
       this.audioManager.play('wrong')
-      this.vibrate('heavy')
+      this.vibrate('long')
       
       // 显示红色闪烁
       this.bubbleGrid.setBubbleState(index, 'red', 'red')
@@ -1077,7 +1077,7 @@ export class Main {
   // 震动反馈
   vibrate(intensity = 'light') {
     try {
-      if (typeof wx !== 'undefined' && wx.vibrateShort) {
+      if (typeof wx !== 'undefined') {
         switch (intensity) {
           case 'light':
             wx.vibrateShort({ type: 'light' })
@@ -1087,6 +1087,13 @@ export class Main {
             break
           case 'heavy':
             wx.vibrateShort({ type: 'heavy' })
+            break
+          case 'long':
+            if (wx.vibrateLong) {
+              wx.vibrateLong()
+            } else {
+              wx.vibrateShort({ type: 'heavy' })
+            }
             break
           default:
             wx.vibrateShort({ type: 'light' })
