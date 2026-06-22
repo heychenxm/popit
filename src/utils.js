@@ -2,6 +2,9 @@
  * 工具函数集合
  */
 
+// 字体常量 - 使用 PingFang SC 确保 iOS 端中文正常显示
+export const FONT_FAMILY = 'PingFang SC, sans-serif'
+
 // 颜色常量 - 保持与 index.html 一致的霓虹风格
 export const Colors = {
   themeDark: '#090a21',
@@ -135,7 +138,7 @@ export function drawText(ctx, text, x, y, options = {}) {
     align = 'center',
     baseline = 'middle',
     bold = false,
-    font = 'sans-serif'
+    font = FONT_FAMILY
   } = options
 
   ctx.font = `${bold ? 'bold ' : ''}${fontSize}px ${font}`

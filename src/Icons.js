@@ -3,6 +3,8 @@
  * 所有图标基于 24x24 viewBox 设计，坐标范围 0-24，确保居中显示
  */
 
+import { FONT_FAMILY } from './utils.js'
+
 // 通用图标上下文设置（减少重复代码）
 function setupIconContext(ctx, x, y, size) {
   const scale = size / 24
@@ -335,7 +337,7 @@ export function drawCoinIcon(ctx, x, y, size, color = '#facc15') {
   
   // 中间符号（$）
   ctx.fillStyle = '#92400e'
-  ctx.font = 'bold 10px sans-serif'
+  ctx.font = `bold 10px ${FONT_FAMILY}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('$', 12, 12)

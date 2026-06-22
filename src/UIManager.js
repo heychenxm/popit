@@ -1,4 +1,4 @@
-import { Colors, drawRoundRect, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
+import { Colors, FONT_FAMILY, drawRoundRect, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
 import { config } from './config.js'
 import { 
   drawBarChartIcon, 
@@ -90,7 +90,7 @@ export class UIManager {
   // 预计算数值宽度
   _precomputeNumberWidths() {
     const testCtx = this.ctx
-    testCtx.font = 'bold 11.2px sans-serif'  // 金币字体
+    testCtx.font = `bold 11.2px ${FONT_FAMILY}`  // 金币字体
     for (let i = 0; i <= 9999; i++) {
       this.numberWidths[i] = testCtx.measureText(i.toString()).width
     }
@@ -172,10 +172,10 @@ export class UIManager {
   // 设置字体（带缓存）
   setFont(fontKey) {
     const fontMap = {
-      'bold18': 'bold 18px sans-serif',
-      'bold11_2': 'bold 11.2px sans-serif',
-      'normal10': '10px sans-serif',
-      'bold16': 'bold 16px sans-serif'
+      'bold18': `bold 18px ${FONT_FAMILY}`,
+      'bold11_2': `bold 11.2px ${FONT_FAMILY}`,
+      'normal10': `10px ${FONT_FAMILY}`,
+      'bold16': `bold 16px ${FONT_FAMILY}`
     }
     const font = fontMap[fontKey]
     if (font && this.ctx.font !== font) {
@@ -251,7 +251,7 @@ export class UIManager {
     }
     
     // 数值
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = color
@@ -402,7 +402,7 @@ export class UIManager {
     const y = this.height * 0.28
     
     ctx.save()
-    ctx.font = '14px sans-serif'
+    ctx.font = `14px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
@@ -448,7 +448,7 @@ export class UIManager {
     ctx.stroke()
     
     // 根据版本显示不同文字
-    ctx.font = 'bold 14px sans-serif'
+    ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -510,7 +510,7 @@ export class UIManager {
     ctx.fill()
     
     // 文字 - 带阴影
-    ctx.font = 'bold 22px sans-serif'
+    ctx.font = `bold 22px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
@@ -633,7 +633,7 @@ export class UIManager {
       }
       
       // 标签
-      ctx.font = '10px sans-serif'
+      ctx.font = `10px ${FONT_FAMILY}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
@@ -694,14 +694,14 @@ export class UIManager {
     const textStartX = iconContainerX + iconContainerSize + 8
     
     // 标题：text-xs font-extrabold text-yellow-300
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.yellow300
     ctx.fillText('新赛季开启', textStartX, bannerY + bannerH / 2 - 8)
     
     // 副标题 + 赛季倒计时（同行显示）
-    ctx.font = '10px sans-serif'
+    ctx.font = `10px ${FONT_FAMILY}`
     ctx.textBaseline = 'middle'
     
     const subtitleText = '每周五 24:00 结算排行榜'
@@ -734,7 +734,7 @@ export class UIManager {
     drawRoundRect(ctx, detailBtnX, detailBtnY, detailBtnW, detailBtnH, 15)
     ctx.fill()
     
-    ctx.font = 'bold 11px sans-serif'
+    ctx.font = `bold 11px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.fillText('查看详情', detailBtnX + detailBtnW / 2, detailBtnY + detailBtnH / 2)
@@ -780,7 +780,7 @@ export class UIManager {
     drawChestIcon(ctx, iconX, animatedY + 1, 38)
     
     // 标签
-    ctx.font = 'bold 10px sans-serif'
+    ctx.font = `bold 10px ${FONT_FAMILY}`
     const labelY = animatedY + iconSize / 2 + 12
     ctx.fillStyle = '#581c87'
     drawRoundRect(ctx, iconX - 24, labelY - 8, 48, 16, 8)
@@ -1019,14 +1019,14 @@ export class UIManager {
     
     // 标题
     const titleY = modalY + 35
-    ctx.font = 'bold 20px sans-serif'
+    ctx.font = `bold 20px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#34d399'
     ctx.fillText('每日签到', this.width / 2, titleY)
     
     // 副标题
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
     ctx.fillText('每日上线签到即可领金币奖励！', this.width / 2, titleY + 22)
     
@@ -1101,7 +1101,7 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
       
-      ctx.font = 'bold 16px sans-serif'
+      ctx.font = `bold 16px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.fillText('立即签到领奖', modalX + modalW / 2, btnY + btnHeight / 2)
@@ -1121,7 +1121,7 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
       
-      ctx.font = 'bold 16px sans-serif'
+      ctx.font = `bold 16px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray400
       ctx.textAlign = 'center'
       ctx.fillText('今日已签到', modalX + modalW / 2, btnY + btnHeight / 2)
@@ -1160,7 +1160,7 @@ export class UIManager {
     }
     ctx.stroke()
     
-    ctx.font = isToday ? 'bold 12px sans-serif' : '11px sans-serif'
+    ctx.font = isToday ? `bold 12px ${FONT_FAMILY}` : `11px ${FONT_FAMILY}`
     ctx.fillStyle = isToday ? '#fbbf24' : Colors.gray300
     ctx.textAlign = 'center'
     // 已签到的格子顶部显示"已获得"，未签到的显示"第 X 天"，今天的显示"今天"
@@ -1179,7 +1179,7 @@ export class UIManager {
     // 金币图标颜色保持一致，不置灰
     drawCoinIcon(ctx, x + w / 2, iconY, iconSize, '#facc15')
     
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -1246,7 +1246,7 @@ export class UIManager {
     
     // 标题
     const titleY = iconContainerY + 50
-    ctx.font = 'bold 18px sans-serif'
+    ctx.font = `bold 18px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -1254,7 +1254,7 @@ export class UIManager {
     
     // 描述文字
     const descY = titleY + 28
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
     ctx.textAlign = 'center'
     
@@ -1264,7 +1264,7 @@ export class UIManager {
     ctx.fillText(descText2, this.width / 2, descY + 18)
     
     // 奖励文字（高亮）
-    ctx.font = 'bold 14px sans-serif'
+    ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.yellow400
     ctx.fillText('1000 金币', this.width / 2, descY + 34)
     
@@ -1282,7 +1282,7 @@ export class UIManager {
     ctx.stroke()
     
     // 预览标题
-    ctx.font = '11px sans-serif'
+    ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray500
     ctx.textAlign = 'left'
     ctx.fillText('微信小游戏消息预览', previewX + 12, previewY + 18)
@@ -1301,20 +1301,20 @@ export class UIManager {
     ctx.fill()
     
     // 气泡图标
-    ctx.font = '20px sans-serif'
+    ctx.font = `20px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
     ctx.fillText('🎈', gameIconX + gameIconSize / 2, previewContentY + gameIconSize / 2)
     
     // 游戏标题
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'left'
     ctx.fillText('来挑战泡泡大师！', gameIconX + gameIconSize + 10, previewContentY + 12)
     
     // 游戏描述
-    ctx.font = '11px sans-serif'
+    ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
     ctx.fillText('我轻松闯过第 12 关，你敢来比一比吗？', gameIconX + gameIconSize + 10, previewContentY + 32)
     
@@ -1335,7 +1335,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 16px sans-serif'
+    ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.fillText('发送到微信好友', modalX + modalW / 2, btnY + btnHeight / 2)
@@ -1366,7 +1366,7 @@ export class UIManager {
     ctx.stroke()
     
     // 标题
-    ctx.font = '11px sans-serif'
+    ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillStyle = isSigned ? Colors.gray300 : '#fde68a'
     ctx.textAlign = 'center'
     ctx.fillText(isSigned ? `${bonusDay}天连续奖励已获得` : `${bonusDay} 天连签奖励`, x + w / 2, y + 22)
@@ -1377,7 +1377,7 @@ export class UIManager {
     drawCoinIcon(ctx, x + w / 2, iconY, iconSize, '#facc15')
     
     // 奖励文字
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'center'
     ctx.fillText(isSigned ? '+2000' : '额外 +2000', x + w / 2, y + h - 12)
@@ -1452,7 +1452,7 @@ export class UIManager {
     
     // 标题
     const titleY = modalY + 35
-    ctx.font = 'bold 20px sans-serif'
+    ctx.font = `bold 20px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#a5b4fc'
@@ -1488,7 +1488,7 @@ export class UIManager {
       ctx.fill()
     }
     
-    ctx.font = 'bold 13px sans-serif'
+    ctx.font = `bold 13px ${FONT_FAMILY}`
     ctx.fillStyle = scoreBtnActive ? Colors.white : Colors.gray400
     ctx.textAlign = 'center'
     ctx.fillText('最高分', scoreBtnX + scoreBtnW / 2, switchContainerY + switchContainerH / 2)
@@ -1649,7 +1649,7 @@ export class UIManager {
     // 赛季底部提示
     if (showFooter) {
       const footerY = modalY + modalH - 35
-      ctx.font = '10px sans-serif'
+      ctx.font = `10px ${FONT_FAMILY}`
       ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
       ctx.textAlign = 'center'
       ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
@@ -1688,7 +1688,7 @@ export class UIManager {
     ctx.stroke()
     
     // 文字（居中）
-    ctx.font = 'bold 14px sans-serif'
+    ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -1751,7 +1751,7 @@ export class UIManager {
     ctx.lineWidth = isTop1 ? 3 : 2
     ctx.stroke()
     
-    ctx.font = isTop1 ? 'bold 12px sans-serif' : '10px sans-serif'
+    ctx.font = isTop1 ? `bold 12px ${FONT_FAMILY}` : `10px ${FONT_FAMILY}`
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.gray300
     ctx.textAlign = 'center'
     const rankText = isTop1 ? '🏆 第 1 名' : `第${rank}名`
@@ -1763,14 +1763,14 @@ export class UIManager {
     
     this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1, isUser)
     
-    ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
+    ctx.font = isTop1 ? `bold 11px ${FONT_FAMILY}` : `10px ${FONT_FAMILY}`
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
     ctx.textAlign = 'center'
     const safeNickname = nickname || '泡泡大师'
     const displayNickname = safeNickname.length > 6 ? safeNickname.substring(0, 5) + '...' : safeNickname
     ctx.fillText(displayNickname, x + w / 2, y + 95)
     
-    ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
+    ctx.font = isTop1 ? `bold 18px ${FONT_FAMILY}` : `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = '#a5b4fc'
     ctx.fillText(value.toString(), x + w / 2, y + 120)
     
@@ -1820,7 +1820,7 @@ export class UIManager {
     ctx.lineWidth = isTop1 ? 3 : 2
     ctx.stroke()
     
-    ctx.font = isTop1 ? 'bold 12px sans-serif' : '10px sans-serif'
+    ctx.font = isTop1 ? `bold 12px ${FONT_FAMILY}` : `10px ${FONT_FAMILY}`
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.gray300
     ctx.textAlign = 'center'
     const rankText = isTop1 ? '🏆 第 1 名' : `第${rank}名`
@@ -1832,14 +1832,14 @@ export class UIManager {
     
     this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, isTop1, isUser)
     
-    ctx.font = isTop1 ? 'bold 11px sans-serif' : '10px sans-serif'
+    ctx.font = isTop1 ? `bold 11px ${FONT_FAMILY}` : `10px ${FONT_FAMILY}`
     ctx.fillStyle = isTop1 ? '#fbbf24' : Colors.white
     ctx.textAlign = 'center'
     const safeNickname = nickname || '泡泡大师'
     const displayNickname = safeNickname.length > 6 ? safeNickname.substring(0, 5) + '...' : safeNickname
     ctx.fillText(displayNickname, x + w / 2, y + 95)
     
-    ctx.font = isTop1 ? 'bold 18px sans-serif' : 'bold 14px sans-serif'
+    ctx.font = isTop1 ? `bold 18px ${FONT_FAMILY}` : `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = '#a5b4fc'
     ctx.fillText(value.toString(), x + w / 2, y + 120)
     
@@ -1869,7 +1869,7 @@ export class UIManager {
     }
     
     // 排名列：未上榜时不显示排名
-    ctx.font = isHighlight ? 'bold 12px sans-serif' : '11px sans-serif'
+    ctx.font = isHighlight ? `bold 12px ${FONT_FAMILY}` : `11px ${FONT_FAMILY}`
     ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.gray400
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
@@ -1883,7 +1883,7 @@ export class UIManager {
     const avatarY = y + h / 2
     this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false, isUser)
     
-    ctx.font = isHighlight ? 'bold 11px sans-serif' : '11px sans-serif'
+    ctx.font = isHighlight ? `bold 11px ${FONT_FAMILY}` : `11px ${FONT_FAMILY}`
     ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
     ctx.textAlign = 'left'
     const safeNickname = nickname || '泡泡大师'
@@ -1891,7 +1891,7 @@ export class UIManager {
     ctx.fillText(displayNickname, avatarX + avatarSize / 2 + 12, y + h / 2)
     
     // 右侧显示分数或未上榜文案
-    ctx.font = 'bold 13px sans-serif'
+    ctx.font = `bold 13px ${FONT_FAMILY}`
     ctx.fillStyle = isUnranked ? '#f87171' : '#a5b4fc'
     ctx.textAlign = 'right'
     ctx.fillText(isUnranked ? '未上榜' : value.toString(), x + w - itemPadding, y + h / 2)
@@ -1908,7 +1908,7 @@ export class UIManager {
     ctx.save()
     
     if (gameState.phase === 'OBSERVE') {
-      ctx.font = 'bold 24px sans-serif'
+      ctx.font = `bold 24px ${FONT_FAMILY}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = Colors.purple500
@@ -1916,13 +1916,13 @@ export class UIManager {
       ctx.shadowBlur = 10
       ctx.fillText('请观察！', centerX, titleY)
       
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
       ctx.fillText('记住闪烁的气泡', centerX, descY)
     } else if (gameState.phase === 'PLAY') {
-      ctx.font = 'bold 24px sans-serif'
+      ctx.font = `bold 24px ${FONT_FAMILY}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = Colors.yellow300
@@ -1930,7 +1930,7 @@ export class UIManager {
       ctx.shadowBlur = 10
       ctx.fillText('点它！', centerX, titleY)
       
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
@@ -1962,7 +1962,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 10px sans-serif'
+    ctx.font = `bold 10px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -1996,7 +1996,7 @@ export class UIManager {
     ctx.fill()
     
     // 时间文字
-    ctx.font = '14px sans-serif'
+    ctx.font = `14px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.yellow300
@@ -2026,20 +2026,20 @@ export class UIManager {
     ctx.textBaseline = 'middle'
     
     if (!isNewRecord) {
-      ctx.font = `bold ${fontSize}px sans-serif`
+      ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`
       ctx.textAlign = 'center'
       ctx.fillStyle = scoreColor
       ctx.fillText(`${labelPrefix}${scoreText}`, this.width / 2, centerY)
       return
     }
     
-    ctx.font = `${fontSize}px sans-serif`
+    ctx.font = `${fontSize}px ${FONT_FAMILY}`
     const prefixWidth = ctx.measureText(labelPrefix).width
     
-    ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`
     const scoreWidth = ctx.measureText(scoreText).width
     
-    ctx.font = `${badgeFontSize}px sans-serif`
+    ctx.font = `${badgeFontSize}px ${FONT_FAMILY}`
     const badgeW = ctx.measureText(badgeText).width + 12
     const badgeH = Math.max(16, badgeFontSize + 7)
     const gap = 6
@@ -2047,12 +2047,12 @@ export class UIManager {
     let startX = this.width / 2 - totalWidth / 2
     
     ctx.textAlign = 'left'
-    ctx.font = `${fontSize}px sans-serif`
+    ctx.font = `${fontSize}px ${FONT_FAMILY}`
     ctx.fillStyle = labelColor
     ctx.fillText(labelPrefix, startX, centerY)
     startX += prefixWidth
     
-    ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`
     ctx.fillStyle = newScoreColor
     ctx.fillText(scoreText, startX, centerY)
     startX += scoreWidth + gap
@@ -2061,7 +2061,7 @@ export class UIManager {
     drawRoundRect(ctx, startX, centerY - badgeH / 2, badgeW, badgeH, badgeH / 2)
     ctx.fill()
     
-    ctx.font = `${badgeFontSize}px sans-serif`
+    ctx.font = `${badgeFontSize}px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.fillStyle = Colors.white
     ctx.fillText(badgeText, startX + badgeW / 2, centerY)
@@ -2120,7 +2120,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 24px sans-serif'
+    ctx.font = `bold 24px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -2136,7 +2136,7 @@ export class UIManager {
     this.drawStar(ctx, this.width / 2 + 30, starY, 14, Colors.yellow400)
     
     // 关卡
-    ctx.font = '14px sans-serif'
+    ctx.font = `14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.yellow300
     ctx.fillText(`第 ${gameState.wave} 关`, this.width / 2, starY + 30)
     
@@ -2149,7 +2149,7 @@ export class UIManager {
     ctx.stroke()
     
     // 奖励标题
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray300
     ctx.fillText('获得奖励', this.width / 2, starY + 70)
     
@@ -2165,7 +2165,7 @@ export class UIManager {
     const coinSize = 24
     const valueText = `+${config.rewards.waveClear}`
     
-    ctx.font = 'bold 14px sans-serif'
+    ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.textBaseline = 'middle'
     const valueWidth = ctx.measureText(valueText).width
     const totalWidth = coinSize + 8 + valueWidth
@@ -2187,7 +2187,7 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = '11px sans-serif'
+    ctx.font = `11px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     this.drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState)
@@ -2205,7 +2205,7 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = 'bold 14px sans-serif'
+    ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -2256,7 +2256,7 @@ export class UIManager {
     const textColor = enabled ? Colors.white : Colors.gray400
     const coinColor = enabled ? '#facc15' : '#6b7280'
     
-    ctx.font = 'bold 13px sans-serif'
+    ctx.font = `bold 13px ${FONT_FAMILY}`
     ctx.textBaseline = 'middle'
     
     const continueText = '继续'
@@ -2317,7 +2317,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 24px sans-serif'
+    ctx.font = `bold 24px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -2330,7 +2330,7 @@ export class UIManager {
     this.drawCryingBubbleIcon(ctx, this.width / 2, titleY + 60, 48)
     
     // 关卡
-    ctx.font = '14px sans-serif'
+    ctx.font = `14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
     ctx.fillText(`第 ${gameState.wave} 关`, this.width / 2, titleY + 90)
     
@@ -2343,7 +2343,7 @@ export class UIManager {
     ctx.stroke()
     
     // 本局总得分
-    ctx.font = 'bold 16px sans-serif'
+    ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     this.drawScoreWithRecordBadge(ctx, titleY + 135, '本局得分：', `${gameState.score}`, {
@@ -2376,7 +2376,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 16px sans-serif'
+    ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -2437,7 +2437,7 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
       
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2450,7 +2450,7 @@ export class UIManager {
       ctx.lineWidth = 1
       ctx.stroke()
       
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2485,7 +2485,7 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
 
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2509,7 +2509,7 @@ export class UIManager {
       ctx.lineWidth = 1
       ctx.stroke()
 
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2531,7 +2531,7 @@ export class UIManager {
       ctx.lineWidth = 1
       ctx.stroke()
 
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2605,14 +2605,14 @@ export class UIManager {
     
     // 标题
     const titleY = iconY + 50
-    ctx.font = 'bold 22px sans-serif'
+    ctx.font = `bold 22px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
     ctx.fillText('游戏暂停', this.width / 2, titleY)
     
     // 副标题
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
     ctx.fillText('休息一下，马上回来', this.width / 2, titleY + 24)
     
@@ -2637,7 +2637,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 16px sans-serif'
+    ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.fillText('返回首页', modalX + modalW / 2, btnY + btnH / 2)
@@ -2663,7 +2663,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    ctx.font = 'bold 18px sans-serif'
+    ctx.font = `bold 18px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.fillText('继续游戏', modalX + modalW / 2, resumeBtnY + btnH / 2)
@@ -2694,7 +2694,7 @@ export class UIManager {
     ctx.save()
     
     // 根据文本内容自适应宽度
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     const textWidth = ctx.measureText(this.toast.text).width
     const toastW = Math.min(400, Math.max(200, textWidth + 40))  // 最小 200，最大 400，左右各留 20px 边距
@@ -2722,7 +2722,7 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = 'bold 12px sans-serif'
+    ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
@@ -2842,7 +2842,7 @@ export class UIManager {
     ctx.lineWidth = 1
     ctx.stroke()
     
-    ctx.font = 'bold 16px sans-serif'
+    ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -3088,7 +3088,7 @@ export class UIManager {
     
     // 文字
     const displayText = avatarUrl ? avatarUrl.substring(0, 3).toUpperCase() : 'U'
-    ctx.font = `bold ${size * 0.35}px sans-serif`
+    ctx.font = `bold ${size * 0.35}px ${FONT_FAMILY}`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -3122,7 +3122,7 @@ export class UIManager {
     ctx.stroke()
     
     // "我"字
-    ctx.font = `bold ${badgeSize * 1.2}px sans-serif`
+    ctx.font = `bold ${badgeSize * 1.2}px ${FONT_FAMILY}`
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
