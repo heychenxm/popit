@@ -7,7 +7,7 @@ export const config = {
   game: {
     initialCoins: 1000,        // 初始金币
     maxLives: 5,               // 最大生命
-    initialLives: 3,           // 初始生命
+    initialLives: 5,           // 初始生命
     maxPurchaseCount: 3,       // 最大购买次数
     purchasePrices: [300, 500, 1000],  // 购买价格
     maxShareCountPerDay: 10,   // 每日最大分享次数
@@ -27,12 +27,12 @@ export const config = {
   
   // 奖励配置
   rewards: {
-    waveClear: 15,           // 基础通关奖励（1-19关）
-    waveClearTier2: 30,      // 20-39关奖励
-    waveClearTier3: 50,      // 40-59关奖励
-    waveClearTier4: 80,      // 60关+奖励
+    waveClear: 5,           // 基础通关奖励（1-19关）
+    waveClearTier2: 15,      // 20-39关奖励
+    waveClearTier3: 30,      // 40-59关奖励
+    waveClearTier4: 50,      // 60关+奖励
     share: 50,                 // 分享奖励
-    shareGift: 1000,           // 分享礼包奖励
+    shareGift: 500,           // 分享礼包奖励
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔
   },
   
