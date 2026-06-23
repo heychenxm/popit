@@ -6,15 +6,10 @@ const db = cloud.database()
 const CHECKIN_REWARDS = {
   1: 300,
   2: 500,
-  3: 1000,
-  4: 1000,
-  5: 1000,
-  6: 1000,
-  7: 3000  // 第 7 天含 bonus
 }
-const DEFAULT_BASE = 1000
+const DEFAULT_BASE = 500
 const BONUS_DAY = 7
-const BONUS_AMOUNT = 2000
+const BONUS_AMOUNT = 1000  // 与 config.checkin.bonusAmount 一致
 
 /**
  * 服务端签到

@@ -1440,11 +1440,12 @@ export class UIManager {
     const iconY = y + h / 2 + 10
     drawCoinIcon(ctx, x + w / 2, iconY, iconSize, '#facc15')
     
-    // 奖励文字
+    // 奖励文字（使用 config 中的 bonusAmount）
+    const bonusAmount = config.checkin.bonusAmount
     ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'center'
-    ctx.fillText(isSigned ? '+2000' : '额外 +2000', x + w / 2, y + h - 12)
+    ctx.fillText(isSigned ? `+${bonusAmount}` : `额外 +${bonusAmount}`, x + w / 2, y + h - 12)
   }
 
   // 绘制排行榜弹窗

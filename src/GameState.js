@@ -333,19 +333,24 @@ export class GameState {
     // 更新今日是否已签到状态
     this.hasCheckedInToday = true
     
-    // 根据签到天数给予奖励（传入当前签到天数，而非 +1）
+    // 根据签到天数给予基础奖励
     const reward = this.getTodayReward(this.checkinStreak)
+    
+    // bonus 单独计算（7 的倍数天额外奖励）
+    const isBonusDay = (this.checkinStreak % config.checkin.bonusDay === 0)
+    const bonusAmount = isBonusDay ? config.checkin.bonusAmount : 0
+    const totalAmount = reward.amount + bonusAmount
     
     // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
     const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
     if (isGem) {
-      return { type: 'gem', amount: reward.amount }
+      return { type: 'gem', amount: totalAmount, baseReward: reward.amount, bonusReward: bonusAmount, isBonusDay }
     }
-    this.addCoins(reward.amount)
-    return { type: 'coin', amount: reward.amount }
+    this.addCoins(totalAmount)
+    return { type: 'coin', amount: totalAmount, baseReward: reward.amount, bonusReward: bonusAmount, isBonusDay }
   }
 
-  // 获取当天签到奖励（新规则：纯金币模式）
+  // 获取当天签到基础奖励（不含 bonus，bonus 在签到时单独计算）
   getTodayReward(day = null) {
     const checkinDay = day !== null ? day : this.checkinStreak + 1
     
@@ -355,15 +360,12 @@ export class GameState {
       baseReward = config.checkin.rewards[checkinDay].base
     }
     
-    // N 的倍数天额外奖励
-    const bonusReward = (checkinDay % config.checkin.bonusDay === 0) ? config.checkin.bonusAmount : 0
-    
     return {
       type: 'coin',
-      amount: baseReward + bonusReward,
+      amount: baseReward,
       baseReward: baseReward,
-      bonusReward: bonusReward,
-      isBonusDay: bonusReward > 0
+      bonusReward: 0,
+      isBonusDay: false
     }
   }
 
