@@ -224,6 +224,10 @@ export class Main {
       case 'MENU':
         this.handleMenuTouch(x, y)
         break
+      case 'COUNTDOWN':
+        // 倒计时阶段不允许点击，给出提示
+        this.uiManager.showToast('倒计时结束后开始观察~')
+        break
       case 'OBSERVE':
         // 观察阶段不允许点击，给出提示
         this.uiManager.showToast('先记住闪烁气泡的位置哦~')
@@ -832,8 +836,8 @@ export class Main {
       this.gameState.isNewScoreRecord = false
       this.uiManager.currentScreen = 'game'
       
-      // 重置当前关卡（重新开始，包括观察阶段）
-      this.restartCurrentWave()
+      // 金币复活：重置当前关卡（带倒计时）
+      this.restartCurrentWave(true)
     } else {
       this.vibrate('light')
       this.uiManager.showToast(`金币不足或已达到购买上限（需要${currentPrice}金币，最多${config.game.maxPurchaseCount}次）`)
@@ -898,20 +902,20 @@ export class Main {
       this.gameState.isNewScoreRecord = false
       this.uiManager.currentScreen = 'game'
       
-      // 重置当前关卡（重新开始，包括观察阶段）
-      this.restartCurrentWave()
+      // 分享复活：重置当前关卡（带倒计时）
+      this.restartCurrentWave(true)
     }
   }
 
   // 重新开始当前关卡（生命扣除后）
-  restartCurrentWave() {
+  restartCurrentWave(isRevival = false) {
     // 清除待执行的定时器
     this._clearPendingTimers()
     
     // 重置关卡状态
     this.gameState.activeWaveCompleted = false
     this.gameState.playerClicks = []
-    this.setGameState('OBSERVE', 'game')
+    this.setGameState(isRevival ? 'COUNTDOWN' : 'OBSERVE', 'game')
     this.gameState.waveScore = 0
     
     // 重新生成目标气泡位置（重新随机）
@@ -922,8 +926,37 @@ export class Main {
     // 重置泡泡
     this.bubbleGrid.resetBubbles()
     
-    // 重新开始观察阶段
-    this.startObservePhase()
+    if (isRevival) {
+      // 复活：开始倒计时，倒计时结束后进入观察阶段
+      this.startCountdownBeforeObserve()
+    } else {
+      // 普通重试：直接进入观察阶段
+      this.startObservePhase()
+    }
+  }
+
+  // 复活后倒计时（3秒），倒计时结束后进入观察阶段
+  startCountdownBeforeObserve() {
+    const duration = 3000  // 3 秒倒计时
+    this.gameState.countdownRemaining = duration
+
+    const startTime = Date.now()
+    this.gameState.clearTimer()
+
+    const tick = () => {
+      const elapsed = Date.now() - startTime
+      this.gameState.countdownRemaining = Math.max(0, duration - elapsed)
+
+      if (elapsed >= duration) {
+        this.gameState.clearTimer()
+        this.startObservePhase()
+      } else {
+        this.gameState.timerInterval = safeRequestAnimationFrame(tick)
+        this.gameState.timerType = 'raf'
+      }
+    }
+    this.gameState.timerInterval = safeRequestAnimationFrame(tick)
+    this.gameState.timerType = 'raf'
   }
 
   // 清除待执行的定时器
@@ -1384,7 +1417,7 @@ export class Main {
     this.bubbleGrid.drawBackground()
     
     // 只在游戏界面渲染泡泡网格
-    if (this.gameState.phase === 'OBSERVE' || this.gameState.phase === 'PLAY') {
+    if (this.gameState.phase === 'COUNTDOWN' || this.gameState.phase === 'OBSERVE' || this.gameState.phase === 'PLAY') {
       this.bubbleGrid.drawBubbles()
     }
     

@@ -24,7 +24,7 @@ export class GameState {
     this.wave = 1
     this.targets = []       // 需要记住的目标泡泡索引
     this.playerClicks = []  // 玩家点击的索引
-    this.phase = 'MENU'     // 'MENU' | 'OBSERVE' | 'PLAY' | 'WIN' | 'FAIL'
+    this.phase = 'MENU'     // 'MENU' | 'COUNTDOWN' | 'OBSERVE' | 'PLAY' | 'WIN' | 'FAIL'
     
     // 计时器
     this.soundEnabled = true
@@ -33,6 +33,7 @@ export class GameState {
     this.timerInterval = null
     this.timerType = null        // 'raf' | 'interval' | null
     this.timerRemaining = 0
+    this.countdownRemaining = 0  // 复活倒计时剩余时间（毫秒）
     this.activeWaveCompleted = false
     
     // 暂停状态

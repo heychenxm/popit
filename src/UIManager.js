@@ -817,6 +817,70 @@ export class UIManager {
     
     // 倒计时进度条
     this.drawCountdownBar(gameState)
+    
+    // 复活倒计时（3秒）
+    if (gameState.phase === 'COUNTDOWN') {
+      this.drawReviveCountdown(gameState)
+    }
+  }
+
+  // 绘制复活倒计时画面
+  drawReviveCountdown(gameState) {
+    const ctx = this.ctx
+    const remaining = gameState.countdownRemaining
+    
+    // 计算当前显示的数字（3, 2, 1）
+    const currentNum = Math.ceil(remaining / 1000)
+    if (currentNum <= 0) return
+    
+    // 计算当前数字的动画进度（0-1）
+    const progressInSecond = (remaining % 1000) / 1000
+    
+    // 缩放动画：从 1.5 缩小到 1.0
+    const scale = 1.0 + 0.5 * progressInSecond
+    // 透明度动画：从 0.3 到 1.0
+    const alpha = 0.3 + 0.7 * progressInSecond
+    
+    const centerX = this.width / 2
+    const centerY = this.height / 2
+    
+    ctx.save()
+    
+    // 绘制半透明背景遮罩
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 移动到中心并应用缩放
+    ctx.translate(centerX, centerY)
+    ctx.scale(scale, scale)
+    
+    // 绘制数字
+    ctx.globalAlpha = alpha
+    ctx.font = 'bold 120px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    
+    // 数字阴影
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    ctx.fillText(currentNum.toString(), 4, 4)
+    
+    // 数字主体（渐变）
+    const gradient = ctx.createLinearGradient(0, -60, 0, 60)
+    gradient.addColorStop(0, '#FFD700')
+    gradient.addColorStop(1, '#FFA500')
+    ctx.fillStyle = gradient
+    ctx.fillText(currentNum.toString(), 0, 0)
+    
+    ctx.restore()
+    
+    // 绘制"准备好了吗？"文字（不受缩放影响）
+    ctx.save()
+    ctx.font = 'bold 28px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fillText('准备好了吗？', centerX, centerY + 100)
+    ctx.restore()
   }
 
   // 绘制游戏HUD
@@ -1942,6 +2006,9 @@ export class UIManager {
 
   // 绘制倒计时进度条
   drawCountdownBar(gameState) {
+    // 复活倒计时阶段不显示进度条
+    if (gameState.phase === 'COUNTDOWN') return
+    
     const ctx = this.ctx
     const barY = this.height * 0.85
     const barHeight = 24
