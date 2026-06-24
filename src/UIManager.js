@@ -2391,7 +2391,7 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
     ctx.shadowBlur = 4
-    ctx.fillText('失败！', this.width / 2, titleY + 22)
+    ctx.fillText('再来一局', this.width / 2, titleY + 22)
     
     // 哭泣泡泡图标（使用 Canvas 路径绘制）
     ctx.shadowBlur = 0
