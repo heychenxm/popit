@@ -501,8 +501,8 @@ export class GameState {
       // 40-59 关：2000ms 起，每关 -30ms，最少 1600ms
       return Math.max(1600, 2000 - (this.wave - 1) * 30)
     } else {
-      // 60+ 关：1800ms 起，每关 -20ms，最少 1600ms
-      return Math.max(1600, 1800 - (this.wave - 1) * 20)
+      // 60+ 关：2200ms 起，每关 -20ms，最少 2000ms
+      return Math.max(2000, 2200 - (this.wave - 1) * 20)
     }
   }
 
@@ -518,8 +518,8 @@ export class GameState {
       // 40-59 关：4500ms 起，每关 -50ms，最少 3500ms
       return Math.max(3500, 4500 - (this.wave - 1) * 50)
     } else {
-      // 60+ 关：4200ms 起，每关 -30ms，最少 3600ms
-      return Math.max(3600, 4200 - (this.wave - 1) * 30)
+      // 60+ 关：4200ms 起，每关 -30ms，最少 4000ms
+      return Math.max(4000, 4200 - (this.wave - 1) * 30)
     }
   }
 
