@@ -690,6 +690,9 @@ export class Main {
   
   // 处理超时（倒计时结束）
   handleTimeOut() {
+    // 标记当前波次已结束，阻止后续点击
+    this.gameState.activeWaveCompleted = true
+    
     // 检查是否还有正确气泡未点完
     if (this.gameState.playerClicks.length < this.gameState.targets.length) {
       // 扣 1 生命
