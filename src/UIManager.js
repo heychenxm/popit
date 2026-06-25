@@ -1102,9 +1102,9 @@ export class UIManager {
     // 签到天数持续累加，每 7 天为一个周期
     const streak = gameState.checkinStreak
     const canCheckin = gameState.canCheckin()
-    // 当前周期起始天数（0, 7, 14, 21...）
-    const cycleStart = Math.floor((streak - 1) / 7) * 7
-    // 当前周期内已签到天数（0-7）
+    // 当前周期起始偏移（0, 7, 14, 21...），streak=0 时从 0 开始
+    const cycleStart = streak === 0 ? 0 : Math.floor((streak - 1) / 7) * 7
+    // 当前周期内已签到天数（0-6）
     const daysInCycle = streak - cycleStart
     // 7天连签奖励是否已获得（当前周期已完成7天）
     const bonusObtained = daysInCycle >= 7
@@ -1137,7 +1137,7 @@ export class UIManager {
     const day7Reward = gameState.getTodayReward(day7)
     this.drawCheckinReward(ctx, day7X, day7Y, cellWidth, cellHeight, day7Reward, isDay7Signed)
     
-    // 7 天连签奖励
+    // 7 天连签奖励（显示当前周期的总天数）
     const bonusX = gridStartX + cellWidth + gap
     const bonusY = day7Y
     const bonusWidth = cellWidth * 2 + gap
@@ -1427,11 +1427,11 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    // 标题
+    // 标题（bonusDay 是当前周期的总天数，如 7、14、21...）
     ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillStyle = isSigned ? Colors.gray300 : '#fde68a'
     ctx.textAlign = 'center'
-    ctx.fillText(isSigned ? `${bonusDay}天连续奖励已获得` : `${bonusDay} 天连签奖励`, x + w / 2, y + 22)
+    ctx.fillText(isSigned ? `${bonusDay}天连续奖励已获得` : `${bonusDay}天连签奖励`, x + w / 2, y + 22)
     
     // 金币图标
     const iconSize = 36
