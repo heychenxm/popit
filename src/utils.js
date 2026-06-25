@@ -263,14 +263,15 @@ export function getGameScreenLayout(width, height) {
   const countdownTop = height * 0.85 - 36
 
   const phaseMarginTop = 12 // my-3
-  const phaseBlockHeight = 70 // min-h-[70px]
+  const phaseBlockHeight = 90 // 增加高度容纳第三行计数
   const phaseTop = hudBottom + phaseMarginTop
   const phaseCenterY = phaseTop + phaseBlockHeight / 2
 
-  // 两行文字在提示区内垂直居中（对应 HTML justify-center）
-  const textLineGap = 26 // 标题(24px) + 间距(8px) + 副标题(12px) 的中心距
-  const titleY = phaseCenterY - textLineGap / 2 + 12
-  const descY = phaseCenterY + textLineGap / 2 + 12
+  // 三行文字在提示区内垂直居中
+  const textLineGap = 22 // 行间距
+  const titleY = phaseCenterY - textLineGap + 12
+  const descY = phaseCenterY + 12
+  const countY = phaseCenterY + textLineGap + 12
 
   // 网格在提示区下方剩余空间中垂直居中（对应 HTML my-auto）
   const gridAreaTop = phaseTop + phaseBlockHeight + 12
@@ -283,14 +284,14 @@ export function getGameScreenLayout(width, height) {
   const gridAreaHeight = gridAreaBottom - gridAreaTop
   const gridY = gridAreaTop + Math.max(0, (gridAreaHeight - gridContainerHeight) / 2)
 
-  _layoutCache = { titleY, descY, gridY, gridSize }
+  _layoutCache = { titleY, descY, countY, gridY, gridSize }
   _layoutCacheKey = key
   return _layoutCache
 }
 
 export function getPhaseIndicatorLayout(width, height) {
-  const { titleY, descY } = getGameScreenLayout(width, height)
-  return { titleY, descY }
+  const { titleY, descY, countY } = getGameScreenLayout(width, height)
+  return { titleY, descY, countY }
 }
 
 export function getBubbleGridTop(width, height) {

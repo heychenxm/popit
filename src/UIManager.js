@@ -1965,7 +1965,7 @@ export class UIManager {
   // 绘制阶段指示器（对齐 index_v1.0.3.html：HUD 下方独立提示区，不与网格重叠）
   drawPhaseIndicator(gameState) {
     const ctx = this.ctx
-    const { titleY, descY } = getPhaseIndicatorLayout(this.width, this.height)
+    const { titleY, descY, countY } = getPhaseIndicatorLayout(this.width, this.height)
     const centerX = this.width / 2 + 2 // 微调视觉居中
     
     ctx.save()
@@ -1998,6 +1998,15 @@ export class UIManager {
       ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
       ctx.fillText('在倒计时结束前点破所有闪烁的气泡', centerX, descY)
+      
+      // 剩余泡泡计数
+      const remaining = gameState.targets.length - gameState.playerClicks.length
+      const countText = remaining > 0 ? `剩余: ${remaining} 个` : '全部点破！'
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.purple500
+      ctx.shadowColor = 'rgba(168, 85, 247, 0.4)'
+      ctx.shadowBlur = 6
+      ctx.fillText(countText, centerX, countY)
     }
     
     ctx.restore()
