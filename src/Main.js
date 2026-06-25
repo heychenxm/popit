@@ -1261,6 +1261,7 @@ export class Main {
 
   // 处理用户授权（获取昵称和头像）
   handleAuthorize() {
+    console.log('handleAuthorize----》')
     this.audioManager.play('click')
     this.vibrate('light')
     
