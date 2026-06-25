@@ -2194,7 +2194,7 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
     ctx.shadowBlur = 4
-    ctx.fillText('胜利！', this.width / 2, titleY + 22)
+    ctx.fillText('挑战成功', this.width / 2, titleY + 22)
     
     // 星星（使用 Canvas 路径绘制）
     ctx.shadowBlur = 0
