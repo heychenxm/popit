@@ -49,6 +49,7 @@ export class Main {
     
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
+    this._userInfoButton = null
     
     // 分享冷却时间戳
     this._lastShareTime = 0
@@ -73,7 +74,10 @@ export class Main {
       this.bindLifecycleEvents()
       
       // 从云端加载数据（异步，不阻塞游戏启动）
-      this.gameState.loadCloudData()
+      this.gameState.loadCloudData().then(() => {
+        // 云端数据加载完成后刷新菜单（可能更新了授权状态）
+        this.uiManager.menuNeedsUpdate = true
+      }).catch(() => {})
       
       // 阶段 1：立即创建必要的缓存（背景）
       this.bubbleGrid.createBgCache()
@@ -1278,103 +1282,75 @@ export class Main {
   
   // 执行授权流程（隐私授权通过后调用）
   _doAuthorize() {
-    // 获取基础库版本
-    const systemInfo = wx.getSystemInfoSync()
-    const version = systemInfo.SDKVersion || ''
-    const [major, minor] = version.split('.').map(Number)
-    const isOldVersion = major < 2 || (major === 2 && minor < 27)
-    
-    if (isOldVersion) {
-      // 低版本微信：使用 wx.getUserProfile（可以弹出授权弹窗）
-      wx.getUserProfile({
-        desc: '用于完善用户资料和排行榜展示',
+    // 已授权过：直接获取用户信息
+    if (this.gameState.userInfo.authorized) {
+      wx.getUserInfo({
         success: (res) => {
           const userInfo = res.userInfo
           this.saveAndSyncUserInfo(userInfo.nickName, userInfo.avatarUrl)
         },
-        fail: (err) => {
-          console.log('用户拒绝授权')
-          this.uiManager.showToast('已取消授权')
+        fail: () => {
+          // 授权过期，需要重新授权
+          this._createUserInfoButton()
         }
       })
-    } else {
-      // 高版本微信：wx.getUserProfile 已失效，直接显示手动填写组件
-      this.uiManager.showToast('请点击头像和昵称进行设置')
-      this.showAvatarNicknamePicker()
+      return
     }
+    
+    // 未授权：创建微信原生按钮，用户点击后弹出授权弹窗
+    this._createUserInfoButton()
   }
   
-  // 保存用户信息并同步到云端（仅在授权时调用）
+  // 创建微信原生用户信息按钮
+  _createUserInfoButton() {
+    if (this._userInfoButton) {
+      this._userInfoButton.destroy()
+      this._userInfoButton = null
+    }
+    
+    // 按钮位置与 Canvas 绘制的授权按钮对齐（height * 0.44, 宽200 居中）
+    const btnWidth = 200
+    const btnHeight = 44
+    const btnX = (this.width - btnWidth) / 2
+    const btnY = this.height * 0.44
+    
+    this._userInfoButton = wx.createUserInfoButton({
+      type: 'text',
+      text: '',
+      style: {
+        left: btnX,
+        top: btnY,
+        width: btnWidth,
+        height: btnHeight,
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        color: '#ffffff',
+        textAlign: 'center',
+        fontSize: 14
+      }
+    })
+    
+    this._userInfoButton.onTap((res) => {
+      if (res.userInfo) {
+        this.saveAndSyncUserInfo(res.userInfo.nickName, res.userInfo.avatarUrl)
+      }
+      // 授权完成后销毁按钮
+      if (this._userInfoButton) {
+        this._userInfoButton.destroy()
+        this._userInfoButton = null
+      }
+    })
+    
+    // 提示用户点击按钮
+    this.uiManager.showToast('请点击按钮授权')
+  }
+  
+  // 保存用户信息并同步到云端
   saveAndSyncUserInfo(nickname, avatarUrl) {
     this.gameState.saveUserProfileLocally(nickname, avatarUrl)
     this.uiManager.showToast('设置成功！')
-    // 立即保存到云端（只保存用户信息）
+    this.uiManager.menuNeedsUpdate = true
+    // 立即保存到云端
     this.gameState.saveUserProfileToCloud().catch(() => {})
-  }
-  
-  // 显示头像昵称选择组件（高版本微信降级方案）
-  showAvatarNicknamePicker() {
-    if (this.showingAvatarPicker) return
-    
-    this.showingAvatarPicker = true
-    
-    // 先提示用户选择头像
-    wx.showModal({
-      title: '设置头像',
-      content: '是否要设置头像？',
-      confirmText: '选择头像',
-      cancelText: '跳过',
-      success: (res) => {
-        if (res.confirm) {
-          wx.chooseAvatar({
-            success: (avatarRes) => {
-              this.gameState.saveUserProfileLocally(
-                this.gameState.userInfo.nickname,
-                avatarRes.avatarUrl
-              )
-              this.uiManager.showToast('头像设置成功！')
-              // 继续设置昵称
-              this._showNicknameInput()
-            },
-            fail: () => {
-              this.uiManager.showToast('已取消选择')
-              // 继续设置昵称
-              this._showNicknameInput()
-            }
-          })
-        } else {
-          // 跳过头像，直接设置昵称
-          this._showNicknameInput()
-        }
-      }
-    })
-  }
-  
-  // 显示昵称输入框
-  _showNicknameInput() {
-    wx.showModal({
-      title: '设置昵称',
-      placeholderText: '请输入昵称',
-      editable: true,
-      confirmText: '完成',
-      success: (res) => {
-        if (res.confirm && res.content && res.content.trim()) {
-          this.gameState.saveUserProfileLocally(
-            res.content.trim(),
-            this.gameState.userInfo.avatarUrl
-          )
-          this.uiManager.showToast('昵称设置成功！')
-          // 同步到云端
-          this.gameState.saveUserProfileToCloud().catch(() => {})
-        }
-        this.showingAvatarPicker = false
-      }
-    })
-  }
-  
-  // 隐藏头像昵称填写组件
-  hideAvatarNicknamePicker() {
-    this.showingAvatarPicker = false
   }
 
   // 开始游戏循环

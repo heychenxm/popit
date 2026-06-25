@@ -447,14 +447,12 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
-    // 根据版本显示不同文字
     ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
-    const buttonText = this._isOldWxVersion ? '授权获取昵称和头像' : '设置昵称和头像'
-    ctx.fillText(buttonText, this.width / 2, btnY + btnHeight / 2)
+    ctx.fillText('设置昵称和头像', this.width / 2, btnY + btnHeight / 2)
     
     // 添加按钮到按钮列表
     this.buttons.push({
