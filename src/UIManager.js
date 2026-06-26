@@ -37,6 +37,9 @@ export class UIManager {
     
     // 动画状态
     this.animationFrame = 0
+
+    // 屏幕过渡动画
+    this.transition = { active: false, phase: 0, startTime: 0, onMidpoint: null }
     
     // 排行榜加载状态
   this.leaderboardLoading = false
@@ -2830,6 +2833,39 @@ export class UIManager {
     this.animationFrame = (this.animationFrame + 1) % 600000
   }
 
+  // 启动屏幕过渡动画
+  startTransition(onMidpoint) {
+    this.transition.active = true
+    this.transition.phase = 1
+    this.transition.startTime = Date.now()
+    this.transition.onMidpoint = onMidpoint
+  }
+
+  // 绘制过渡遮罩
+  _drawTransitionOverlay() {
+    const elapsed = Date.now() - this.transition.startTime
+    const DURATION = 300
+    let alpha
+
+    if (this.transition.phase === 1) {
+      alpha = Math.min(1, elapsed / DURATION)
+      if (elapsed >= DURATION) {
+        this.transition.onMidpoint?.()
+        this.transition.phase = 2
+        this.transition.startTime = Date.now()
+      }
+    } else {
+      alpha = 1 - Math.min(1, elapsed / DURATION)
+      if (elapsed >= DURATION) {
+        this.transition.active = false
+        return
+      }
+    }
+
+    this.ctx.fillStyle = `rgba(0,0,0,${alpha})`
+    this.ctx.fillRect(0, 0, this.width, this.height)
+  }
+
   // 渲染
   render(gameState) {
     switch (this.currentScreen) {
@@ -2863,6 +2899,11 @@ export class UIManager {
     }
     
     this.drawToast()
+
+    // 屏幕过渡遮罩（仅过渡期间生效）
+    if (this.transition.active) {
+      this._drawTransitionOverlay()
+    }
   }
 
   // ==================== 辅助图标绘制方法 ====================

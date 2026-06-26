@@ -982,12 +982,15 @@ export class Main {
     // 清除待执行的定时器
     this._clearPendingTimers()
     
-    // ✅ 修复：先切换 UI，再异步保存数据（不阻塞用户）
-    this.uiManager.currentScreen = 'menu'
     this.bubbleGrid.resetBubbles()
     
     // 清理音频对象池（防止内存泄漏）
     this.audioManager.clearAudioPool()
+    
+    // 启动过渡动画，阶段1结束时切换到菜单
+    this.uiManager.startTransition(() => {
+      this.uiManager.currentScreen = 'menu'
+    })
     
     // 异步保存到云端（不 await，用户无感知）
     this.gameState.saveToCloud().catch(err => {
