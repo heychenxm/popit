@@ -1,6 +1,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const { checkRateLimit } = require('./rateLimit')
 
 // 签到奖励配置（与客户端 config.js 保持一致）
 const CHECKIN_REWARDS = {
@@ -21,6 +22,12 @@ exports.main = async (event, context) => {
 
   if (!openid) {
     return { success: false, error: '无法获取用户标识' }
+  }
+
+  // 速率限制：5 秒内不允许重复签到
+  const blocked = await checkRateLimit(db, openid, 'checkin', 5000)
+  if (blocked) {
+    return { success: false, error: '操作过于频繁，请稍后再试' }
   }
 
   // 获取今天的日期字符串 YYYY-MM-DD（东八区）

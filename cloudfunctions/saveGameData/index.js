@@ -2,6 +2,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
+const { checkRateLimit } = require('./rateLimit')
 
 /**
  * 保存用户游戏数据（upsert）
@@ -14,6 +15,12 @@ exports.main = async (event, context) => {
 
   if (!openid) {
     return { success: false, error: '无法获取用户标识' }
+  }
+
+  // 速率限制：同一用户 3 秒内不允许重复保存
+  const blocked = await checkRateLimit(db, openid, 'save', 3000)
+  if (blocked) {
+    return { success: false, error: '操作过于频繁，请稍后再试' }
   }
 
   // 只允许保存白名单字段，防止客户端注入
@@ -29,6 +36,45 @@ exports.main = async (event, context) => {
   for (const key of allowedFields) {
     if (event[key] !== undefined) {
       updateData[key] = event[key]
+    }
+  }
+
+  // 数值范围校验，防止客户端传入不合理数据
+  const numericLimits = {
+    coins: [0, 999999],
+    highScore: [0, 9999999],
+    bestWave: [0, 999],
+    checkinStreak: [0, 365],
+    todayShareCount: [0, 100],
+    seasonScore: [0, 9999999],
+    seasonWave: [0, 999]
+  }
+  for (const [key, [min, max]] of Object.entries(numericLimits)) {
+    if (updateData[key] !== undefined) {
+      const val = updateData[key]
+      if (typeof val !== 'number' || !Number.isFinite(val) || val < min || val > max) {
+        console.warn(`字段 ${key} 值异常: ${val}，已忽略`)
+        delete updateData[key]
+      }
+    }
+  }
+
+  // 字符串长度校验
+  const stringLimits = {
+    nickname: 50,
+    avatarUrl: 500,
+    lastCheckinDate: 10,
+    lastShareDate: 10,
+    lastShareGiftDate: 10,
+    seasonId: 20
+  }
+  for (const [key, maxLen] of Object.entries(stringLimits)) {
+    if (updateData[key] !== undefined) {
+      const val = updateData[key]
+      if (typeof val !== 'string' || val.length > maxLen) {
+        console.warn(`字段 ${key} 值异常，已忽略`)
+        delete updateData[key]
+      }
     }
   }
 

@@ -994,7 +994,7 @@ export class Main {
     
     // 异步保存到云端（不 await，用户无感知）
     this.gameState.saveToCloud().catch(err => {
-      console.log('保存到云端失败（不影响游戏）:', err.message || err)
+      console.warn('保存到云端失败（不影响游戏）:', err.message || err)
     })
   }
 
@@ -1275,7 +1275,7 @@ export class Main {
           this._doAuthorize()
         },
         fail: (err) => {
-          console.log('用户拒绝隐私授权:', err)
+          console.warn('用户拒绝隐私授权:', err)
           this.uiManager.showToast('需要同意隐私政策才能设置昵称和头像')
         }
       })

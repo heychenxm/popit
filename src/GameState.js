@@ -543,7 +543,7 @@ export class GameState {
         }
       }
     } catch (e) {
-      console.log(`读取${label}缓存失败:`, e)
+      console.warn(`读取${label}缓存失败:`, e)
     }
 
     // 缓存过期或无缓存，从云端获取
@@ -858,7 +858,7 @@ export class GameState {
       const result = await wechatAPI.saveGameData(saveData)
       console.log('保存到云端结果:', JSON.stringify(result))
     } catch (err) {
-      console.log('保存到云端失败（不影响游戏）:', err.message || err)
+      console.warn('保存到云端失败（不影响游戏）:', err.message || err)
     }
   }
 
@@ -882,7 +882,7 @@ export class GameState {
     }
 
     // 赛季变更，结算上赛季
-    console.log(`检测到赛季变更: ${lastSeasonId} → ${currentSeasonId}，开始结算上赛季`)
+    console.warn(`检测到赛季变更: ${lastSeasonId} → ${currentSeasonId}，开始结算上赛季`)
 
     try {
       const result = await wechatAPI.settleSeason(lastSeasonId)
@@ -918,7 +918,7 @@ export class GameState {
     try {
       const result = await wechatAPI.cloudCheckin()
       if (!result.success) {
-        console.log('云端签到失败:', result.error)
+        console.warn('云端签到失败:', result.error)
         // 如果是"今天已签到"，同步本地状态
         if (result.error === '今天已签到') {
           this.lastCheckinDate = today
@@ -941,7 +941,7 @@ export class GameState {
 
       return data.reward
     } catch (err) {
-      console.log('云端签到异常，降级到本地签到:', err.message || err)
+      console.warn('云端签到异常，降级到本地签到:', err.message || err)
       return this.doLocalCheckin()
     }
   }

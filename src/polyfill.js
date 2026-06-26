@@ -63,3 +63,8 @@ if (typeof requestAnimationFrame === 'undefined') {
 
 // 导出标记，确保 polyfill 已被执行
 globalThis.__POLYFILL_LOADED__ = true
+
+// 生产环境禁用 console.log（保留 warn/error 用于问题排查）
+if (typeof console !== 'undefined') {
+  console.log = function() {}
+}
