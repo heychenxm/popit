@@ -703,7 +703,7 @@ export class Main {
       this.audioManager.play('wrong')
       this.vibrate('heavy')
       this.gameState.lives--
-      this.uiManager.showToast('时间到！失去 1 点生命 ❤️')
+      this.uiManager.showToast('时间到！失去 1 点生命')
       
       if (this.gameState.lives > 0) {
         // 还有生命，重新开始当前关卡
@@ -725,7 +725,7 @@ export class Main {
     // 增加连续胜利计数，检查是否恢复生命
     const lifeRecovered = this.gameState.addConsecutiveWin()
     if (lifeRecovered) {
-      this.uiManager.showToast(`连续 ${config.rewards.consecutiveWin} 胜！恢复 1 生命 ❤️`)
+      this.uiManager.showToast(`连续 ${config.rewards.consecutiveWin} 胜！恢复 1 生命`)
     }
     
     // 发放通关奖励：金币（阶梯式奖励）
@@ -837,7 +837,7 @@ export class Main {
     
     if (this.gameState.purchaseLife()) {
       this.vibrate('medium')
-      this.uiManager.showToast(`购买成功！花费 ${currentPrice} 金币，生命 +1 ❤️`)
+      this.uiManager.showToast(`购买成功！花费 ${currentPrice} 金币，生命 +1`)
       
       // 关闭失败弹窗
       this.gameState.isNewScoreRecord = false
@@ -903,7 +903,7 @@ export class Main {
     if (this.gameState.useShareRevive()) {
       this.vibrate('medium')
       const remaining = this.gameState.getShareReviveRemaining()
-      this.uiManager.showToast(`分享成功！生命 +1 ❤️（剩余${remaining}次）`)
+      this.uiManager.showToast(`分享成功！生命 +1（剩余${remaining}次）`)
       
       // 关闭失败弹窗
       this.gameState.isNewScoreRecord = false
