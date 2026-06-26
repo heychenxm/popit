@@ -1381,7 +1381,10 @@ export class UIManager {
     // 游戏描述
     ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
-    ctx.fillText('我轻松闯过第 12 关，你敢来比一比吗？', gameIconX + gameIconSize + 10, previewContentY + 32)
+    const previewText = gameState.bestWave > 0
+      ? `我轻松闯过了第 ${gameState.bestWave} 关，你敢来比一比吗？`
+      : '别以为简单，是你你也上不了榜'
+    ctx.fillText(previewText, gameIconX + gameIconSize + 10, previewContentY + 32)
     
     // 分享按钮
     const btnWidth = modalW - 60
