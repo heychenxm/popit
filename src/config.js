@@ -25,6 +25,7 @@ export const config = {
     defaultBase: 500,         // 默认基础奖励
     bonusDay: 7,               //  bonus 天数（7 的倍数）
     bonusAmount: 1000,         // bonus 额外奖励
+    rewardedVideoAdUnitId: 'adunit-19a83e377405ddb5',  // 签到激励视频广告单元 ID
   },
   
   // 奖励配置

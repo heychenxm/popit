@@ -45,6 +45,8 @@ export class GameState {
     this.lastCheckinDate = saved.lastCheckinDate
     this.checkinStreak = saved.checkinStreak
     this.hasCheckedInToday = false  // 当前是否已签到
+    this.hasNormalCheckinToday = false  // 今天是否已普通签到
+    this.hasAdDoubleCheckinToday = false  // 今天是否已看广告双倍签到
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
     this.lastShareGiftDate = saved.lastShareGiftDate
     // 初始化时检查今天是否已领取
@@ -248,10 +250,19 @@ export class GameState {
     return this.lastCheckinDate !== today
   }
 
+  // 检查是否可以看广告双倍签到
+  canAdDoubleCheckin() {
+    // 未使用过广告双倍签到即可（允许普通签到后再看广告）
+    return !this.hasAdDoubleCheckinToday
+  }
+
   // 更新今日是否已签到状态
   updateCheckinStatus() {
     const today = getTodayString()
     this.hasCheckedInToday = (this.lastCheckinDate === today)
+    // 新的一天，重置所有签到状态
+    this.hasNormalCheckinToday = false
+    this.hasAdDoubleCheckinToday = false
   }
   
   // 更新分享礼包状态（每天 0 点重置）
@@ -334,6 +345,7 @@ export class GameState {
     
     // 更新今日是否已签到状态
     this.hasCheckedInToday = true
+    this.hasNormalCheckinToday = true
     
     // 根据签到天数给予基础奖励
     const reward = this.getTodayReward(this.checkinStreak)
@@ -350,6 +362,56 @@ export class GameState {
     }
     this.addCoins(totalAmount)
     return { type: 'coin', amount: totalAmount, baseReward: reward.amount, bonusReward: bonusAmount, isBonusDay }
+  }
+
+  // 执行广告双倍签到（看广告后调用）
+  doAdDoubleCheckin() {
+    const today = getTodayString()
+    const yesterday = getYesterdayString()
+    
+    // 检查是否可以使用广告双倍签到
+    if (this.hasAdDoubleCheckinToday) {
+      return null
+    }
+    
+    // 判断是否已普通签到（决定给1x还是2x）
+    const hasNormalCheckin = this.hasNormalCheckinToday
+    
+    // 如果还没签到，更新连续签到天数
+    if (!hasNormalCheckin) {
+      if (this.lastCheckinDate === yesterday) {
+        this.checkinStreak++
+      } else if (this.lastCheckinDate !== today) {
+        this.checkinStreak = 1
+      }
+      
+      this.lastCheckinDate = today
+      setStorage('lastCheckinDate', today)
+      setStorage('checkinStreak', this.checkinStreak)
+    }
+    
+    // 标记今天已使用广告双倍签到
+    this.hasAdDoubleCheckinToday = true
+    this.hasCheckedInToday = true
+    
+    // 根据签到天数给予基础奖励
+    const reward = this.getTodayReward(this.checkinStreak)
+    
+    // bonus 单独计算（7 的倍数天额外奖励）
+    const isBonusDay = (this.checkinStreak % config.checkin.bonusDay === 0)
+    const bonusAmount = isBonusDay ? config.checkin.bonusAmount : 0
+    
+    // 已普通签到：补齐到2倍（再给1x）；未签到：直接给2倍
+    const multiplier = hasNormalCheckin ? 1 : 2
+    const totalAmount = (reward.amount + bonusAmount) * multiplier
+    
+    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
+    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
+    if (isGem) {
+      return { type: 'gem', amount: totalAmount, baseReward: reward.amount * multiplier, bonusReward: bonusAmount * multiplier, isBonusDay, isDouble: !hasNormalCheckin }
+    }
+    this.addCoins(totalAmount)
+    return { type: 'coin', amount: totalAmount, baseReward: reward.amount * multiplier, bonusReward: bonusAmount * multiplier, isBonusDay, isDouble: !hasNormalCheckin }
   }
 
   // 获取当天签到基础奖励（不含 bonus，bonus 在签到时单独计算）
@@ -948,6 +1010,7 @@ export class GameState {
           this.lastCheckinDate = today
           setStorage('lastCheckinDate', today)
           this.hasCheckedInToday = true
+          this.hasNormalCheckinToday = true
         }
         return null
       }
@@ -958,6 +1021,7 @@ export class GameState {
       this.checkinStreak = data.checkinStreak
       this.lastCheckinDate = data.lastCheckinDate
       this.hasCheckedInToday = true
+      this.hasNormalCheckinToday = true
 
       setStorage('coins', this.coins)
       setStorage('checkinStreak', this.checkinStreak)

@@ -58,6 +58,10 @@ export class Main {
     this._rewardedVideoAd = null
     this._initRewardedVideoAd()
     
+    // 签到激励视频广告
+    this._checkinRewardedVideoAd = null
+    this._initCheckinRewardedVideoAd()
+    
     // 初始化
     this.init()
   }
@@ -134,6 +138,25 @@ export class Main {
       })
     } catch (e) {
       console.warn('创建激励视频广告失败:', e)
+    }
+  }
+
+  /**
+   * 初始化签到激励视频广告
+   */
+  _initCheckinRewardedVideoAd() {
+    if (typeof wx === 'undefined' || !wx.createRewardedVideoAd) return
+    
+    try {
+      this._checkinRewardedVideoAd = wx.createRewardedVideoAd({
+        adUnitId: config.checkin.rewardedVideoAdUnitId
+      })
+      
+      this._checkinRewardedVideoAd.onError((err) => {
+        console.warn('签到激励视频广告加载失败:', err)
+      })
+    } catch (e) {
+      console.warn('创建签到激励视频广告失败:', e)
     }
   }
 
@@ -381,6 +404,9 @@ export class Main {
           break
         case 'checkin':
           await this.doCheckin()
+          break
+        case 'adCheckin':
+          this.adDoubleCheckin()
           break
       }
     }
@@ -1256,6 +1282,65 @@ export class Main {
       this.vibrate('light')
       this.uiManager.showToast('签到失败')
       return false
+    }
+  }
+
+  // 广告双倍签到
+  adDoubleCheckin() {
+    this.audioManager.play('click')
+    
+    if (!this.gameState.canAdDoubleCheckin()) {
+      this.vibrate('light')
+      this.uiManager.showToast('今日已使用广告双倍奖励')
+      return
+    }
+    
+    if (!this._checkinRewardedVideoAd) {
+      this.uiManager.showToast('广告功能暂不可用')
+      return
+    }
+    
+    try {
+      // 监听关闭回调（一次性）
+      const onCloseHandler = (res) => {
+        this._checkinRewardedVideoAd.offClose(onCloseHandler)
+        
+        if (res && res.isEnded) {
+          // 用户完整观看广告
+          const result = this.gameState.doAdDoubleCheckin()
+          if (result) {
+            this.vibrate('medium')
+            this.audioManager.play('success')
+            const rewardText = result.isDouble ? '双倍奖励' : '补齐奖励'
+            this.uiManager.showToast(
+              `广告签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 ' : '金币'}（${rewardText}）`
+            )
+          } else {
+            this.vibrate('light')
+            this.uiManager.showToast('签到失败')
+          }
+        } else {
+          this.vibrate('light')
+          this.uiManager.showToast('需要完整观看广告才能获得奖励')
+        }
+      }
+      
+      this._checkinRewardedVideoAd.onClose(onCloseHandler)
+      
+      // 尝试展示广告
+      this._checkinRewardedVideoAd.show().catch(() => {
+        // 展示失败，先加载再展示
+        this._checkinRewardedVideoAd.load().then(() => {
+          this._checkinRewardedVideoAd.show()
+        }).catch((err) => {
+          this._checkinRewardedVideoAd.offClose(onCloseHandler)
+          console.warn('签到广告加载失败:', err)
+          this.uiManager.showToast('广告加载失败，请稍后再试')
+        })
+      })
+    } catch (error) {
+      console.warn('广告双倍签到失败:', error)
+      this.uiManager.showToast('广告功能暂不可用')
     }
   }
 

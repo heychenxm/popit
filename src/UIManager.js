@@ -1148,39 +1148,21 @@ export class UIManager {
     
     this.drawBonusCard(ctx, bonusX, bonusY, bonusWidth, bonusHeight, bonusObtained, day7)
     
-    // 签到按钮
-    const btnWidth = modalW - 60
+    // 签到按钮区域（两个并排按钮）
     const btnHeight = 46
-    const btnX = modalX + 30
+    const btnGap = 12
+    const btnWidth = (modalW - 60 - btnGap) / 2
+    const btnX1 = modalX + 30
+    const btnX2 = btnX1 + btnWidth + btnGap
     const btnY = bonusY + bonusHeight + 25
     
-    if (gameState.canCheckin()) {
-      const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnHeight)
-      btnGrad.addColorStop(0, '#4ade80')
-      btnGrad.addColorStop(1, '#16a34a')
-      
-      ctx.fillStyle = btnGrad
-      drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 16)
-      ctx.fill()
-      ctx.strokeStyle = '#86efac'
-      ctx.lineWidth = 2
-      ctx.stroke()
-      
-      ctx.font = `bold 16px ${FONT_FAMILY}`
-      ctx.fillStyle = Colors.white
-      ctx.textAlign = 'center'
-      ctx.fillText('立即签到领奖', modalX + modalW / 2, btnY + btnHeight / 2)
-      
-      this.buttons.push({
-        id: 'checkin',
-        x: btnX,
-        y: btnY,
-        w: btnWidth,
-        h: btnHeight
-      })
-    } else {
+    const canAdDoubleCheckin = gameState.canAdDoubleCheckin()
+    const isAllSigned = !canCheckin && !canAdDoubleCheckin
+    
+    if (isAllSigned) {
+      // 全部完成：显示一个全宽的灰色按钮
       ctx.fillStyle = '#374151'
-      drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 16)
+      drawRoundRect(ctx, btnX1, btnY, modalW - 60, btnHeight, 16)
       ctx.fill()
       ctx.strokeStyle = '#6b7280'
       ctx.lineWidth = 2
@@ -1189,7 +1171,66 @@ export class UIManager {
       ctx.font = `bold 16px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray400
       ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
       ctx.fillText('今日已签到', modalX + modalW / 2, btnY + btnHeight / 2)
+    } else {
+      // 普通签到按钮（左）
+      if (canCheckin) {
+        const btnGrad = ctx.createLinearGradient(btnX1, btnY, btnX1, btnY + btnHeight)
+        btnGrad.addColorStop(0, '#4ade80')
+        btnGrad.addColorStop(1, '#16a34a')
+        ctx.fillStyle = btnGrad
+      } else {
+        ctx.fillStyle = '#374151'
+      }
+      drawRoundRect(ctx, btnX1, btnY, btnWidth, btnHeight, 16)
+      ctx.fill()
+      ctx.strokeStyle = canCheckin ? '#86efac' : '#6b7280'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = canCheckin ? Colors.white : Colors.gray400
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(canCheckin ? '立即签到' : '今日已签到', btnX1 + btnWidth / 2, btnY + btnHeight / 2)
+      
+      this.buttons.push({
+        id: 'checkin',
+        x: btnX1,
+        y: btnY,
+        w: btnWidth,
+        h: btnHeight
+      })
+      
+      // 看广告双倍按钮（右）
+      if (canAdDoubleCheckin) {
+        const adBtnGrad = ctx.createLinearGradient(btnX2, btnY, btnX2, btnY + btnHeight)
+        adBtnGrad.addColorStop(0, '#8b5cf6')
+        adBtnGrad.addColorStop(1, '#7c3aed')
+        ctx.fillStyle = adBtnGrad
+      } else {
+        ctx.fillStyle = '#374151'
+      }
+      drawRoundRect(ctx, btnX2, btnY, btnWidth, btnHeight, 16)
+      ctx.fill()
+      ctx.strokeStyle = canAdDoubleCheckin ? '#c4b5fd' : '#6b7280'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = canAdDoubleCheckin ? Colors.white : Colors.gray400
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(canAdDoubleCheckin ? ' 双倍奖励' : '今日已双倍', btnX2 + btnWidth / 2, btnY + btnHeight / 2)
+      
+      this.buttons.push({
+        id: 'adCheckin',
+        x: btnX2,
+        y: btnY,
+        w: btnWidth,
+        h: btnHeight
+      })
     }
     
     ctx.restore()
