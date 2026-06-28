@@ -57,6 +57,7 @@ export class GameState {
     this.lastStaminaUpdateTime = saved.lastStaminaUpdateTime || Date.now()
     this.staminaPurchaseCount = saved.staminaPurchaseCount || 0  // 今日金币购买体力次数
     this.staminaAdCount = saved.staminaAdCount || 0  // 今日广告恢复体力次数
+    this.staminaConsumedThisGame = false  // 本局游戏是否已扣除体力
     // 初始化时更新体力
     this.updateStamina()
     
@@ -188,6 +189,7 @@ export class GameState {
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
     this.isWaitingShareRevive = false  // 重置分享复活等待标志
+    this.staminaConsumedThisGame = false  // 重置体力扣除标记
     this.clearTimer()
   }
   
@@ -375,10 +377,16 @@ export class GameState {
     return this.stamina >= config.stamina.gameCost
   }
   
-  // 消耗体力（进入 OBSERVE 阶段时调用）
+  // 消耗体力（进入 OBSERVE 阶段时调用，每局只扣一次）
   consumeStamina() {
+    // 如果本局已扣过，不再扣除
+    if (this.staminaConsumedThisGame) {
+      return false
+    }
+    
     if (this.stamina >= config.stamina.gameCost) {
       this.stamina -= config.stamina.gameCost
+      this.staminaConsumedThisGame = true  // 标记本局已扣
       this._scheduleStorageWrite('stamina', this.stamina)
       this._scheduleStorageWrite('lastStaminaUpdateTime', this.lastStaminaUpdateTime)
       // 立即 flush，确保体力扣除被保存

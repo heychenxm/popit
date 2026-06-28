@@ -635,6 +635,12 @@ export class Main {
 
   // 重新开始游戏
   restartGame() {
+    // 检查体力是否足够（失败后重玩需要扣除体力）
+    if (!this.gameState.canStartGame()) {
+      this.showStaminaInsufficientModal()
+      return
+    }
+    
     this.gameState.isNewScoreRecord = false
     this.gameState.reset()
     // 修复：移除重复的 incrementSeasonGames()，只在 startGame() 中调用
