@@ -440,6 +440,14 @@ export class GameState {
   getStaminaAdRemaining() {
     return config.stamina.maxAdCountPerDay - this.staminaAdCount
   }
+  
+  // 获取体力恢复剩余时间（毫秒）
+  getStaminaRecoverRemaining() {
+    const now = Date.now()
+    const elapsed = now - this.lastStaminaUpdateTime
+    const timeSinceLastRecover = elapsed % config.stamina.recoverInterval
+    return config.stamina.recoverInterval - timeSinceLastRecover
+  }
 
   // 执行签到（完全本地处理，不调用云函数）
   doLocalCheckin() {

@@ -85,6 +85,9 @@ export class Main {
       // 绑定游戏生命周期事件
       this.bindLifecycleEvents()
       
+      // 启动体力恢复倒计时定时器
+      this._startStaminaCountdown()
+      
       // 从云端加载数据（异步，不阻塞游戏启动）
       this.gameState.loadCloudData().then(() => {
         // 云端数据加载完成后刷新菜单（可能更新了授权状态）
@@ -182,21 +185,46 @@ export class Main {
       console.warn('创建体力激励视频广告失败:', e)
     }
   }
-
+  
+  /**
+   * 启动体力恢复倒计时定时器
+   */
+  _startStaminaCountdown() {
+    if (this._staminaCountdownTimer) return
+    
+    this._staminaCountdownTimer = setInterval(() => {
+      // 只在体力未满且显示菜单/游戏界面时触发重绘
+      if (this.gameState.stamina < config.stamina.maxStamina &&
+          (this.uiManager.currentScreen === 'menu' || this.uiManager.currentScreen === 'game')) {
+        // 强制触发菜单缓存更新
+        if (this.uiManager.currentScreen === 'menu') {
+          this.uiManager.menuNeedsUpdate = true
+        }
+      }
+    }, 1000)
+  }
+  
   /**
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）—— 保存体力数据
+    // 游戏隐藏（切换到后台）—— 保存体力数据并停止倒计时
     wx.onHide(() => {
       console.log('游戏隐藏')
       // 立即保存体力数据到本地
       this.gameState._flushStorageWrites()
+      // 停止倒计时定时器以节省性能
+      if (this._staminaCountdownTimer) {
+        clearInterval(this._staminaCountdownTimer)
+        this._staminaCountdownTimer = null
+      }
     })
     
-    // 游戏显示（回到前台）
+    // 游戏显示（回到前台）—— 重新启动倒计时
     wx.onShow(() => {
       console.log('游戏显示')
+      // 重新启动体力倒计时
+      this._startStaminaCountdown()
       
       // 清除分享复活超时
       if (this._shareReviveTimeout) {

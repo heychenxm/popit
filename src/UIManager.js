@@ -158,6 +158,7 @@ export class UIManager {
     // 调用原有绘制逻辑
     this.buttons.length = 0
     this.drawTopCoins(gameState)
+    this.drawStaminaCountdown(gameState)
     this.drawLogo()
     this.drawBestScore(gameState)
     this.drawAuthButton(gameState)
@@ -222,6 +223,7 @@ export class UIManager {
       // 降级方案：直接绘制
       this.buttons.length = 0
       this.drawTopCoins(gameState)
+      this.drawStaminaCountdown(gameState)
       this.drawLogo()
       this.drawBestScore(gameState)
       this.drawAuthButton(gameState)
@@ -429,10 +431,10 @@ export class UIManager {
     this.setFont('bold11_2')
     ctx.textBaseline = 'middle'
     const coinsText = gameState.coins.toString()
-    const staminaText = Math.floor(gameState.stamina).toString()
+    const staminaText = `${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`
     // 使用预计算的数值宽度
     const textWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
-    const staminaWidth = this.numberWidths[Math.floor(gameState.stamina)] || this.measureText(staminaText)
+    const staminaWidth = this.measureText(staminaText)
     
     // 计算徽章总宽度 = 左边距 + 图标 + 间距 + 文字 + 右边距
     const badgeWidth = leftPadding + iconSize + iconGap + textWidth + rightPadding
@@ -470,6 +472,55 @@ export class UIManager {
     ctx.textAlign = 'left'
     ctx.fillStyle = '#ef4444'
     ctx.fillText(staminaText, staminaX + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
+    
+    ctx.restore()
+  }
+  
+  // 绘制体力恢复倒计时
+  drawStaminaCountdown(gameState) {
+    // 体力已满时不显示
+    if (gameState.stamina >= config.stamina.maxStamina) return
+    
+    const ctx = this.ctx
+    const padding = 20
+    const verticalPadding = padding + 24
+    const scale = 0.7
+    const badgeHeight = 40 * scale
+    const textGap = 8
+    
+    // 计算倒计时剩余时间
+    const remaining = gameState.getStaminaRecoverRemaining()
+    const minutes = Math.floor(remaining / 60000)
+    const seconds = Math.floor((remaining % 60000) / 1000)
+    const countdownText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    
+    // 计算体力徽章的位置（与 drawTopCoins 保持一致）
+    const leftPadding = 20 * scale
+    const iconSize = 28 * scale
+    const iconGap = 12 * scale
+    const gapBetweenBadges = 10
+    
+    const coinsText = gameState.coins.toString()
+    const coinsWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
+    const coinsBadgeWidth = leftPadding + iconSize + iconGap + coinsWidth + leftPadding
+    
+    const staminaText = `${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`
+    const staminaWidth = this.measureText(staminaText)
+    const staminaBadgeWidth = leftPadding + iconSize + iconGap + staminaWidth + leftPadding
+    
+    // 体力徽章的 X 坐标
+    const staminaX = padding + coinsBadgeWidth + gapBetweenBadges
+    const staminaCenterX = staminaX + staminaBadgeWidth / 2
+    
+    // 倒计时位置（体力徽章下方，居中）
+    const countdownY = verticalPadding + badgeHeight + textGap
+    
+    ctx.save()
+    ctx.font = `10px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(countdownText, staminaCenterX, countdownY)
     
     ctx.restore()
   }
