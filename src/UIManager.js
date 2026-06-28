@@ -510,7 +510,7 @@ export class UIManager {
     
     // 体力徽章的 X 坐标
     const staminaX = padding + coinsBadgeWidth + gapBetweenBadges
-    const staminaCenterX = staminaX + staminaBadgeWidth / 2
+    const staminaCenterX = staminaX + staminaBadgeWidth / 2 + 10  // 往右移动 10px
     
     // 倒计时位置（体力徽章下方，居中）
     const countdownY = verticalPadding + badgeHeight + textGap
