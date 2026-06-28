@@ -12,6 +12,8 @@ export const config = {
     purchasePrices: [300, 500, 1000],  // 购买价格
     maxShareCountPerDay: 10,   // 每日最大分享次数
     maxShareReviveCount: 3,    // 每局最多分享复活次数
+    maxAdReviveCount: 3,       // 每局最多广告复活次数
+    rewardedVideoAdUnitId: 'adunit-dc90cd7a5f209d6a',  // 激励视频广告单元 ID
   },
   
   // 签到配置

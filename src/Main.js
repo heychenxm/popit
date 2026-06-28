@@ -54,6 +54,10 @@ export class Main {
     // 分享冷却时间戳
     this._lastShareTime = 0
     
+    // 激励视频广告
+    this._rewardedVideoAd = null
+    this._initRewardedVideoAd()
+    
     // 初始化
     this.init()
   }
@@ -114,6 +118,25 @@ export class Main {
     }, 50)
   }
   
+  /**
+   * 初始化激励视频广告
+   */
+  _initRewardedVideoAd() {
+    if (typeof wx === 'undefined' || !wx.createRewardedVideoAd) return
+    
+    try {
+      this._rewardedVideoAd = wx.createRewardedVideoAd({
+        adUnitId: config.game.rewardedVideoAdUnitId
+      })
+      
+      this._rewardedVideoAd.onError((err) => {
+        console.warn('激励视频广告加载失败:', err)
+      })
+    } catch (e) {
+      console.warn('创建激励视频广告失败:', e)
+    }
+  }
+
   /**
    * 绑定游戏生命周期事件
    */
@@ -484,6 +507,9 @@ export class Main {
           break
         case 'shareRevive':
           this.shareReviveAndContinue()
+          break
+        case 'adRevive':
+          this.adReviveAndContinue()
           break
         case 'restart':
           this.restartGame()
@@ -911,6 +937,65 @@ export class Main {
       
       // 分享复活：重置当前关卡（带倒计时）
       this.restartCurrentWave(true)
+    }
+  }
+
+  // 广告复活并继续
+  adReviveAndContinue() {
+    this.audioManager.play('click')
+    
+    if (!this.gameState.canAdRevive()) {
+      this.vibrate('light')
+      this.uiManager.showToast('广告复活次数已用完')
+      return
+    }
+    
+    if (!this._rewardedVideoAd) {
+      this.uiManager.showToast('广告功能暂不可用')
+      return
+    }
+    
+    try {
+      // 监听关闭回调（一次性）
+      const onCloseHandler = (res) => {
+        this._rewardedVideoAd.offClose(onCloseHandler)
+        
+        if (res && res.isEnded) {
+          // 用户完整观看广告
+          if (this.gameState.useAdRevive()) {
+            this.vibrate('medium')
+            const remaining = this.gameState.getAdReviveRemaining()
+            this.uiManager.showToast(`广告观看成功！生命 +1（剩余${remaining}次）`)
+            
+            // 关闭失败弹窗
+            this.gameState.isNewScoreRecord = false
+            this.uiManager.currentScreen = 'game'
+            
+            // 广告复活：重置当前关卡（带倒计时）
+            this.restartCurrentWave(true)
+          }
+        } else {
+          this.vibrate('light')
+          this.uiManager.showToast('需要完整观看广告才能获得奖励')
+        }
+      }
+      
+      this._rewardedVideoAd.onClose(onCloseHandler)
+      
+      // 尝试展示广告
+      this._rewardedVideoAd.show().catch(() => {
+        // 展示失败，先加载再展示
+        this._rewardedVideoAd.load().then(() => {
+          this._rewardedVideoAd.show()
+        }).catch((err) => {
+          this._rewardedVideoAd.offClose(onCloseHandler)
+          console.warn('广告加载失败:', err)
+          this.uiManager.showToast('广告加载失败，请稍后再试')
+        })
+      })
+    } catch (error) {
+      console.warn('广告复活失败:', error)
+      this.uiManager.showToast('广告功能暂不可用')
     }
   }
 

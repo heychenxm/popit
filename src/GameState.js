@@ -61,6 +61,7 @@ export class GameState {
     this.consecutiveWins = 0     // 连续胜利关卡数
     this.purchaseCount = 0       // 购买生命次数（整个游戏会话累计，最多 3 次）
     this.shareReviveCount = 0    // 分享复活次数（整个游戏会话累计，最多 3 次）
+    this.adReviveCount = 0       // 广告复活次数（整个游戏会话累计，最多 3 次）
     this.sessionCoins = 0        // 本次游戏会话获得的金币（不包含初始 1000）
     this.hasShownRecordBreakModal = false  // 本局是否已显示破纪录弹窗
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
@@ -163,6 +164,7 @@ export class GameState {
     this.consecutiveWins = 0
     this.purchaseCount = 0
     this.shareReviveCount = 0  // 重置分享复活次数
+    this.adReviveCount = 0     // 重置广告复活次数
     this.sessionCoins = 0  // 重置会话金币
     this.hasShownRecordBreakModal = false  // 重置破纪录弹窗标志
     this.isNewScoreRecord = false
@@ -424,6 +426,28 @@ export class GameState {
       this.lives++
     }
     this._scheduleStorageWrite('shareReviveCount', this.shareReviveCount)
+    return true
+  }
+
+  // 判断是否可使用广告复活
+  canAdRevive() {
+    return this.adReviveCount < config.game.maxAdReviveCount
+  }
+
+  // 获取广告复活剩余次数
+  getAdReviveRemaining() {
+    return config.game.maxAdReviveCount - this.adReviveCount
+  }
+
+  // 执行广告复活
+  useAdRevive() {
+    if (!this.canAdRevive()) return false
+    
+    this.adReviveCount++
+    if (this.lives < this.maxLives) {
+      this.lives++
+    }
+    this._scheduleStorageWrite('adReviveCount', this.adReviveCount)
     return true
   }
 
