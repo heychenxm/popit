@@ -2376,11 +2376,11 @@ export class UIManager {
     const canAdRevive = gameState.canAdRevive()
     const canShareRevive = gameState.canShareRevive()
     
-    // 计算弹窗高度（根据按钮行数）
-    // 场景1：金币+广告并排 = 2行按钮
-    // 场景2/3/4：3行按钮
+    // 计算弹窗高度（根据按钮行数和剩余次数文本）
+    // 场景1：金币+广告并排 = 2行按钮（56px）
+    // 场景2/3/4：3行按钮（56px）
     const isTwoRowLayout = hasPurchaseAttempts && canAdRevive
-    const modalH = isTwoRowLayout ? 420 : 480
+    const modalH = isTwoRowLayout ? 434 : 504
     const modalY = (this.height - modalH) / 2
     
     ctx.save()
@@ -2472,7 +2472,7 @@ export class UIManager {
     ctx.fillText(`当前金币：${gameState.coins}`, this.width / 2, infoY + infoH / 2)
     
     // 按钮区域
-    const btnH = 42
+    const btnH = 56  // 增加高度以容纳两行文字
     const btnGap = 15
     const btnY1 = infoY + infoH + btnGap
     const halfBtnW = (modalW - 60) / 2
@@ -2516,11 +2516,18 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
       
+      // 广告复活标题（上半部分）
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('🎬 广告复活', adBtnX + halfBtnW / 2, btnY1 + btnH / 2)
+      ctx.fillText('🎬 广告复活', adBtnX + halfBtnW / 2, btnY1 + 18)
+      
+      // 广告复活剩余次数（下半部分）
+      const adRemaining = gameState.getAdReviveRemaining()
+      ctx.font = `11px ${FONT_FAMILY}`
+      ctx.fillStyle = '#c4b5fd'
+      ctx.fillText(`剩余${adRemaining}次`, adBtnX + halfBtnW / 2, btnY1 + 38)
       
       this.buttons.push({
         id: 'adRevive',
@@ -2566,11 +2573,18 @@ export class UIManager {
       ctx.lineWidth = 2
       ctx.stroke()
       
+      // 广告复活标题（上半部分）
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('🎬 广告复活', modalX + modalW / 2, btnY1 + btnH / 2)
+      ctx.fillText('🎬 广告复活', modalX + modalW / 2, btnY1 + 18)
+      
+      // 广告复活剩余次数（下半部分）
+      const adRemaining = gameState.getAdReviveRemaining()
+      ctx.font = `11px ${FONT_FAMILY}`
+      ctx.fillStyle = '#c4b5fd'
+      ctx.fillText(`剩余${adRemaining}次`, modalX + modalW / 2, btnY1 + 38)
       
       this.buttons.push({
         id: 'adRevive',
@@ -2596,11 +2610,20 @@ export class UIManager {
       ctx.lineWidth = canShareRevive ? 2 : 1
       ctx.stroke()
       
+      // 分享复活标题（上半部分）
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + btnH / 2)
+      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + 18)
+      
+      // 分享复活剩余次数（下半部分）
+      if (canShareRevive) {
+        const shareRemaining = gameState.getShareReviveRemaining()
+        ctx.font = `11px ${FONT_FAMILY}`
+        ctx.fillStyle = '#93c5fd'
+        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY2 + 38)
+      }
       
       this.buttons.push({
         id: 'shareRevive',
@@ -2675,11 +2698,20 @@ export class UIManager {
       ctx.lineWidth = canShareRevive ? 2 : 1
       ctx.stroke()
       
+      // 分享复活标题（上半部分）
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + btnH / 2)
+      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + 18)
+      
+      // 分享复活剩余次数（下半部分）
+      if (canShareRevive) {
+        const shareRemaining = gameState.getShareReviveRemaining()
+        ctx.font = `11px ${FONT_FAMILY}`
+        ctx.fillStyle = '#93c5fd'
+        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY2 + 38)
+      }
       
       this.buttons.push({
         id: 'shareRevive',
@@ -2729,11 +2761,20 @@ export class UIManager {
       ctx.lineWidth = canShareRevive ? 2 : 1
       ctx.stroke()
       
+      // 分享复活标题（上半部分）
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY1 + btnH / 2)
+      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY1 + 18)
+      
+      // 分享复活剩余次数（下半部分）
+      if (canShareRevive) {
+        const shareRemaining = gameState.getShareReviveRemaining()
+        ctx.font = `11px ${FONT_FAMILY}`
+        ctx.fillStyle = '#93c5fd'
+        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY1 + 38)
+      }
       
       this.buttons.push({
         id: 'shareRevive',
