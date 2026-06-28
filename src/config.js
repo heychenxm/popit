@@ -30,13 +30,27 @@ export const config = {
   
   // 奖励配置
   rewards: {
-    waveClear: 5,           // 基础通关奖励（1-19关）
-    waveClearTier2: 15,      // 20-39关奖励
-    waveClearTier3: 30,      // 40-59关奖励
-    waveClearTier4: 50,      // 60关+奖励
+    waveClear: 5,           // 基础通关奖励（1-19 关）
+    waveClearTier2: 15,      // 20-39 关奖励
+    waveClearTier3: 30,      // 40-59 关奖励
+    waveClearTier4: 50,      // 60 关 + 奖励
     share: 50,                 // 分享奖励
     shareGift: 500,           // 分享礼包奖励
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔
+  },
+  
+  // 体力配置
+  stamina: {
+    maxStamina: 30,              // 体力上限
+    initialStamina: 30,          // 初始体力
+    recoverInterval: 15 * 60 * 1000,  // 体力恢复间隔（15 分钟）
+    recoverAmount: 1,            // 每次恢复体力值
+    gameCost: 3,                 // 每局游戏消耗体力
+    purchasePrice: 1500,         // 金币购买体力价格
+    maxPurchaseCountPerDay: 10,  // 每日金币购买次数上限
+    adAmount: 10,                // 看广告获得体力值
+    maxAdCountPerDay: 4,         // 每日看广告次数上限
+    staminaAdUnitId: 'adunit-aa06be85f73cabfd',  // 体力广告 ID
   },
   
   // 游戏圈配置

@@ -262,6 +262,153 @@ export class UIManager {
     
     ctx.restore()
   }
+  
+  // 绘制体力不足弹窗
+  drawStaminaInsufficientModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 340
+    const modalH = 420
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons.length = 0
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#0f172a')
+    gradient.addColorStop(1, '#1e293b')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 关闭按钮
+    this._drawCloseButton(modalX, modalW, modalY)
+    
+    // 体力图标容器
+    const iconContainerSize = 64
+    const iconContainerX = modalX + modalW / 2
+    const iconContainerY = modalY + 50
+    
+    // 红色圆形背景
+    const iconBgGradient = ctx.createRadialGradient(iconContainerX, iconContainerY, 0, iconContainerX, iconContainerY, iconContainerSize / 2)
+    iconBgGradient.addColorStop(0, '#ef4444')
+    iconBgGradient.addColorStop(1, '#b91c1c')
+    
+    ctx.fillStyle = iconBgGradient
+    ctx.beginPath()
+    ctx.arc(iconContainerX, iconContainerY, iconContainerSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // 绘制体力图标（红心）
+    drawHeartIcon(ctx, iconContainerX, iconContainerY + 2, 40, '#fca5a5')
+    
+    // 标题
+    const titleY = iconContainerY + 50
+    ctx.font = `bold 18px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText('体力值不足！', this.width / 2, titleY)
+    
+    // 描述文字
+    const descY = titleY + 28
+    ctx.font = `12px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.gray400
+    ctx.textAlign = 'center'
+    ctx.fillText('需要 3 体力才能开始游戏', this.width / 2, descY)
+    
+    // 当前体力显示
+    const staminaY = descY + 30
+    ctx.font = `bold 14px ${FONT_FAMILY}`
+    ctx.fillStyle = '#ef4444'
+    ctx.fillText(`当前体力：${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`, this.width / 2, staminaY)
+    
+    // 按钮区域
+    const btnAreaY = staminaY + 50
+    const btnWidth = (modalW - 60) / 2 - 5  // 两个按钮并排，中间留 10px 间距
+    const btnHeight = 56
+    const btnX1 = modalX + 30
+    const btnX2 = modalX + 30 + btnWidth + 10
+    const btnY = btnAreaY
+    
+    // 左按钮：金币购买体力×3
+    const purchaseBtnGradient = ctx.createLinearGradient(btnX1, btnY, btnX1, btnY + btnHeight)
+    purchaseBtnGradient.addColorStop(0, '#22c55e')
+    purchaseBtnGradient.addColorStop(1, '#16a34a')
+    
+    ctx.fillStyle = purchaseBtnGradient
+    drawRoundRect(ctx, btnX1, btnY, btnWidth, btnHeight, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#86efac'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 按钮文字
+    ctx.font = `bold 14px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('体力×3', btnX1 + btnWidth / 2, btnY + btnHeight / 2 - 8)
+    ctx.font = `11px ${FONT_FAMILY}`
+    ctx.fillText('1500 金币', btnX1 + btnWidth / 2, btnY + btnHeight / 2 + 10)
+    
+    // 右按钮：看视频体力×10
+    const adBtnGradient = ctx.createLinearGradient(btnX2, btnY, btnX2, btnY + btnHeight)
+    adBtnGradient.addColorStop(0, '#a855f7')
+    adBtnGradient.addColorStop(1, '#7e22ce')
+    
+    ctx.fillStyle = adBtnGradient
+    drawRoundRect(ctx, btnX2, btnY, btnWidth, btnHeight, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#d8b4fe'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 按钮文字
+    ctx.font = `bold 14px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('体力×10', btnX2 + btnWidth / 2, btnY + btnHeight / 2 - 8)
+    ctx.font = `11px ${FONT_FAMILY}`
+    ctx.fillText('看视频', btnX2 + btnWidth / 2, btnY + btnHeight / 2 + 10)
+    
+    // 添加按钮
+    this.buttons.push({
+      id: 'purchase',
+      x: btnX1,
+      y: btnY,
+      w: btnWidth,
+      h: btnHeight
+    })
+    this.buttons.push({
+      id: 'adRecover',
+      x: btnX2,
+      y: btnY,
+      w: btnWidth,
+      h: btnHeight
+    })
+    this.buttons.push({
+      id: 'close',
+      x: modalX + modalW - 40,
+      y: modalY + 10,
+      w: 30,
+      h: 30
+    })
+    
+    ctx.restore()
+  }
 
   // 绘制顶部金币余额（缩小 30%）
   drawTopCoins(gameState) {
@@ -274,6 +421,7 @@ export class UIManager {
     const leftPadding = 20 * scale  // 左边距
     const rightPadding = 20 * scale // 右边距
     const iconGap = 12 * scale      // 图标和文字的间距
+    const gapBetweenBadges = 10     // 金币和体力之间的间距
     
     ctx.save()
     
@@ -281,13 +429,16 @@ export class UIManager {
     this.setFont('bold11_2')
     ctx.textBaseline = 'middle'
     const coinsText = gameState.coins.toString()
+    const staminaText = Math.floor(gameState.stamina).toString()
     // 使用预计算的数值宽度
     const textWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
+    const staminaWidth = this.numberWidths[Math.floor(gameState.stamina)] || this.measureText(staminaText)
     
     // 计算徽章总宽度 = 左边距 + 图标 + 间距 + 文字 + 右边距
     const badgeWidth = leftPadding + iconSize + iconGap + textWidth + rightPadding
+    const staminaBadgeWidth = leftPadding + iconSize + iconGap + staminaWidth + rightPadding
     
-    // 背景
+    // 金币背景
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
     drawRoundRect(ctx, padding, verticalPadding, badgeWidth, badgeHeight, 20 * scale)
     ctx.fill()
@@ -302,6 +453,23 @@ export class UIManager {
     ctx.textAlign = 'left'
     ctx.fillStyle = '#facc15'
     ctx.fillText(coinsText, padding + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
+    
+    // 体力背景（在金币右边）
+    const staminaX = padding + badgeWidth + gapBetweenBadges
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    drawRoundRect(ctx, staminaX, verticalPadding, staminaBadgeWidth, badgeHeight, 20 * scale)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)'
+    ctx.lineWidth = 1 * scale
+    ctx.stroke()
+    
+    // 体力图标
+    drawHeartIcon(ctx, staminaX + leftPadding + iconSize / 2, verticalPadding + badgeHeight / 2, iconSize, '#ef4444')
+    
+    // 体力数值
+    ctx.textAlign = 'left'
+    ctx.fillStyle = '#ef4444'
+    ctx.fillText(staminaText, staminaX + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
     
     ctx.restore()
   }
@@ -3149,6 +3317,9 @@ export class UIManager {
         break
       case 'share':
         this.drawShareModal(gameState)
+        break
+      case 'stamina_insufficient':
+        this.drawStaminaInsufficientModal(gameState)
         break
     }
     
