@@ -532,6 +532,10 @@ export class Main {
           // 游戏圈按钮：打开游戏圈
           this.openGameClub()
           break
+        case 'stamina_badge':
+          // 点击顶部体力徽章：弹出购买体力弹窗
+          this.showStaminaInsufficientModal()
+          break
       }
     }
   }

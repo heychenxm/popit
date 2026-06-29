@@ -321,41 +321,34 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
-    ctx.fillText('体力值不足！', this.width / 2, titleY)
-    
-    // 描述文字
-    const descY = titleY + 28
-    ctx.font = `12px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.gray400
-    ctx.textAlign = 'center'
-    ctx.fillText('需要 3 体力才能开始游戏', this.width / 2, descY)
-    
+    ctx.fillText('购买体力', this.width / 2, titleY)
+
     // 当前体力显示
-    const staminaY = descY + 30
+    const staminaY = titleY + 30
     ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = '#ef4444'
     ctx.fillText(`当前体力：${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`, this.width / 2, staminaY)
-    
+
     // 按钮区域
-    const btnAreaY = staminaY + 50
+    const btnAreaY = staminaY + 40
     const btnWidth = (modalW - 60) / 2 - 5  // 两个按钮并排，中间留 10px 间距
     const btnHeight = 56
     const btnX1 = modalX + 30
     const btnX2 = modalX + 30 + btnWidth + 10
     const btnY = btnAreaY
-    
+
     // 左按钮：金币购买体力×3
     const purchaseBtnGradient = ctx.createLinearGradient(btnX1, btnY, btnX1, btnY + btnHeight)
     purchaseBtnGradient.addColorStop(0, '#22c55e')
     purchaseBtnGradient.addColorStop(1, '#16a34a')
-    
+
     ctx.fillStyle = purchaseBtnGradient
     drawRoundRect(ctx, btnX1, btnY, btnWidth, btnHeight, 16)
     ctx.fill()
     ctx.strokeStyle = '#86efac'
     ctx.lineWidth = 2
     ctx.stroke()
-    
+
     // 按钮文字
     ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
@@ -364,19 +357,26 @@ export class UIManager {
     ctx.fillText('体力×3', btnX1 + btnWidth / 2, btnY + btnHeight / 2 - 8)
     ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillText('1500 金币', btnX1 + btnWidth / 2, btnY + btnHeight / 2 + 10)
-    
+
+    // 左按钮下方剩余次数
+    const purchaseRemaining = gameState.getStaminaPurchaseRemaining()
+    ctx.font = `10px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.fillText(`剩余 ${purchaseRemaining} 次`, btnX1 + btnWidth / 2, btnY + btnHeight + 14)
+
     // 右按钮：看视频体力×10
     const adBtnGradient = ctx.createLinearGradient(btnX2, btnY, btnX2, btnY + btnHeight)
     adBtnGradient.addColorStop(0, '#a855f7')
     adBtnGradient.addColorStop(1, '#7e22ce')
-    
+
     ctx.fillStyle = adBtnGradient
     drawRoundRect(ctx, btnX2, btnY, btnWidth, btnHeight, 16)
     ctx.fill()
     ctx.strokeStyle = '#d8b4fe'
     ctx.lineWidth = 2
     ctx.stroke()
-    
+
     // 按钮文字
     ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
@@ -385,6 +385,13 @@ export class UIManager {
     ctx.fillText('体力×10', btnX2 + btnWidth / 2, btnY + btnHeight / 2 - 8)
     ctx.font = `11px ${FONT_FAMILY}`
     ctx.fillText('看视频', btnX2 + btnWidth / 2, btnY + btnHeight / 2 + 10)
+
+    // 右按钮下方剩余次数
+    const adRemaining = gameState.getStaminaAdRemaining()
+    ctx.font = `10px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.fillText(`剩余 ${adRemaining} 次`, btnX2 + btnWidth / 2, btnY + btnHeight + 14)
     
     // 添加按钮
     this.buttons.push({
@@ -464,15 +471,26 @@ export class UIManager {
     ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)'
     ctx.lineWidth = 1 * scale
     ctx.stroke()
-    
+
     // 体力图标
     drawHeartIcon(ctx, staminaX + leftPadding + iconSize / 2, verticalPadding + badgeHeight / 2, iconSize, '#ef4444')
-    
+
     // 体力数值
     ctx.textAlign = 'left'
     ctx.fillStyle = '#ef4444'
     ctx.fillText(staminaText, staminaX + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
-    
+
+    // 体力未满时注册为可点击按钮（弹出购买体力弹窗）
+    if (gameState.stamina < config.stamina.maxStamina) {
+      this.buttons.push({
+        id: 'stamina_badge',
+        x: staminaX,
+        y: verticalPadding,
+        w: staminaBadgeWidth,
+        h: badgeHeight
+      })
+    }
+
     ctx.restore()
   }
   
