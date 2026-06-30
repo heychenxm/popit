@@ -603,12 +603,12 @@ export class UIManager {
       drawWidth = drawHeight * aspectRatio
     }
 
-    const logoScale = 1.05
+    const logoScale = 1.30 
     drawWidth *= logoScale
     drawHeight *= logoScale
 
     const centerX = this.width / 2
-    const centerY = this.height * 0.18
+    const centerY = this.height * 0.2178  // 下移 10%（0.198 * 1.1）
 
     return {
       x: centerX - drawWidth / 2,
@@ -639,7 +639,7 @@ export class UIManager {
   // 绘制最高分数
   drawBestScore(gameState) {
     const ctx = this.ctx
-    const y = this.height * 0.28
+    const y = this.height * 0.3388  // 跟随 Logo 下移 10%（0.308 * 1.1）
     
     ctx.save()
     ctx.font = `14px ${FONT_FAMILY}`
