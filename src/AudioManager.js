@@ -201,13 +201,45 @@ export class AudioManager {
     osc.onended = () => this._releaseGainNode(gain)
   }
 
+  // 倒计时滴答音 - 正弦波，根据剩余秒数调整频率
+  // @param {number} second - 剩余秒数（3, 2, 1）
+  _playTick(second = 3) {
+    if (!this._ensureContext()) return
+    
+    // 根据秒数调整频率和音量（秒数越少，频率越低，音量越大）
+    const freqMap = { 3: 600, 2: 500, 1: 400 }
+    const volMap = { 3: 0.15, 2: 0.18, 1: 0.2 }
+    const durMap = { 3: 0.05, 2: 0.05, 1: 0.06 }
+    
+    const freq = freqMap[second] || 600
+    const vol = volMap[second] || 0.15
+    const dur = durMap[second] || 0.05
+    
+    const osc = this.ctx.createOscillator()
+    const gain = this._getGainNode()
+    
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime)
+    
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur)
+    
+    osc.connect(gain)
+    gain.connect(this.ctx.destination)
+    osc.start()
+    osc.stop(this.ctx.currentTime + dur + 0.01)
+    
+    osc.onended = () => this._releaseGainNode(gain)
+  }
+
   // ==================== 统一播放接口 ====================
 
   /**
    * 播放音效
-   * @param {string} type - 音效类型: 'pop' | 'wrong' | 'success' | 'click'
+   * @param {string} type - 音效类型: 'pop' | 'wrong' | 'success' | 'click' | 'tick'
+   * @param {number} [param] - 可选参数（tick 音效使用剩余秒数）
    */
-  play(type) {
+  play(type, param) {
     if (!this.enabled) return
 
     switch (type) {
@@ -222,6 +254,9 @@ export class AudioManager {
         break
       case 'click':
         this._playClick()
+        break
+      case 'tick':
+        this._playTick(param)
         break
       default:
         console.warn(`Unknown sound type: ${type}`)

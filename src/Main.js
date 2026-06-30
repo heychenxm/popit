@@ -721,9 +721,12 @@ export class Main {
   }
 
   // 通用倒计时方法（减少代码重复）
-  _startCountdown(duration, remaining, onExpire) {
+  _startCountdown(duration, remaining, onExpire, options = {}) {
+    const { enableTick = false } = options
     const startTime = Date.now() - (duration - remaining)
     this.gameState.clearTimer()
+    
+    let lastSecond = -1  // 追踪上一秒，避免重复播放
     
     const checkTimer = () => {
       const elapsed = Date.now() - startTime
@@ -733,6 +736,14 @@ export class Main {
         this.gameState.clearTimer()
         onExpire()
       } else {
+        // 检测秒数变化，触发 tick 音效
+        if (enableTick) {
+          const currentSecond = Math.ceil(this.gameState.timerRemaining / 1000)
+          if (currentSecond !== lastSecond && currentSecond <= 3 && currentSecond > 0) {
+            lastSecond = currentSecond
+            this.audioManager.play('tick', currentSecond)
+          }
+        }
         this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
         this.gameState.timerType = 'raf'
       }
@@ -786,7 +797,8 @@ export class Main {
     this._startCountdown(
       this.gameState.playDuration,
       this.gameState.playDuration,
-      () => this.handleTimeOut()
+      () => this.handleTimeOut(),
+      { enableTick: true }
     )
   }
   
@@ -797,7 +809,8 @@ export class Main {
     this._startCountdown(
       this.gameState.playDuration,
       this.gameState.timerRemaining,
-      () => this.handleTimeOut()
+      () => this.handleTimeOut(),
+      { enableTick: true }
     )
   }
 
@@ -1169,6 +1182,8 @@ export class Main {
 
     const startTime = Date.now()
     this.gameState.clearTimer()
+    
+    let lastSecond = -1  // 追踪上一秒，避免重复播放
 
     const tick = () => {
       const elapsed = Date.now() - startTime
@@ -1178,6 +1193,12 @@ export class Main {
         this.gameState.clearTimer()
         this.startObservePhase()
       } else {
+        // 检测秒数变化，触发 tick 音效
+        const currentSecond = Math.ceil(this.gameState.countdownRemaining / 1000)
+        if (currentSecond !== lastSecond && currentSecond <= 3 && currentSecond > 0) {
+          lastSecond = currentSecond
+          this.audioManager.play('tick', currentSecond)
+        }
         this.gameState.timerInterval = safeRequestAnimationFrame(tick)
         this.gameState.timerType = 'raf'
       }
