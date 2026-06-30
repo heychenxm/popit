@@ -44,9 +44,10 @@ export class GameState {
     // 签到数据
     this.lastCheckinDate = saved.lastCheckinDate
     this.checkinStreak = saved.checkinStreak
-    this.hasCheckedInToday = false  // 当前是否已签到
-    this.hasNormalCheckinToday = false  // 今天是否已普通签到
-    this.hasAdDoubleCheckinToday = false  // 今天是否已看广告双倍签到
+    // 根据 lastCheckinDate 正确初始化签到状态
+    this.hasCheckedInToday = (this.lastCheckinDate === getTodayString())
+    this.hasNormalCheckinToday = this.hasCheckedInToday
+    this.hasAdDoubleCheckinToday = false  // 广告双倍签到需要每次启动重新判断
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
     this.lastShareGiftDate = saved.lastShareGiftDate
     // 初始化时检查今天是否已领取
@@ -220,11 +221,8 @@ export class GameState {
       this.timerInterval = null
       this.timerType = null
     }
-    // 清理待执行的 Storage 写入定时器
-    if (this._storageFlushTimer) {
-      clearTimeout(this._storageFlushTimer)
-      this._storageFlushTimer = null
-    }
+    // 先 flush 待执行的 Storage 写入，再清理定时器（防止数据丢失）
+    this._flushStorageWrites()
   }
 
   // 本局得分是否破了历史最高分（与本局开始时记录比较）
@@ -701,13 +699,13 @@ export class GameState {
   // 获取当前关卡的通关奖励（金币）
   getWaveReward() {
     if (this.wave < 20) {
-      return config.rewards.waveClear  // 15金币
+      return config.rewards.waveClear  // 5金币
     } else if (this.wave < 40) {
-      return config.rewards.waveClearTier2  // 30金币
+      return config.rewards.waveClearTier2  // 15金币
     } else if (this.wave < 60) {
-      return config.rewards.waveClearTier3  // 50金币
+      return config.rewards.waveClearTier3  // 30金币
     } else {
-      return config.rewards.waveClearTier4  // 80金币
+      return config.rewards.waveClearTier4  // 50金币
     }
   }
 

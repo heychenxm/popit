@@ -7,7 +7,7 @@ export const config = {
   game: {
     initialCoins: 1000,        // 初始金币
     maxLives: 5,               // 最大生命
-    initialLives: 3,           // 初始生命
+    initialLives: 5,           // 初始生命
     maxPurchaseCount: 3,       // 最大购买次数
     purchasePrices: [300, 500, 1000],  // 购买价格
     maxShareCountPerDay: 10,   // 每日最大分享次数

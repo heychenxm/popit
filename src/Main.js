@@ -1453,7 +1453,7 @@ export class Main {
     
     if (this.gameState.purchaseStamina()) {
       this.vibrate('medium')
-      this.uiManager.showToast(`购买成功！体力 +3，花费 1500 金币`)
+      this.uiManager.showToast(`购买成功！体力 +${config.stamina.recoverAmount * 3}，花费 ${config.stamina.purchasePrice} 金币`)
       this.uiManager.currentScreen = 'menu'
     } else {
       this.vibrate('light')
@@ -1651,8 +1651,8 @@ export class Main {
     // 按钮位置与 Canvas 绘制的授权按钮对齐（height * 0.44, 宽200 居中）
     const btnWidth = 200
     const btnHeight = 44
-    const btnX = (this.width - btnWidth) / 2
-    const btnY = this.height * 0.44
+    const btnX = Math.round((this.width - btnWidth) / 2) || 0
+    const btnY = Math.round(this.height * 0.44) || 0
     
     this._userInfoButton = wx.createUserInfoButton({
       type: 'text',

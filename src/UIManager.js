@@ -947,14 +947,16 @@ export class UIManager {
     ctx.textAlign = 'left'
     ctx.fillText(subtitleText, textStartX, bannerY + bannerH / 2 + 10)
     
-    // 赛季倒计时显示（同行右侧）
-    if (gameState && gameState.seasonInfo && gameState.seasonInfo.timeRemaining > 0) {
-      const remaining = gameState.seasonInfo.timeRemaining
-      const days = Math.floor(remaining / (24 * 60 * 60 * 1000))
-      const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
-      
-      ctx.textAlign = 'right'
-      ctx.fillText(`剩余 ${days}天${hours}时`, bannerX + bannerW - 80, bannerY + bannerH / 2 + 10)
+    // 赛季倒计时显示（同行右侧）- 动态计算剩余时间
+    if (gameState && gameState.seasonInfo && gameState.seasonInfo.seasonEndTime > 0) {
+      const remaining = Math.max(0, gameState.seasonInfo.seasonEndTime - Date.now())
+      if (remaining > 0) {
+        const days = Math.floor(remaining / (24 * 60 * 60 * 1000))
+        const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+
+        ctx.textAlign = 'right'
+        ctx.fillText(`剩余 ${days}天${hours}时`, bannerX + bannerW - 80, bannerY + bannerH / 2 + 10)
+      }
     }
     
     // 查看详情按钮：rounded-full
