@@ -1044,7 +1044,8 @@ export class Main {
         
         // 触发微信分享
         wx.shareAppMessage({
-          title: '来挑战泡泡大师！',
+          title: '行不行，来一局再说',
+          imageUrl: '/src/assets/images/share-cover1.png',
           query: `wave=${this.gameState.wave}&score=${this.gameState.score}`,
           success: () => {
             console.log('分享调用成功')
@@ -1584,8 +1585,24 @@ export class Main {
     }
     this._lastShareTime = now
     
+    // 根据分享类型设置文案
+    let shareTitle
+    if (type === 'gift') {
+      // 分享礼包：使用用户闯过的最高关卡
+      const bestWave = this.gameState.bestWave
+      if (bestWave > 0) {
+        shareTitle = `我轻松闯过第${bestWave}关，快来挑战我`
+      } else {
+        shareTitle = '比比谁的分数更高'
+      }
+    } else {
+      // 快速分享：固定文案
+      shareTitle = '你能闯过第几关？试试'
+    }
+    
     wx.shareAppMessage({
-      title: '来挑战泡泡大师！',
+      title: shareTitle,
+      imageUrl: '/src/assets/images/share-cover1.png',
       query: `wave=${this.gameState.wave}&score=${this.gameState.score}`
     })
     
