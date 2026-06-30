@@ -80,6 +80,9 @@ export class GameState {
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     this.isWaitingShareRevive = false    // 是否正在等待分享复活返回
     
+    // 首次游玩标记
+    this.hasPlayedBefore = saved.hasPlayedBefore
+    
     // 用户信息
     let nickname = saved.nickname
     
@@ -139,7 +142,9 @@ export class GameState {
       stamina: getStorage('stamina', config.stamina.initialStamina),
       lastStaminaUpdateTime: getStorage('lastStaminaUpdateTime', Date.now()),
       staminaPurchaseCount: getStorage('staminaPurchaseCount', 0),
-      staminaAdCount: getStorage('staminaAdCount', 0)
+      staminaAdCount: getStorage('staminaAdCount', 0),
+      // 首次游玩标记
+      hasPlayedBefore: getStorage('hasPlayedBefore', false)
     }
   }
 
@@ -192,6 +197,14 @@ export class GameState {
     this.isWaitingShareRevive = false  // 重置分享复活等待标志
     this.staminaConsumedThisGame = false  // 重置体力扣除标记
     this.clearTimer()
+  }
+  
+  // 标记已玩过（首次游戏结束后调用）
+  markAsPlayed() {
+    if (!this.hasPlayedBefore) {
+      this.hasPlayedBefore = true
+      setStorage('hasPlayedBefore', true)
+    }
   }
   
   // 返回主菜单（重置体力购买次数检查）

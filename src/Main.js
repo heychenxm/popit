@@ -500,6 +500,15 @@ export class Main {
         return
       }
       
+      // 如果当前是游戏规则弹窗
+      if (this.uiManager.currentScreen === 'rules') {
+        if (buttonId === 'rules_ok') {
+          this.gameState.markAsPlayed()
+          this._doStartGame()
+        }
+        return
+      }
+      
       switch (buttonId) {
         case 'start':
           this.startGame()
@@ -660,6 +669,17 @@ export class Main {
       return
     }
     
+    // 首次游玩：显示游戏规则弹窗
+    if (!this.gameState.hasPlayedBefore) {
+      this.uiManager.currentScreen = 'rules'
+      return
+    }
+    
+    this._doStartGame()
+  }
+  
+  // 实际开始游戏（跳过规则弹窗）
+  _doStartGame() {
     this.gameState.reset()
     this.gameState.incrementSeasonGames()
     this.uiManager.currentScreen = 'game'

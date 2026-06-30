@@ -419,6 +419,106 @@ export class UIManager {
     ctx.restore()
   }
 
+  // 绘制游戏规则弹窗（首次游玩展示）
+  drawRulesModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 340
+    const modalH = 520
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons.length = 0
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#1e1b4b')
+    gradient.addColorStop(1, '#312e81')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#818cf8'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 标题
+    const titleY = modalY + 30
+    ctx.font = `bold 22px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#fbbf24'
+    ctx.fillText('🎮 游戏规则', this.width / 2, titleY)
+    
+    // 规则内容
+    const contentY = titleY + 40
+    const lineH = 28
+    const rules = [
+      '1. 观察阶段：记住闪烁的泡泡位置',
+      '2. 游戏阶段：在倒计时结束前',
+      '   点破所有闪烁的泡泡',
+      '3. 点错不扣分，但会提示错误',
+      '4. 超时未点完将失去 1 点生命',
+      '5. 生命归零则游戏结束',
+      '6. 连续胜利可恢复生命',
+      '7. 关卡越高，难度越大！'
+    ]
+    
+    ctx.font = `13px ${FONT_FAMILY}`
+    ctx.textAlign = 'left'
+    ctx.fillStyle = '#e0e7ff'
+    
+    for (let i = 0; i < rules.length; i++) {
+      ctx.fillText(rules[i], modalX + 30, contentY + i * lineH)
+    }
+    
+    // 提示文字
+    const tipY = contentY + rules.length * lineH + 15
+    ctx.font = `bold 12px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#fde68a'
+    ctx.fillText('💡 提示：每关目标泡泡颜色不同', this.width / 2, tipY)
+    
+    // 按钮区域
+    const btnY = tipY + 40
+    const btnW = modalW - 60
+    const btnH = 50
+    
+    const btnGradient = ctx.createLinearGradient(modalX + 30, btnY, modalX + 30, btnY + btnH)
+    btnGradient.addColorStop(0, '#22c55e')
+    btnGradient.addColorStop(1, '#16a34a')
+    
+    ctx.fillStyle = btnGradient
+    drawRoundRect(ctx, modalX + 30, btnY, btnW, btnH, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#86efac'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    ctx.font = `bold 18px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('我知道了，开始游戏！', this.width / 2, btnY + btnH / 2)
+    
+    // 注册按钮
+    this.buttons.push({
+      id: 'rules_ok',
+      x: modalX + 30,
+      y: btnY,
+      w: btnW,
+      h: btnH
+    })
+    
+    ctx.restore()
+  }
+
   // 绘制顶部金币余额（缩小 30%）
   drawTopCoins(gameState) {
     const ctx = this.ctx
@@ -3391,6 +3491,9 @@ export class UIManager {
         break
       case 'stamina_insufficient':
         this.drawStaminaInsufficientModal(gameState)
+        break
+      case 'rules':
+        this.drawRulesModal(gameState)
         break
     }
     
