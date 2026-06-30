@@ -2095,6 +2095,13 @@ export class UIManager {
       }
     }
     
+    // 排行榜更新提示
+    const hintY = listContainerY + listContainerH + 14
+    ctx.font = `10px ${FONT_FAMILY}`
+    ctx.fillStyle = 'rgba(165, 180, 252, 0.5)'
+    ctx.textAlign = 'center'
+    ctx.fillText('排行榜数据每 30 分钟自动更新', this.width / 2, hintY)
+    
     // 赛季底部提示
     if (showFooter) {
       const footerY = modalY + modalH - 35
