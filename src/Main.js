@@ -797,8 +797,7 @@ export class Main {
     this._startCountdown(
       this.gameState.playDuration,
       this.gameState.playDuration,
-      () => this.handleTimeOut(),
-      { enableTick: true }
+      () => this.handleTimeOut()
     )
   }
   
@@ -809,8 +808,7 @@ export class Main {
     this._startCountdown(
       this.gameState.playDuration,
       this.gameState.timerRemaining,
-      () => this.handleTimeOut(),
-      { enableTick: true }
+      () => this.handleTimeOut()
     )
   }
 
