@@ -2127,7 +2127,7 @@ export class UIManager {
       ctx.font = `10px ${FONT_FAMILY}`
       ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
       ctx.textAlign = 'center'
-      ctx.fillText('新赛季将于每周五 24:00 结束自动结算并派发金币奖励', this.width / 2, footerY)
+      ctx.fillText('赛季将于每周五 24:00 结束自动结算，前 6 名可获得金币奖励', this.width / 2, footerY)
     }
     
     // 游戏圈按钮

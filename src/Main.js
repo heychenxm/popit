@@ -92,6 +92,9 @@ export class Main {
       this.gameState.loadCloudData().then(() => {
         // 云端数据加载完成后刷新菜单（可能更新了授权状态）
         this.uiManager.menuNeedsUpdate = true
+        
+        // 新增：检测是否有赛季奖励需要显示
+        this.checkAndShowSeasonReward()
       }).catch(() => {})
       
       // 阶段 1：立即创建必要的缓存（背景）
@@ -1392,6 +1395,43 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     this.uiManager.currentScreen = 'menu'
+  }
+
+  // 检测并显示赛季奖励
+  checkAndShowSeasonReward() {
+    const reward = this.gameState.checkPendingSeasonReward()
+    
+    if (reward) {
+      console.log(`检测到赛季奖励：${reward.reward} 金币`)
+      
+      // 延迟显示，确保游戏已完全加载
+      const timer = setTimeout(() => {
+        // 构建奖励提示文案
+        let rewardText = `🏆 上赛季结算完成！您获得 ${reward.reward} 金币奖励`
+        
+        // 如果有详细排名信息，追加显示
+        if (reward.detail) {
+          const parts = []
+          if (reward.detail.scoreReward > 0) {
+            parts.push(`分数榜第${reward.detail.scoreRank}名 +${reward.detail.scoreReward}`)
+          }
+          if (reward.detail.waveReward > 0) {
+            parts.push(`关卡榜第${reward.detail.waveRank}名 +${reward.detail.waveReward}`)
+          }
+          if (parts.length > 0) {
+            rewardText += `\n（${parts.join('，')}）`
+          }
+        }
+        
+        this.uiManager.showToast(rewardText)
+        this.vibrate('medium')
+        
+        // 清除奖励标记，避免重复提示
+        this.gameState.clearSeasonReward()
+      }, 1000)
+      
+      this._pendingTimers.push(timer)
+    }
   }
 
   // 打开游戏圈

@@ -147,6 +147,28 @@ exports.main = async (event, context) => {
 
     console.log(`赛季 ${seasonId} 结算完成，参与人数: ${totalParticipants}`)
 
+    // 新增：结算完成后，调用奖励发放云函数
+    try {
+      console.log(`开始发放赛季 ${seasonId} 奖励`)
+      const rewardResult = await cloud.callFunction({
+        name: 'distributeSeasonReward',
+        data: {
+          seasonId,
+          scoreLeaderboard: topByScore,
+          waveLeaderboard: topByWave
+        }
+      })
+      
+      if (rewardResult.result && rewardResult.result.success) {
+        console.log(`赛季 ${seasonId} 奖励发放成功:`, rewardResult.result.data)
+      } else {
+        console.warn(`赛季 ${seasonId} 奖励发放失败:`, rewardResult.result)
+      }
+    } catch (rewardErr) {
+      console.error(`赛季 ${seasonId} 奖励发放异常（不影响结算）:`, rewardErr)
+      // 奖励发放失败不影响结算流程
+    }
+
     return {
       success: true,
       data: {

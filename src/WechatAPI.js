@@ -187,6 +187,11 @@ export class WechatAPI {
     return this.callCloud('settleSeason', { seasonId })
   }
 
+  // 赛季奖励发放（已废弃：现在由 settleSeason 内部调用）
+  distributeSeasonReward(seasonId, scoreLeaderboard, waveLeaderboard) {
+    return this.callCloud('distributeSeasonReward', { seasonId, scoreLeaderboard, waveLeaderboard })
+  }
+
   // 查询历史赛季归档
   getSeasonArchive(seasonId, type) {
     return this.callCloud('getSeasonArchive', { seasonId, type })

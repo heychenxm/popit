@@ -950,6 +950,36 @@ export class GameState {
     return getSeasonTimeRemaining()
   }
 
+  /**
+   * 检测是否有待显示的赛季奖励
+   * @returns {Object|null} 奖励信息，如果没有则返回 null
+   */
+  checkPendingSeasonReward() {
+    if (this.seasonData.lastSeasonReward > 0) {
+      return {
+        seasonId: this.seasonData.lastSeasonId,
+        reward: this.seasonData.lastSeasonReward,
+        scoreRank: this.seasonData.lastSeasonScoreRank,
+        waveRank: this.seasonData.lastSeasonWaveRank,
+        detail: this.seasonData.lastSeasonRewardDetail
+      }
+    }
+    return null
+  }
+
+  /**
+   * 清除赛季奖励标记（显示后调用，避免重复提示）
+   */
+  clearSeasonReward() {
+    this.seasonData.lastSeasonReward = 0
+    this.seasonData.lastSeasonId = ''
+    this.seasonData.lastSeasonScoreRank = 0
+    this.seasonData.lastSeasonWaveRank = 0
+    this.seasonData.lastSeasonRewardDetail = null
+    // 同步到云端，标记已显示
+    this.saveToCloud().catch(() => {})
+  }
+
   // ========== 云端同步 ==========
 
   /**
@@ -1059,6 +1089,16 @@ export class GameState {
           this.seasonData.bestStreak = cloud.bestStreak
           updated = true
         }
+      }
+
+      // 新增：加载赛季奖励数据
+      if (typeof cloud.lastSeasonReward === 'number' && cloud.lastSeasonReward > 0) {
+        this.seasonData.lastSeasonReward = cloud.lastSeasonReward
+        this.seasonData.lastSeasonId = cloud.lastSeasonId || ''
+        this.seasonData.lastSeasonScoreRank = cloud.lastSeasonScoreRank || 0
+        this.seasonData.lastSeasonWaveRank = cloud.lastSeasonWaveRank || 0
+        this.seasonData.lastSeasonRewardDetail = cloud.lastSeasonRewardDetail || null
+        updated = true
       }
 
       // 刷新状态
