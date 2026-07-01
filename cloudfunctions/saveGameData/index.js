@@ -29,6 +29,7 @@ exports.main = async (event, context) => {
     'lastCheckinDate', 'checkinStreak',
     'lastShareDate', 'todayShareCount', 'lastShareGiftDate',
     'seasonId', 'seasonScore', 'seasonWave',
+    'totalGames', 'totalClears', 'bestStreak',
     'nickname', 'avatarUrl'
   ]
 
@@ -127,7 +128,7 @@ exports.main = async (event, context) => {
               updatedAt: db.serverDate()
             }
             
-            // 同步用户信息（昵称和头像）
+            // 修复：每次保存都同步更新用户信息（昵称和头像），确保 seasonRecords 中的用户信息始终是最新的
             if (updateData.nickname !== undefined) seasonUpdate.nickname = updateData.nickname
             if (updateData.avatarUrl !== undefined) seasonUpdate.avatarUrl = updateData.avatarUrl
             
@@ -141,18 +142,18 @@ exports.main = async (event, context) => {
               seasonUpdate.bestWave = Math.max(existingWave, updateData.seasonWave)
             }
             
-            // 传递其他赛季统计字段（修复：取较大值而非直接覆盖）
-            if (event.totalGames !== undefined) {
+            // 修复：传递其他赛季统计字段（取较大值而非直接覆盖）
+            if (updateData.totalGames !== undefined) {
               const existingGames = seasonRecords.length > 0 ? (seasonRecords[0].totalGames || 0) : 0
-              seasonUpdate.totalGames = Math.max(existingGames, event.totalGames)
+              seasonUpdate.totalGames = Math.max(existingGames, updateData.totalGames)
             }
-            if (event.totalClears !== undefined) {
+            if (updateData.totalClears !== undefined) {
               const existingClears = seasonRecords.length > 0 ? (seasonRecords[0].totalClears || 0) : 0
-              seasonUpdate.totalClears = Math.max(existingClears, event.totalClears)
+              seasonUpdate.totalClears = Math.max(existingClears, updateData.totalClears)
             }
-            if (event.bestStreak !== undefined) {
+            if (updateData.bestStreak !== undefined) {
               const existingStreak = seasonRecords.length > 0 ? (seasonRecords[0].bestStreak || 0) : 0
-              seasonUpdate.bestStreak = Math.max(existingStreak, event.bestStreak)
+              seasonUpdate.bestStreak = Math.max(existingStreak, updateData.bestStreak)
             }
             
             console.log('赛季更新数据:', JSON.stringify(seasonUpdate))

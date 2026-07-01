@@ -387,13 +387,29 @@ export class Main {
       
       switch (buttonId) {
         case 'close':
-          this.closeSeasonLeaderboard()
+          // 修复：如果在查看历史赛季，退出历史赛季模式
+          if (this.uiManager.viewingSeasonArchive) {
+            this.exitSeasonArchiveMode()
+            this.uiManager.currentScreen = 'menu'
+          } else {
+            this.closeSeasonLeaderboard()
+          }
           break
         case 'season_leaderboard_score':
-          await this.switchSeasonLeaderboardType('score')
+          // 修复：区分当前赛季和历史赛季
+          if (this.uiManager.viewingSeasonArchive) {
+            await this.switchSeasonArchiveType('score')
+          } else {
+            await this.switchSeasonLeaderboardType('score')
+          }
           break
         case 'season_leaderboard_wave':
-          await this.switchSeasonLeaderboardType('wave')
+          // 修复：区分当前赛季和历史赛季
+          if (this.uiManager.viewingSeasonArchive) {
+            await this.switchSeasonArchiveType('wave')
+          } else {
+            await this.switchSeasonLeaderboardType('wave')
+          }
           break
         case 'game_club':
           this.openGameClub()
@@ -449,6 +465,61 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     this.uiManager.currentScreen = 'menu'
+  }
+
+  // 查看历史赛季排行榜
+  async showSeasonArchive(seasonId) {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 切换到赛季排名界面
+    this.uiManager.currentScreen = 'season_leaderboard'
+    
+    // 设置查看历史赛季模式
+    this.uiManager.viewingSeasonArchive = true
+    this.uiManager.archiveSeasonId = seasonId
+    this.uiManager.seasonLeaderboardType = 'score'  // 默认显示分数榜
+    
+    // 加载历史赛季数据
+    await this.refreshSeasonArchive()
+  }
+
+  // 刷新历史赛季数据
+  async refreshSeasonArchive() {
+    // 设置加载状态
+    this.uiManager.seasonLeaderboardLoading = true
+    
+    const result = await this.gameState.getSeasonArchive(
+      this.uiManager.archiveSeasonId,
+      this.uiManager.seasonLeaderboardType
+    )
+    
+    if (result.success) {
+      this.uiManager.seasonLeaderboardData = result.data
+    } else {
+      this.uiManager.showToast(result.message || '获取历史赛季数据失败')
+      this.uiManager.seasonLeaderboardData = null
+    }
+    
+    // 清除加载状态
+    this.uiManager.seasonLeaderboardLoading = false
+  }
+
+  // 切换历史赛季排名类型
+  async switchSeasonArchiveType(type) {
+    if (this.uiManager.seasonLeaderboardType === type) return
+    
+    this.uiManager.seasonLeaderboardType = type
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    await this.refreshSeasonArchive()
+  }
+
+  // 退出历史赛季查看模式
+  exitSeasonArchiveMode() {
+    this.uiManager.viewingSeasonArchive = false
+    this.uiManager.archiveSeasonId = null
   }
 
   // 处理签到触摸

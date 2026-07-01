@@ -55,17 +55,40 @@ exports.main = async (event, context) => {
       .field({ _openid: true, nickname: true, avatarUrl: true, highScore: true, bestWave: true, totalGames: true, totalClears: true, bestStreak: true })
       .get()
 
-    const topByScore = topByScoreRaw.map((item, index) => ({
-      rank: index + 1,
-      openid: item._openid,
-      nickname: item.nickname || '',
-      avatarUrl: item.avatarUrl || '',
-      highScore: item.highScore || 0,
-      bestWave: item.bestWave || 0,
-      totalGames: item.totalGames || 0,
-      totalClears: item.totalClears || 0,
-      bestStreak: item.bestStreak || 0
-    }))
+    // 收集所有 openid，批量从 gameData 获取最新用户信息
+    const scoreOpenids = topByScoreRaw.map(item => item._openid).filter(Boolean)
+    let scoreUserProfileMap = {}
+    
+    if (scoreOpenids.length > 0) {
+      const { data: gameDataList } = await db.collection('gameData')
+        .where({ _openid: _.in(scoreOpenids) })
+        .field({ _openid: true, nickname: true, avatarUrl: true })
+        .limit(100)
+        .get()
+      
+      gameDataList.forEach(item => {
+        scoreUserProfileMap[item._openid] = {
+          nickname: item.nickname || '',
+          avatarUrl: item.avatarUrl || ''
+        }
+      })
+    }
+
+    const topByScore = topByScoreRaw.map((item, index) => {
+      const userProfile = scoreUserProfileMap[item._openid] || {}
+      return {
+        rank: index + 1,
+        openid: item._openid,
+        // 优先使用 gameData 的最新用户信息
+        nickname: userProfile.nickname || item.nickname || '',
+        avatarUrl: userProfile.avatarUrl || item.avatarUrl || '',
+        highScore: item.highScore || 0,
+        bestWave: item.bestWave || 0,
+        totalGames: item.totalGames || 0,
+        totalClears: item.totalClears || 0,
+        bestStreak: item.bestStreak || 0
+      }
+    })
 
     // 按关卡排名 Top 100
     const { data: topByWaveRaw } = await db.collection('seasonRecords')
@@ -75,17 +98,40 @@ exports.main = async (event, context) => {
       .field({ _openid: true, nickname: true, avatarUrl: true, highScore: true, bestWave: true, totalGames: true, totalClears: true, bestStreak: true })
       .get()
 
-    const topByWave = topByWaveRaw.map((item, index) => ({
-      rank: index + 1,
-      openid: item._openid,
-      nickname: item.nickname || '',
-      avatarUrl: item.avatarUrl || '',
-      highScore: item.highScore || 0,
-      bestWave: item.bestWave || 0,
-      totalGames: item.totalGames || 0,
-      totalClears: item.totalClears || 0,
-      bestStreak: item.bestStreak || 0
-    }))
+    // 收集所有 openid，批量从 gameData 获取最新用户信息
+    const waveOpenids = topByWaveRaw.map(item => item._openid).filter(Boolean)
+    let waveUserProfileMap = {}
+    
+    if (waveOpenids.length > 0) {
+      const { data: gameDataList } = await db.collection('gameData')
+        .where({ _openid: _.in(waveOpenids) })
+        .field({ _openid: true, nickname: true, avatarUrl: true })
+        .limit(100)
+        .get()
+      
+      gameDataList.forEach(item => {
+        waveUserProfileMap[item._openid] = {
+          nickname: item.nickname || '',
+          avatarUrl: item.avatarUrl || ''
+        }
+      })
+    }
+
+    const topByWave = topByWaveRaw.map((item, index) => {
+      const userProfile = waveUserProfileMap[item._openid] || {}
+      return {
+        rank: index + 1,
+        openid: item._openid,
+        // 优先使用 gameData 的最新用户信息
+        nickname: userProfile.nickname || item.nickname || '',
+        avatarUrl: userProfile.avatarUrl || item.avatarUrl || '',
+        highScore: item.highScore || 0,
+        bestWave: item.bestWave || 0,
+        totalGames: item.totalGames || 0,
+        totalClears: item.totalClears || 0,
+        bestStreak: item.bestStreak || 0
+      }
+    })
 
     // 写入归档
     await db.collection('seasonArchive').add({

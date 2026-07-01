@@ -49,6 +49,7 @@ exports.main = async (event, context) => {
     }
 
     // 查询当前用户排名
+    // 修复：使用与 Top N 相同的排名计算逻辑，确保一致性
     let userRank = 0
     let userValue = 0
     if (openid) {
@@ -60,10 +61,11 @@ exports.main = async (event, context) => {
       if (userRecords.length > 0) {
         userValue = userRecords[0][field] || 0
         if (userValue > 0) {
-          // 统计有多少人的该字段值大于当前用户
+          // 修复：使用与 Top N 相同的逻辑，统计严格大于用户分数的人数
           const { total } = await db.collection('gameData')
             .where({ [field]: _.gt(userValue) })
             .count()
+          // 排名 = 严格大于的人数 + 1（与 Top N 列表的排名逻辑一致）
           userRank = total + 1
         }
       }

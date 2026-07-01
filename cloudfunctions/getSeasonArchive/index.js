@@ -1,6 +1,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
 
 /**
  * 查询历史赛季归档数据
@@ -8,6 +9,8 @@ const db = cloud.database()
  * @param {string} type - 'score' 或 'wave'，默认返回全部
  */
 exports.main = async (event, context) => {
+  const wxContext = cloud.getWXContext()
+  const openid = wxContext.OPENID
   const { seasonId, type } = event
 
   if (!seasonId) {
@@ -31,13 +34,49 @@ exports.main = async (event, context) => {
       settledAt: archive.settledAt
     }
 
+    // 修复：使用 gameData 的最新用户信息更新归档数据
+    const updateLeaderboardWithLatestUserInfo = async (leaderboard) => {
+      if (!leaderboard || leaderboard.length === 0) return leaderboard
+      
+      // 收集所有 openid
+      const openids = leaderboard.map(item => item.openid).filter(Boolean)
+      let userProfileMap = {}
+      
+      if (openids.length > 0) {
+        try {
+          const { data: gameDataList } = await db.collection('gameData')
+            .where({ _openid: _.in(openids) })
+            .field({ _openid: true, nickname: true, avatarUrl: true })
+            .limit(100)
+            .get()
+          
+          gameDataList.forEach(item => {
+            userProfileMap[item._openid] = {
+              nickname: item.nickname || '',
+              avatarUrl: item.avatarUrl || ''
+            }
+          })
+        } catch (err) {
+          console.warn('获取用户信息失败，使用归档数据:', err)
+        }
+      }
+      
+      // 更新排行榜数据，使用最新的用户信息
+      return leaderboard.map(item => ({
+        ...item,
+        nickname: userProfileMap[item.openid]?.nickname || item.nickname || '',
+        avatarUrl: userProfileMap[item.openid]?.avatarUrl || item.avatarUrl || '',
+        isUser: item.openid === openid
+      }))
+    }
+
     if (type === 'score') {
-      result.leaderboard = archive.topByScore || []
+      result.leaderboard = await updateLeaderboardWithLatestUserInfo(archive.topByScore || [])
     } else if (type === 'wave') {
-      result.leaderboard = archive.topByWave || []
+      result.leaderboard = await updateLeaderboardWithLatestUserInfo(archive.topByWave || [])
     } else {
-      result.topByScore = archive.topByScore || []
-      result.topByWave = archive.topByWave || []
+      result.topByScore = await updateLeaderboardWithLatestUserInfo(archive.topByScore || [])
+      result.topByWave = await updateLeaderboardWithLatestUserInfo(archive.topByWave || [])
     }
 
     return { success: true, data: result }

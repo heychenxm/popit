@@ -45,6 +45,15 @@ export class UIManager {
   this.leaderboardLoading = false
   this.leaderboardLoadTime = 0
 
+    // 赛季排行榜相关状态
+    this.seasonLeaderboardLoading = false
+    this.seasonLeaderboardData = null
+    this.seasonLeaderboardType = 'score'  // 'score' | 'wave'
+    
+    // 历史赛季查看模式
+    this.viewingSeasonArchive = false
+    this.archiveSeasonId = null
+
     // Logo 图片
     this.logoImage = null
     this.logoImageLoaded = false
@@ -1849,8 +1858,18 @@ export class UIManager {
   // 绘制赛季排名弹窗
   drawSeasonLeaderboardModal(gameState) {
     let titleText = ' 赛季排名'
-    if (gameState && gameState.seasonInfo && gameState.seasonInfo.currentSeasonId) {
-      const seasonNum = gameState.seasonInfo.currentSeasonId.replace(/^\d+-S/, 'S')
+    let seasonId = null
+    
+    // 修复：区分当前赛季和历史赛季
+    if (this.viewingSeasonArchive && this.archiveSeasonId) {
+      // 查看历史赛季
+      seasonId = this.archiveSeasonId
+      const seasonNum = seasonId.replace(/^\d+-S/, 'S')
+      titleText = `🏆 ${seasonNum} 赛季排名（历史）`
+    } else if (gameState && gameState.seasonInfo && gameState.seasonInfo.currentSeasonId) {
+      // 查看当前赛季
+      seasonId = gameState.seasonInfo.currentSeasonId
+      const seasonNum = seasonId.replace(/^\d+-S/, 'S')
       titleText = `🏆 ${seasonNum} 赛季排名`
     }
     
@@ -1862,7 +1881,7 @@ export class UIManager {
       btnPrefix: 'season_leaderboard',
       gradientKey: 'seasonSwitchActive',
       rankCardMethod: 'drawSeasonLeaderboardRankCard',
-      showFooter: true
+      showFooter: !this.viewingSeasonArchive  // 历史赛季不显示底部提示
     })
   }
 

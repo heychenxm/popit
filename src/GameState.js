@@ -892,6 +892,27 @@ export class GameState {
   }
   
   /**
+   * 获取历史赛季排行榜数据
+   * @param {string} seasonId - 赛季 ID
+   * @param {string} type - 数据类型：'score' 或 'wave'
+   * @returns {Promise<Object>} 历史赛季数据
+   */
+  async getSeasonArchive(seasonId, type = 'score') {
+    return this._fetchWithCache(
+      `season_archive_${seasonId}_${type}_cache`,
+      () => wechatAPI.getSeasonArchive(seasonId, type),
+      {
+        seasonId,
+        type,
+        leaderboard: [],
+        totalParticipants: 0,
+        settledAt: null
+      },
+      `历史赛季 ${seasonId}`
+    )
+  }
+  
+  /**
    * 递增赛季参与局数（开始新游戏时调用）
    */
   incrementSeasonGames() {
@@ -1126,6 +1147,15 @@ export class GameState {
       }
     } catch (err) {
       console.log(`赛季结算异常（不影响游戏）:`, err.message || err)
+    }
+
+    // 修复：赛季变更时主动清除旧赛季的缓存，确保新赛季看到最新数据
+    try {
+      wx.removeStorageSync(`season_leaderboard_score_cache`)
+      wx.removeStorageSync(`season_leaderboard_wave_cache`)
+      console.log('已清除赛季排行榜缓存')
+    } catch (e) {
+      console.warn('清除赛季排行榜缓存失败:', e)
     }
 
     // 更新本地记录的赛季 ID

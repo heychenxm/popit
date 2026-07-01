@@ -64,6 +64,7 @@ exports.main = async (event, context) => {
     }
 
     // 构造排行榜列表（处理相同分数的情况）
+    // 修复：完全使用 gameData 的最新用户信息，确保昵称/头像始终最新
     const leaderboard = []
     let currentRank = 1
     let lastValue = -1
@@ -81,14 +82,16 @@ exports.main = async (event, context) => {
       
       leaderboard.push({
         rank: currentRank,
-        nickname: item.nickname || userProfile.nickname || '',
-        avatarUrl: item.avatarUrl || userProfile.avatarUrl || '',
+        // 优先使用 gameData 的最新用户信息
+        nickname: userProfile.nickname || item.nickname || '',
+        avatarUrl: userProfile.avatarUrl || item.avatarUrl || '',
         value: value,
         isUser: item._openid === openid
       })
     }
 
     // 查询当前用户赛季数据和排名
+    // 修复：使用与 Top N 相同的排名计算逻辑，确保一致性
     let userRank = 0
     let userValue = 0
     let userStats = { totalGames: 0, totalClears: 0, bestStreak: 0 }
@@ -108,9 +111,11 @@ exports.main = async (event, context) => {
           bestStreak: record.bestStreak || 0
         }
         if (userValue > 0) {
+          // 修复：使用与 Top N 相同的逻辑，统计严格大于用户分数的人数
           const { total } = await db.collection('seasonRecords')
             .where({ seasonId: seasonId, [field]: _.gt(userValue) })
             .count()
+          // 排名 = 严格大于的人数 + 1（与 Top N 列表的排名逻辑一致）
           userRank = total + 1
         }
       }
