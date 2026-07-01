@@ -828,6 +828,9 @@ export class Main {
 
   // 开始观察阶段
   startObservePhase() {
+    // 修复：设置 phase 为 OBSERVE，确保底部倒计时条正常显示
+    this.setGameState('OBSERVE', 'game')
+    
     this.observeStartTime = Date.now()
     
     // 高亮目标泡泡（根据索引分配颜色）- 观察阶段，气泡会闪动
