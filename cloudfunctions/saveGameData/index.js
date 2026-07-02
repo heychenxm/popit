@@ -26,7 +26,7 @@ exports.main = async (event, context) => {
   // 只允许保存白名单字段，防止客户端注入
   const allowedFields = [
     'coins', 'highScore', 'bestWave',
-    'lastCheckinDate', 'checkinStreak',
+    'lastCheckinDate', 'checkinStreak', 'lastCheckinType',
     'lastShareDate', 'todayShareCount', 'lastShareGiftDate',
     'seasonId', 'seasonScore', 'seasonWave',
     'totalGames', 'totalClears', 'bestStreak',

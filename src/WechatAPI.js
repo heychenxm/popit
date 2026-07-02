@@ -168,8 +168,8 @@ export class WechatAPI {
   }
 
   // 云端签到
-  cloudCheckin() {
-    return this.callCloud('checkin')
+  cloudCheckin(isAd = false) {
+    return this.callCloud('checkin', { isAd })
   }
 
   // 获取总排行榜

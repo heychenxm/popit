@@ -1529,34 +1529,34 @@ export class Main {
   }
 
   // 广告双倍签到
-  adDoubleCheckin() {
+  async adDoubleCheckin() {
     this.audioManager.play('click')
-    
+
     if (!this.gameState.canAdDoubleCheckin()) {
       this.vibrate('light')
       this.uiManager.showToast('今日已使用广告双倍奖励')
       return
     }
-    
+
     if (!this._checkinRewardedVideoAd) {
       this.uiManager.showToast('广告功能暂不可用')
       return
     }
-    
+
     try {
       // 监听关闭回调（一次性）
-      const onCloseHandler = (res) => {
+      const onCloseHandler = async (res) => {
         this._checkinRewardedVideoAd.offClose(onCloseHandler)
-        
+
         if (res && res.isEnded) {
-          // 用户完整观看广告
-          const result = this.gameState.doAdDoubleCheckin()
+          // 用户完整观看广告，调用云端广告签到
+          const result = await this.gameState.doCloudCheckin(true)
           if (result) {
             this.vibrate('medium')
             this.audioManager.play('success')
-            const rewardText = result.isDouble ? '双倍奖励' : '补齐奖励'
+            const rewardText = result.isAdDouble ? '广告奖励' : '签到奖励'
             this.uiManager.showToast(
-              `广告签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 ' : '金币'}（${rewardText}）`
+              `广告签到成功！领取 ${result.amount} 金币（${rewardText}）`
             )
           } else {
             this.vibrate('light')
@@ -1567,9 +1567,9 @@ export class Main {
           this.uiManager.showToast('需要完整观看广告才能获得奖励')
         }
       }
-      
+
       this._checkinRewardedVideoAd.onClose(onCloseHandler)
-      
+
       // 尝试展示广告
       this._checkinRewardedVideoAd.show().catch(() => {
         // 展示失败，先加载再展示

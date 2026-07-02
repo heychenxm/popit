@@ -30,6 +30,9 @@ exports.main = async (event, context) => {
     return { success: false, error: '操作过于频繁，请稍后再试' }
   }
 
+  // 是否通过广告签到
+  const isAd = event.isAd === true
+
   // 获取今天的日期字符串 YYYY-MM-DD（东八区）
   const now = new Date(Date.now() + 8 * 3600 * 1000)
   const today = now.toISOString().slice(0, 10)
@@ -46,9 +49,45 @@ exports.main = async (event, context) => {
     const lastCheckinDate = userData.lastCheckinDate || ''
     let checkinStreak = userData.checkinStreak || 0
     let coins = typeof userData.coins === 'number' ? userData.coins : 1000
+    const lastCheckinType = userData.lastCheckinType || ''
 
     // 检查今天是否已签到
     if (lastCheckinDate === today) {
+      // 今天已普通签到，允许广告签到（翻倍奖励）
+      if (isAd && lastCheckinType !== 'ad') {
+        const baseReward = CHECKIN_REWARDS[checkinStreak] || DEFAULT_BASE
+        const bonusReward = (checkinStreak % BONUS_DAY === 0) ? BONUS_AMOUNT : 0
+        const rewardAmount = baseReward + bonusReward
+
+        coins += rewardAmount
+
+        const updateData = {
+          lastCheckinType: 'ad',
+          coins: coins,
+          updatedAt: db.serverDate()
+        }
+
+        await db.collection('gameData')
+          .where({ _openid: openid })
+          .update({ data: updateData })
+
+        return {
+          success: true,
+          data: {
+            coins: coins,
+            checkinStreak: checkinStreak,
+            lastCheckinDate: today,
+            lastCheckinType: 'ad',
+            reward: {
+              amount: rewardAmount,
+              baseReward: baseReward,
+              bonusReward: bonusReward,
+              isBonusDay: bonusReward > 0,
+              isAdDouble: true
+            }
+          }
+        }
+      }
       return { success: false, error: '今天已签到' }
     }
 
@@ -72,6 +111,7 @@ exports.main = async (event, context) => {
       lastCheckinDate: today,
       checkinStreak: checkinStreak,
       coins: coins,
+      lastCheckinType: isAd ? 'ad' : 'normal',
       updatedAt: db.serverDate()
     }
 
@@ -90,11 +130,13 @@ exports.main = async (event, context) => {
         coins: coins,
         checkinStreak: checkinStreak,
         lastCheckinDate: today,
+        lastCheckinType: isAd ? 'ad' : 'normal',
         reward: {
           amount: rewardAmount,
           baseReward: baseReward,
           bonusReward: bonusReward,
-          isBonusDay: bonusReward > 0
+          isBonusDay: bonusReward > 0,
+          isAdDouble: false
         }
       }
     }
