@@ -2679,35 +2679,13 @@ export class UIManager {
     ctx.textBaseline = 'middle'
     this.drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState)
     
-    // 按钮
+    // 按钮（全宽）
     const btnY = scoreY + 40
-    const btnW = (modalW - 60) / 2
-    const btnH = 40
+    const btnW = modalW - 40
+    const btnH = 48
     
-    // 返回首页按钮
-    ctx.fillStyle = '#0284c7'
-    drawRoundRect(ctx, modalX + 20, btnY, btnW, btnH, 12)
-    ctx.fill()
-    ctx.strokeStyle = '#7dd3fc'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = Colors.white
-    ctx.fillText('返回首页', modalX + 20 + btnW / 2, btnY + btnH / 2)
-    
-    this.buttons.push({
-      id: 'home',
-      x: modalX + 20,
-      y: btnY,
-      w: btnW,
-      h: btnH
-    })
-    
-    // 下一关按钮
-    const nextBtnX = modalX + 40 + btnW
+    // 下一关按钮（全宽）
+    const nextBtnX = modalX + 20
     const nextGradient = ctx.createLinearGradient(nextBtnX, btnY, nextBtnX, btnY + btnH)
     nextGradient.addColorStop(0, '#a3e635')
     nextGradient.addColorStop(1, '#16a34a')
@@ -2719,6 +2697,7 @@ export class UIManager {
     ctx.lineWidth = 2
     ctx.stroke()
     
+    ctx.font = `bold 18px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.white
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'

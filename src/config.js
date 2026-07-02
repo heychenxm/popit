@@ -6,7 +6,7 @@ export const config = {
   // 游戏配置
   game: {
     initialCoins: 1000,        // 初始金币
-    maxLives: 5,               // 最大生命
+    maxLives: 3,               // 最大生命
     initialLives: 3,           // 初始生命
     maxPurchaseCount: 3,       // 最大购买次数
     purchasePrices: [300, 500, 1000],  // 购买价格
