@@ -724,35 +724,35 @@ export class GameState {
 
   // 获取观察时间（毫秒）
   getObserveDuration() {
-    if (this.wave < 20) {
-      // 1-19 关：2500ms 起，每关 -60ms，最少 1500ms
-      return Math.max(1500, 2500 - (this.wave - 1) * 60)
-    } else if (this.wave < 40) {
-      // 20-39 关：2200ms 起，每关 -40ms，最少 1400ms
-      return Math.max(1400, 2200 - (this.wave - 1) * 40)
-    } else if (this.wave < 60) {
-      // 40-59 关：2000ms 起，每关 -30ms，最少 1600ms
-      return Math.max(1600, 2000 - (this.wave - 1) * 30)
+    if (this.wave <= 20) {
+      // 1-20 关：2500ms 起，每关 -25ms，最低 2000ms
+      return Math.max(2000, 2500 - (this.wave - 1) * 25)
+    } else if (this.wave <= 40) {
+      // 21-40 关：2000ms 起，每关 -15ms，最低 1700ms
+      return Math.max(1700, 2000 - (this.wave - 21) * 15)
+    } else if (this.wave <= 60) {
+      // 41-60 关：1700ms 起，每关 -10ms，最低 1500ms
+      return Math.max(1500, 1700 - (this.wave - 41) * 10)
     } else {
-      // 60+ 关：2200ms 起，每关 -20ms，最少 2000ms
-      return Math.max(2000, 2200 - (this.wave - 1) * 20)
+      // 61+ 关：固定 2000ms（网格变大，需要更多观察时间）
+      return 2000
     }
   }
 
   // 获取点击时间（毫秒）
   getPlayDuration() {
-    if (this.wave < 20) {
-      // 1-19 关：5000ms 起，每关 -100ms，最少 3200ms
-      return Math.max(3200, 5000 - (this.wave - 1) * 100)
-    } else if (this.wave < 40) {
-      // 20-39 关：4800ms 起，每关 -70ms，最少 3400ms
-      return Math.max(3400, 4800 - (this.wave - 1) * 70)
-    } else if (this.wave < 60) {
-      // 40-59 关：4500ms 起，每关 -50ms，最少 3500ms
-      return Math.max(3500, 4500 - (this.wave - 1) * 50)
+    if (this.wave <= 20) {
+      // 1-20 关：5000ms 起，每关 -40ms，最低 4200ms
+      return Math.max(4200, 5000 - (this.wave - 1) * 40)
+    } else if (this.wave <= 40) {
+      // 21-40 关：4200ms 起，每关 -30ms，最低 3600ms
+      return Math.max(3600, 4200 - (this.wave - 21) * 30)
+    } else if (this.wave <= 60) {
+      // 41-60 关：3600ms 起，每关 -20ms，最低 3200ms
+      return Math.max(3200, 3600 - (this.wave - 41) * 20)
     } else {
-      // 60+ 关：4200ms 起，每关 -30ms，最少 4000ms
-      return Math.max(4000, 4200 - (this.wave - 1) * 30)
+      // 61+ 关：固定 3500ms（网格变大，需要更多操作时间）
+      return 3500
     }
   }
 
