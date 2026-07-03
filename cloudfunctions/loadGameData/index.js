@@ -36,8 +36,36 @@ exports.main = async (event, context) => {
       return { success: true, data: record }
     }
 
-    // 新用户，无云端数据
-    return { success: true, data: null }
+    // 新用户，主动创建初始数据（方案 2：云函数兜底）
+    console.log('检测到新用户，创建初始游戏数据')
+    const initialData = {
+      _openid: openid,
+      coins: 1000,
+      highScore: 0,
+      bestWave: 0,
+      lastCheckinDate: '',
+      checkinStreak: 0,
+      lastCheckinType: '',
+      lastShareDate: '',
+      todayShareCount: 0,
+      lastShareGiftDate: '',
+      nickname: '',
+      avatarUrl: '',
+      updatedAt: db.serverDate()
+    }
+
+    try {
+      await db.collection('gameData').add({ data: initialData })
+      console.log('新用户初始数据创建成功')
+      // 移除内部字段后返回
+      delete initialData._openid
+      delete initialData.updatedAt
+      return { success: true, data: initialData }
+    } catch (err) {
+      console.error('创建新用户数据失败:', err)
+      // 如果创建失败（如并发冲突），降级返回 null
+      return { success: true, data: null }
+    }
   } catch (err) {
     console.error('loadGameData error:', err)
     return { success: false, error: err.message }

@@ -998,7 +998,11 @@ export class GameState {
     try {
       const result = await wechatAPI.loadGameData()
       if (!result.success || !result.data) {
-        console.log('云端无数据，使用本地数据')
+        console.log('云端无数据，尝试主动初始化')
+        // 方案 3：前端主动初始化兜底
+        this.saveToCloud().catch(err => {
+          console.warn('前端主动初始化云端数据失败:', err.message || err)
+        })
         return
       }
 
