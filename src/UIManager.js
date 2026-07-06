@@ -2764,11 +2764,11 @@ export class UIManager {
     // 判断是否破了赛季记录
     const isNewSeasonRecord = gameState.isNewSeasonRecord()
     
-    // 计算弹窗高度（去掉金币展示区域，去掉哭泣图标，底部增加最高关卡/最高分区域 + 好友排行按钮）
-    // 场景1：金币+广告并排 = 2行按钮（56px）
-    // 场景2/3/4：3行按钮（56px）
+    // 计算弹窗高度（新增"再来一局"按钮）
+    // 场景1：金币 + 广告并排 = 2 行复活按钮 + 再来一局 + 返回首页 = 4 行（56px）
+    // 场景2/3/4：3 行复活按钮 + 再来一局 + 返回首页 = 5 行（56px）
     const isTwoRowLayout = hasPurchaseAttempts && canAdRevive
-    const modalH = isTwoRowLayout ? 490 : 560
+    const modalH = isTwoRowLayout ? 600 : 670
     const modalY = (this.height - modalH) / 2
     
     ctx.save()
@@ -2789,16 +2789,19 @@ export class UIManager {
     ctx.lineWidth = 4
     ctx.stroke()
     
-    // 新纪录标签（红底白字，弹窗顶部居中）
+    // 新纪录标签（红底白字，弹窗顶部居中，与卡片重叠）
     if (isNewSeasonRecord) {
       const badgeW = 90
       const badgeH = 26
       const badgeX = this.width / 2 - badgeW / 2
-      const badgeY = modalY - badgeH / 2
+      const badgeY = modalY - badgeH * 0.6  // 调整位置，让标签部分突出卡片外
       
       ctx.fillStyle = '#ef4444'
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+      ctx.shadowBlur = 8
       drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 13)
       ctx.fill()
+      ctx.shadowBlur = 0
       
       ctx.font = `bold 13px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.white
@@ -2843,7 +2846,7 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     this.drawScoreWithRecordBadge(ctx, titleY + 105, '本局得分：', `${gameState.score}`, {
-      isNewRecord: gameState.isNewHighScore(),
+      isNewRecord: false, // 顶部已显示新纪录标签，这里不再重复显示
       labelColor: Colors.yellow300,
       scoreColor: Colors.yellow300,
       fontSize: 16
@@ -2923,10 +2926,36 @@ export class UIManager {
         h: btnH
       })
       
-      // 第二行：返回首页
+      // 第二行：再来一局
       const btnY2 = btnY1 + btnH + btnGap
-      ctx.fillStyle = Colors.gray700
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + fullBtnW, btnY2 + btnH)
+      restartBtnGradient.addColorStop(0, '#f59e0b')
+      restartBtnGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = restartBtnGradient
       drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY2 + btnH / 2)
+      
+      this.buttons.push({
+        id: 'restart',
+        x: modalX + 20,
+        y: btnY2,
+        w: fullBtnW,
+        h: btnH
+      })
+      
+      // 第三行：返回首页
+      const btnY3 = btnY2 + btnH + btnGap
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = Colors.gray500
       ctx.lineWidth = 1
@@ -2936,12 +2965,12 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY3 + btnH / 2)
       
       this.buttons.push({
         id: 'home',
         x: modalX + 20,
-        y: btnY2,
+        y: btnY3,
         w: fullBtnW,
         h: btnH
       })
@@ -3019,10 +3048,36 @@ export class UIManager {
         h: btnH
       })
       
-      // 第三行：返回首页
+      // 第三行：再来一局
       const btnY3 = btnY2 + btnH + btnGap
-      ctx.fillStyle = Colors.gray700
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY3, modalX + 20 + fullBtnW, btnY3 + btnH)
+      restartBtnGradient.addColorStop(0, '#f59e0b')
+      restartBtnGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = restartBtnGradient
       drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY3 + btnH / 2)
+      
+      this.buttons.push({
+        id: 'restart',
+        x: modalX + 20,
+        y: btnY3,
+        w: fullBtnW,
+        h: btnH
+      })
+      
+      // 第四行：返回首页
+      const btnY4 = btnY3 + btnH + btnGap
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY4, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = Colors.gray500
       ctx.lineWidth = 1
@@ -3032,12 +3087,12 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', modalX + modalW / 2, btnY3 + btnH / 2)
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY4 + btnH / 2)
       
       this.buttons.push({
         id: 'home',
         x: modalX + 20,
-        y: btnY3,
+        y: btnY4,
         w: fullBtnW,
         h: btnH
       })
@@ -3107,10 +3162,36 @@ export class UIManager {
         h: btnH
       })
       
-      // 第三行：返回首页
+      // 第三行：再来一局
       const btnY3 = btnY2 + btnH + btnGap
-      ctx.fillStyle = Colors.gray700
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY3, modalX + 20 + fullBtnW, btnY3 + btnH)
+      restartBtnGradient.addColorStop(0, '#f59e0b')
+      restartBtnGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = restartBtnGradient
       drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY3 + btnH / 2)
+      
+      this.buttons.push({
+        id: 'restart',
+        x: modalX + 20,
+        y: btnY3,
+        w: fullBtnW,
+        h: btnH
+      })
+      
+      // 第四行：返回首页
+      const btnY4 = btnY3 + btnH + btnGap
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY4, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = Colors.gray500
       ctx.lineWidth = 1
@@ -3120,12 +3201,12 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', modalX + modalW / 2, btnY3 + btnH / 2)
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY4 + btnH / 2)
       
       this.buttons.push({
         id: 'home',
         x: modalX + 20,
-        y: btnY3,
+        y: btnY4,
         w: fullBtnW,
         h: btnH
       })
@@ -3170,16 +3251,13 @@ export class UIManager {
         h: btnH
       })
       
-      // 第二行：重新开始 + 返回首页
+      // 第二行：再来一局
       const btnY2 = btnY1 + btnH + btnGap
-      const rowBtnW = (modalW - 60) / 2
-      
-      // 重新开始按钮
-      const restartGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + rowBtnW, btnY2 + btnH)
-      restartGradient.addColorStop(0, '#f59e0b')
-      restartGradient.addColorStop(1, '#d97706')
-      ctx.fillStyle = restartGradient
-      drawRoundRect(ctx, modalX + 20, btnY2, rowBtnW, btnH, 12)
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + fullBtnW, btnY2 + btnH)
+      restartBtnGradient.addColorStop(0, '#f59e0b')
+      restartBtnGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = restartBtnGradient
+      drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = '#fde68a'
       ctx.lineWidth = 2
@@ -3189,20 +3267,20 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('重新开始', modalX + 20 + rowBtnW / 2, btnY2 + btnH / 2)
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY2 + btnH / 2)
       
       this.buttons.push({
         id: 'restart',
         x: modalX + 20,
         y: btnY2,
-        w: rowBtnW,
+        w: fullBtnW,
         h: btnH
       })
       
-      // 返回首页按钮
-      const homeBtnX = modalX + 40 + rowBtnW
+      // 第三行：返回首页
+      const btnY3 = btnY2 + btnH + btnGap
       ctx.fillStyle = Colors.gray700
-      drawRoundRect(ctx, homeBtnX, btnY2, rowBtnW, btnH, 12)
+      drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = Colors.gray500
       ctx.lineWidth = 1
@@ -3212,19 +3290,20 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', homeBtnX + rowBtnW / 2, btnY2 + btnH / 2)
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY3 + btnH / 2)
       
       this.buttons.push({
         id: 'home',
-        x: homeBtnX,
-        y: btnY2,
-        w: rowBtnW,
+        x: modalX + 20,
+        y: btnY3,
+        w: fullBtnW,
         h: btnH
       })
     }
     
     // 好友排行按钮（弹窗内底部）
-    const friendRankBtnY = isTwoRowLayout ? btnY1 + 142 : btnY1 + 213
+    // 调整 Y 位置以适应新增的"再来一局"按钮
+    const friendRankBtnY = isTwoRowLayout ? btnY1 + 254 : btnY1 + 325
     const friendRankBtnH = 44
     const friendRankBtnW = modalW - 40
     
