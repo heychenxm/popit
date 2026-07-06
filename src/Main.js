@@ -697,6 +697,9 @@ export class Main {
         case 'restart':
           this.restartGame()
           break
+        case 'leaderboard':
+          this.showLeaderboard()
+          break
       }
     }
   }

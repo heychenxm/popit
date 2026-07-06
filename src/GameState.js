@@ -79,6 +79,7 @@ export class GameState {
     this.hasShownRecordBreakModal = false  // 本局是否已显示破纪录弹窗
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
+    this.sessionStartSeasonScore = 0  // 本局开始时的赛季最高分（seasonData 初始化后更新）
     this.isWaitingShareRevive = false    // 是否正在等待分享复活返回
     
     // 首次游玩标记
@@ -123,6 +124,9 @@ export class GameState {
     
     // 初始化赛季信息
     this.initSeasonInfo()
+    
+    // 赛季数据初始化后，记录本局开始时的赛季最高分
+    this.sessionStartSeasonScore = this.seasonData.seasonScore
   }
 
   // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）
@@ -192,6 +196,7 @@ export class GameState {
     this.hasShownRecordBreakModal = false  // 重置破纪录弹窗标志
     this.isNewScoreRecord = false
     this.sessionStartHighScore = this.highScore
+    this.sessionStartSeasonScore = this.seasonData.seasonScore
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
@@ -242,6 +247,11 @@ export class GameState {
   // 本局得分是否破了历史最高分（与本局开始时记录比较）
   isNewHighScore() {
     return this.score > this.sessionStartHighScore
+  }
+
+  // 本局得分是否破了赛季最高记录（与本局开始时赛季记录比较）
+  isNewSeasonRecord() {
+    return this.score > this.sessionStartSeasonScore && this.sessionStartSeasonScore >= 0
   }
 
   // 保存最高分和最高关卡（关卡结束后调用）

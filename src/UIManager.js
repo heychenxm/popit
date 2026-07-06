@@ -2761,11 +2761,14 @@ export class UIManager {
     const canAdRevive = gameState.canAdRevive()
     const canShareRevive = gameState.canShareRevive()
     
-    // 计算弹窗高度（根据按钮行数和剩余次数文本）
+    // 判断是否破了赛季记录
+    const isNewSeasonRecord = gameState.isNewSeasonRecord()
+    
+    // 计算弹窗高度（去掉金币展示区域，去掉哭泣图标，底部增加最高关卡/最高分区域 + 好友排行按钮）
     // 场景1：金币+广告并排 = 2行按钮（56px）
     // 场景2/3/4：3行按钮（56px）
     const isTwoRowLayout = hasPurchaseAttempts && canAdRevive
-    const modalH = isTwoRowLayout ? 434 : 504
+    const modalH = isTwoRowLayout ? 490 : 560
     const modalY = (this.height - modalH) / 2
     
     ctx.save()
@@ -2786,8 +2789,27 @@ export class UIManager {
     ctx.lineWidth = 4
     ctx.stroke()
     
-    // 失败标题
+    // 新纪录标签（红底白字，弹窗顶部居中）
+    if (isNewSeasonRecord) {
+      const badgeW = 90
+      const badgeH = 26
+      const badgeX = this.width / 2 - badgeW / 2
+      const badgeY = modalY - badgeH / 2
+      
+      ctx.fillStyle = '#ef4444'
+      drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 13)
+      ctx.fill()
+      
+      ctx.font = `bold 13px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('新纪录', this.width / 2, badgeY + badgeH / 2)
+    }
+    
+    // 标题（破赛季记录时显示"本赛季最高记录"，否则显示"本局成绩"）
     const titleY = modalY + 30
+    const titleText = isNewSeasonRecord ? '本赛季最高记录' : '本局成绩'
     ctx.fillStyle = '#334155'
     drawRoundRect(ctx, modalX + 60, titleY, modalW - 120, 44, 16)
     ctx.fill()
@@ -2801,30 +2823,26 @@ export class UIManager {
     ctx.fillStyle = Colors.white
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
     ctx.shadowBlur = 4
-    ctx.fillText('再来一局', this.width / 2, titleY + 22)
-    
-    // 哭泣泡泡图标
-    ctx.shadowBlur = 0
-    this.drawCryingBubbleIcon(ctx, this.width / 2, titleY + 60, 48)
+    ctx.fillText(titleText, this.width / 2, titleY + 22)
     
     // 关卡
     ctx.font = `14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.gray400
-    ctx.fillText(`第 ${gameState.wave} 关`, this.width / 2, titleY + 90)
+    ctx.fillText(`第 ${gameState.wave} 关`, this.width / 2, titleY + 60)
     
     // 分隔线
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(modalX + 20, titleY + 110)
-    ctx.lineTo(modalX + modalW - 20, titleY + 110)
+    ctx.moveTo(modalX + 20, titleY + 80)
+    ctx.lineTo(modalX + modalW - 20, titleY + 80)
     ctx.stroke()
     
     // 本局总得分
     ctx.font = `bold 16px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    this.drawScoreWithRecordBadge(ctx, titleY + 135, '本局得分：', `${gameState.score}`, {
+    this.drawScoreWithRecordBadge(ctx, titleY + 105, '本局得分：', `${gameState.score}`, {
       isNewRecord: gameState.isNewHighScore(),
       labelColor: Colors.yellow300,
       scoreColor: Colors.yellow300,
@@ -2835,31 +2853,14 @@ export class UIManager {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(modalX + 20, titleY + 155)
-    ctx.lineTo(modalX + modalW - 20, titleY + 155)
+    ctx.moveTo(modalX + 20, titleY + 125)
+    ctx.lineTo(modalX + modalW - 20, titleY + 125)
     ctx.stroke()
-    
-    // 当前金币
-    const infoY = titleY + 170
-    const infoH = 50
-    
-    ctx.fillStyle = canPurchase ? 'rgba(34, 197, 94, 0.15)' : 'rgba(75, 85, 99, 0.2)'
-    drawRoundRect(ctx, modalX + 20, infoY, modalW - 40, infoH, 12)
-    ctx.fill()
-    ctx.strokeStyle = canPurchase ? Colors.emerald500 : Colors.gray600
-    ctx.lineWidth = 2
-    ctx.stroke()
-    
-    ctx.font = `bold 16px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = Colors.white
-    ctx.fillText(`当前金币：${gameState.coins}`, this.width / 2, infoY + infoH / 2)
     
     // 按钮区域
     const btnH = 56  // 增加高度以容纳两行文字
     const btnGap = 15
-    const btnY1 = infoY + infoH + btnGap
+    const btnY1 = titleY + 125 + btnGap
     const halfBtnW = (modalW - 60) / 2
     const fullBtnW = modalW - 40
     
@@ -3222,7 +3223,47 @@ export class UIManager {
       })
     }
     
+    // 好友排行按钮（弹窗内底部）
+    const friendRankBtnY = isTwoRowLayout ? btnY1 + 142 : btnY1 + 213
+    const friendRankBtnH = 44
+    const friendRankBtnW = modalW - 40
+    
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
+    drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    
+    ctx.font = `bold 14px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
+    
+    this.buttons.push({
+      id: 'leaderboard',
+      x: modalX + 20,
+      y: friendRankBtnY,
+      w: friendRankBtnW,
+      h: friendRankBtnH
+    })
+    
     ctx.restore()
+    
+    // 最高关卡和最高分（弹窗外底部，与弹窗保持 12px 间距，白色字体，单行显示）
+    const statsY = modalY + modalH + 30
+    
+    ctx.font = `14px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    
+    // 左侧：最高关卡
+    ctx.fillText(`最高关卡：${gameState.bestWave}`, modalX + modalW / 4, statsY)
+    
+    // 右侧：最高分
+    ctx.fillText(`最高分：${gameState.highScore}`, modalX + modalW * 3 / 4, statsY)
   }
 
   // 绘制暂停弹窗
