@@ -1259,12 +1259,10 @@ export class UIManager {
     
     this.drawBonusCard(ctx, bonusX, bonusY, bonusWidth, bonusHeight, bonusObtained, day7)
     
-    // 签到按钮区域（两个并排按钮）
+    // 签到按钮区域
     const btnHeight = 46
-    const btnGap = 12
-    const btnWidth = (modalW - 60 - btnGap) / 2
-    const btnX1 = modalX + 30
-    const btnX2 = btnX1 + btnWidth + btnGap
+    const btnWidth = modalW - 60
+    const btnX = modalX + 30
     const btnY = bonusY + bonusHeight + 25
     
     const canAdDoubleCheckin = gameState.canAdDoubleCheckin()
@@ -1273,7 +1271,7 @@ export class UIManager {
     if (isAllSigned) {
       // 全部完成：显示一个全宽的灰色按钮
       ctx.fillStyle = '#374151'
-      drawRoundRect(ctx, btnX1, btnY, modalW - 60, btnHeight, 16)
+      drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, 16)
       ctx.fill()
       ctx.strokeStyle = '#6b7280'
       ctx.lineWidth = 2
@@ -1287,14 +1285,14 @@ export class UIManager {
     } else {
       // 普通签到按钮（左）
       if (canCheckin) {
-        const btnGrad = ctx.createLinearGradient(btnX1, btnY, btnX1, btnY + btnHeight)
+        const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnHeight)
         btnGrad.addColorStop(0, '#4ade80')
         btnGrad.addColorStop(1, '#16a34a')
         ctx.fillStyle = btnGrad
       } else {
         ctx.fillStyle = '#374151'
       }
-      drawRoundRect(ctx, btnX1, btnY, btnWidth, btnHeight, 16)
+      drawRoundRect(ctx, btnX, btnY, btnWidth / 2 - 6, btnHeight, 16)
       ctx.fill()
       ctx.strokeStyle = canCheckin ? '#86efac' : '#6b7280'
       ctx.lineWidth = 2
@@ -1304,26 +1302,27 @@ export class UIManager {
       ctx.fillStyle = canCheckin ? Colors.white : Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(canCheckin ? '立即签到' : '今日已签到', btnX1 + btnWidth / 2, btnY + btnHeight / 2)
+      ctx.fillText(canCheckin ? '立即签到' : '今日已签到', btnX + (btnWidth / 2 - 6) / 2, btnY + btnHeight / 2)
       
       this.buttons.push({
         id: 'checkin',
-        x: btnX1,
+        x: btnX,
         y: btnY,
-        w: btnWidth,
+        w: btnWidth / 2 - 6,
         h: btnHeight
       })
       
       // 看广告双倍按钮（右）
+      const adBtnX = btnX + (btnWidth / 2 - 6) + 12
       if (canAdDoubleCheckin) {
-        const adBtnGrad = ctx.createLinearGradient(btnX2, btnY, btnX2, btnY + btnHeight)
+        const adBtnGrad = ctx.createLinearGradient(adBtnX, btnY, adBtnX, btnY + btnHeight)
         adBtnGrad.addColorStop(0, '#8b5cf6')
         adBtnGrad.addColorStop(1, '#7c3aed')
         ctx.fillStyle = adBtnGrad
       } else {
         ctx.fillStyle = '#374151'
       }
-      drawRoundRect(ctx, btnX2, btnY, btnWidth, btnHeight, 16)
+      drawRoundRect(ctx, adBtnX, btnY, btnWidth / 2 - 6, btnHeight, 16)
       ctx.fill()
       ctx.strokeStyle = canAdDoubleCheckin ? '#c4b5fd' : '#6b7280'
       ctx.lineWidth = 2
@@ -1333,13 +1332,13 @@ export class UIManager {
       ctx.fillStyle = canAdDoubleCheckin ? Colors.white : Colors.gray400
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(canAdDoubleCheckin ? ' 双倍奖励' : '今日已双倍', btnX2 + btnWidth / 2, btnY + btnHeight / 2)
+      ctx.fillText(canAdDoubleCheckin ? '双倍奖励' : '今日已双倍', adBtnX + (btnWidth / 2 - 6) / 2, btnY + btnHeight / 2)
       
       this.buttons.push({
         id: 'adCheckin',
-        x: btnX2,
+        x: adBtnX,
         y: btnY,
-        w: btnWidth,
+        w: btnWidth / 2 - 6,
         h: btnHeight
       })
     }

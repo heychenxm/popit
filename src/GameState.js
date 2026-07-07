@@ -396,7 +396,7 @@ export class GameState {
       return null
     }
     
-    // 判断是否已普通签到（决定给1x还是2x）
+    // 判断是否已普通签到（决定给 1x 还是 2x）
     const hasNormalCheckin = this.hasNormalCheckinToday
     
     // 如果还没签到，更新连续签到天数
@@ -423,12 +423,16 @@ export class GameState {
     const isBonusDay = (this.checkinStreak % config.checkin.bonusDay === 0)
     const bonusAmount = isBonusDay ? config.checkin.bonusAmount : 0
     
-    // 已普通签到：补齐到2倍（再给1x）；未签到：直接给2倍
+    // 已普通签到：补齐到 2 倍（再给 1x）；未签到：直接给 2 倍
     const multiplier = hasNormalCheckin ? 1 : 2
     const totalAmount = (reward.amount + bonusAmount) * multiplier
     
     // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
     const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
+    
+    // 广告签到也需要保存到云端（防篡改）
+    this.saveToCloud().catch(() => {})
+    
     if (isGem) {
       return { type: 'gem', amount: totalAmount, baseReward: reward.amount * multiplier, bonusReward: bonusAmount * multiplier, isBonusDay, isDouble: !hasNormalCheckin }
     }
