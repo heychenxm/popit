@@ -173,7 +173,7 @@ export class UIManager {
     this.drawStartButton()
     this.drawBottomButtons(gameState)
     this.drawSeasonBanner(gameState)
-    if (gameState.canShareGift()) {
+    if (gameState.canShareGift() && gameState.getTodayShareCount() < config.game.maxShareCountPerDay) {
       this.drawShareGiftIcon()
     }
     
@@ -237,7 +237,7 @@ export class UIManager {
       this.drawStartButton()
       this.drawBottomButtons(gameState)
       this.drawSeasonBanner(gameState)
-      if (gameState.canShareGift()) {
+      if (gameState.canShareGift() && gameState.getTodayShareCount() < config.game.maxShareCountPerDay) {
         this.drawShareGiftIcon()
       }
     }
@@ -656,7 +656,7 @@ export class UIManager {
       { id: 'leaderboard', icon: 'barChart', label: '排行榜', color1: '#6366f1', color2: '#a855f7', borderColor: '#a5b4fc' },
       { id: 'sound', icon: 'speaker', label: '声音', color1: '#0ea5e9', color2: '#3b82f6', borderColor: '#7dd3fc' },
       { id: 'checkin', icon: 'calendar', label: '签到', color1: '#10b981', color2: '#16a34a', borderColor: '#6ee7b7', hasBadge: gameState.canCheckin() },
-      { id: 'share', icon: 'share', label: '分享', color1: '#ec4899', color2: '#f43f5e', borderColor: '#f9a8d4', hasBadge: true }
+      { id: 'share', icon: 'share', label: '分享', color1: '#ec4899', color2: '#f43f5e', borderColor: '#f9a8d4', hasBadge: gameState.canShareGift() && gameState.getTodayShareCount() < config.game.maxShareCountPerDay }
     ]
     
     const btnCount = buttons.length
