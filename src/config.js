@@ -39,20 +39,6 @@ export const config = {
     consecutiveWin: 5,         // 连续胜利恢复生命的间隔
   },
   
-  // 体力配置
-  stamina: {
-    maxStamina: 30,              // 体力上限
-    initialStamina: 30,          // 初始体力
-    recoverInterval: 15 * 60 * 1000,  // 体力恢复间隔（15 分钟）
-    recoverAmount: 1,            // 每次恢复体力值
-    gameCost: 3,                 // 每局游戏消耗体力
-    purchasePrice: 1500,         // 金币购买体力价格
-    maxPurchaseCountPerDay: 10,  // 每日金币购买次数上限
-    adAmount: 10,                // 看广告获得体力值
-    maxAdCountPerDay: 4,         // 每日看广告次数上限
-    staminaAdUnitId: 'adunit-aa06be85f73cabfd',  // 体力广告 ID
-  },
-  
   // 游戏圈配置
   gameClub: {
     openlink: '-SSEykJvFV3pORt5kTNpSwf9v-nO8w-RltZQZE2rBIVXb7phpwakvShxowg8mzrNcJYcdNO5WDO26mdXbRWneklavyMsSHiDXTw6t9McAzz8JBJXjxWYMGOC2WQZOcGebAorBfoC4LgNfVgedG1Ptl1V6jnazLovHcaN7sIiMVrrKYKs0VLdIBsm7dWz8EDLgCcbTNgBWeIGR2TkS_w8NJ8At-pVdIXCxBJhrrhgq8Ax5R3aCuaf2vIKkljucoZ-M7q-z355b3iIf_sPFXk7SV2QjWoSTR-EIK4d9NOmT1DMdm0IUBAbITMhPsX1FIjN-uKX5j0qzWgvIlXhnXAFvA',

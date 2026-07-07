@@ -167,7 +167,6 @@ export class UIManager {
     // 调用原有绘制逻辑
     this.buttons.length = 0
     this.drawTopCoins(gameState)
-    this.drawStaminaCountdown(gameState)
     this.drawLogo()
     this.drawBestScore(gameState)
     this.drawAuthButton(gameState)
@@ -232,7 +231,6 @@ export class UIManager {
       // 降级方案：直接绘制
       this.buttons.length = 0
       this.drawTopCoins(gameState)
-      this.drawStaminaCountdown(gameState)
       this.drawLogo()
       this.drawBestScore(gameState)
       this.drawAuthButton(gameState)
@@ -274,160 +272,6 @@ export class UIManager {
     ctx.restore()
   }
   
-  // 绘制体力不足弹窗
-  drawStaminaInsufficientModal(gameState) {
-    const ctx = this.ctx
-    const modalW = 340
-    const modalH = 420
-    const modalX = (this.width - modalW) / 2
-    const modalY = (this.height - modalH) / 2
-    
-    // 清空按钮数组
-    this.buttons.length = 0
-    
-    ctx.save()
-    
-    // 半透明背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
-    ctx.fillRect(0, 0, this.width, this.height)
-    
-    // 弹窗背景渐变
-    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
-    gradient.addColorStop(0, '#0f172a')
-    gradient.addColorStop(1, '#1e293b')
-    
-    ctx.fillStyle = gradient
-    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    // 关闭按钮
-    this._drawCloseButton(modalX, modalW, modalY)
-    
-    // 体力图标容器
-    const iconContainerSize = 64
-    const iconContainerX = modalX + modalW / 2
-    const iconContainerY = modalY + 50
-    
-    // 红色圆形背景
-    const iconBgGradient = ctx.createRadialGradient(iconContainerX, iconContainerY, 0, iconContainerX, iconContainerY, iconContainerSize / 2)
-    iconBgGradient.addColorStop(0, '#ef4444')
-    iconBgGradient.addColorStop(1, '#b91c1c')
-    
-    ctx.fillStyle = iconBgGradient
-    ctx.beginPath()
-    ctx.arc(iconContainerX, iconContainerY, iconContainerSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 绘制体力图标（红心）
-    drawHeartIcon(ctx, iconContainerX, iconContainerY + 2, 40, '#fca5a5')
-    
-    // 标题
-    const titleY = iconContainerY + 50
-    ctx.font = `bold 18px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = Colors.white
-    ctx.fillText('购买体力', this.width / 2, titleY)
-
-    // 当前体力显示
-    const staminaY = titleY + 30
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.fillStyle = '#ef4444'
-    ctx.fillText(`当前体力：${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`, this.width / 2, staminaY)
-
-    // 按钮区域
-    const btnAreaY = staminaY + 40
-    const btnWidth = (modalW - 60) / 2 - 5  // 两个按钮并排，中间留 10px 间距
-    const btnHeight = 56
-    const btnX1 = modalX + 30
-    const btnX2 = modalX + 30 + btnWidth + 10
-    const btnY = btnAreaY
-
-    // 左按钮：金币购买体力×3
-    const purchaseBtnGradient = ctx.createLinearGradient(btnX1, btnY, btnX1, btnY + btnHeight)
-    purchaseBtnGradient.addColorStop(0, '#22c55e')
-    purchaseBtnGradient.addColorStop(1, '#16a34a')
-
-    ctx.fillStyle = purchaseBtnGradient
-    drawRoundRect(ctx, btnX1, btnY, btnWidth, btnHeight, 16)
-    ctx.fill()
-    ctx.strokeStyle = '#86efac'
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    // 按钮文字
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('体力×3', btnX1 + btnWidth / 2, btnY + btnHeight / 2 - 8)
-    ctx.font = `11px ${FONT_FAMILY}`
-    ctx.fillText('1500 金币', btnX1 + btnWidth / 2, btnY + btnHeight / 2 + 10)
-
-    // 左按钮下方剩余次数
-    const purchaseRemaining = gameState.getStaminaPurchaseRemaining()
-    ctx.font = `10px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.fillText(`剩余 ${purchaseRemaining} 次`, btnX1 + btnWidth / 2, btnY + btnHeight + 14)
-
-    // 右按钮：看视频体力×10
-    const adBtnGradient = ctx.createLinearGradient(btnX2, btnY, btnX2, btnY + btnHeight)
-    adBtnGradient.addColorStop(0, '#a855f7')
-    adBtnGradient.addColorStop(1, '#7e22ce')
-
-    ctx.fillStyle = adBtnGradient
-    drawRoundRect(ctx, btnX2, btnY, btnWidth, btnHeight, 16)
-    ctx.fill()
-    ctx.strokeStyle = '#d8b4fe'
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    // 按钮文字
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('体力×10', btnX2 + btnWidth / 2, btnY + btnHeight / 2 - 8)
-    ctx.font = `11px ${FONT_FAMILY}`
-    ctx.fillText('看视频', btnX2 + btnWidth / 2, btnY + btnHeight / 2 + 10)
-
-    // 右按钮下方剩余次数
-    const adRemaining = gameState.getStaminaAdRemaining()
-    ctx.font = `10px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.fillText(`剩余 ${adRemaining} 次`, btnX2 + btnWidth / 2, btnY + btnHeight + 14)
-    
-    // 添加按钮
-    this.buttons.push({
-      id: 'purchase',
-      x: btnX1,
-      y: btnY,
-      w: btnWidth,
-      h: btnHeight
-    })
-    this.buttons.push({
-      id: 'adRecover',
-      x: btnX2,
-      y: btnY,
-      w: btnWidth,
-      h: btnHeight
-    })
-    this.buttons.push({
-      id: 'close',
-      x: modalX + modalW - 40,
-      y: modalY + 10,
-      w: 30,
-      h: 30
-    })
-    
-    ctx.restore()
-  }
-
   // 绘制游戏规则弹窗（首次游玩展示）
   drawRulesModal(gameState) {
     const ctx = this.ctx
@@ -539,7 +383,6 @@ export class UIManager {
     const leftPadding = 20 * scale  // 左边距
     const rightPadding = 20 * scale // 右边距
     const iconGap = 12 * scale      // 图标和文字的间距
-    const gapBetweenBadges = 10     // 金币和体力之间的间距
     
     ctx.save()
     
@@ -547,14 +390,11 @@ export class UIManager {
     this.setFont('bold11_2')
     ctx.textBaseline = 'middle'
     const coinsText = gameState.coins.toString()
-    const staminaText = `${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`
     // 使用预计算的数值宽度
     const textWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
-    const staminaWidth = this.measureText(staminaText)
     
     // 计算徽章总宽度 = 左边距 + 图标 + 间距 + 文字 + 右边距
     const badgeWidth = leftPadding + iconSize + iconGap + textWidth + rightPadding
-    const staminaBadgeWidth = leftPadding + iconSize + iconGap + staminaWidth + rightPadding
     
     // 金币背景
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
@@ -571,87 +411,10 @@ export class UIManager {
     ctx.textAlign = 'left'
     ctx.fillStyle = '#facc15'
     ctx.fillText(coinsText, padding + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
-    
-    // 体力背景（在金币右边）
-    const staminaX = padding + badgeWidth + gapBetweenBadges
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    drawRoundRect(ctx, staminaX, verticalPadding, staminaBadgeWidth, badgeHeight, 20 * scale)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)'
-    ctx.lineWidth = 1 * scale
-    ctx.stroke()
-
-    // 体力图标
-    drawHeartIcon(ctx, staminaX + leftPadding + iconSize / 2, verticalPadding + badgeHeight / 2, iconSize, '#ef4444')
-
-    // 体力数值
-    ctx.textAlign = 'left'
-    ctx.fillStyle = '#ef4444'
-    ctx.fillText(staminaText, staminaX + leftPadding + iconSize + iconGap, verticalPadding + badgeHeight / 2)
-
-    // 体力未满时注册为可点击按钮（弹出购买体力弹窗）
-    if (gameState.stamina < config.stamina.maxStamina) {
-      this.buttons.push({
-        id: 'stamina_badge',
-        x: staminaX,
-        y: verticalPadding,
-        w: staminaBadgeWidth,
-        h: badgeHeight
-      })
-    }
 
     ctx.restore()
   }
   
-  // 绘制体力恢复倒计时
-  drawStaminaCountdown(gameState) {
-    // 体力已满时不显示
-    if (gameState.stamina >= config.stamina.maxStamina) return
-    
-    const ctx = this.ctx
-    const padding = 20
-    const verticalPadding = padding + 24
-    const scale = 0.7
-    const badgeHeight = 40 * scale
-    const textGap = 8
-    
-    // 计算倒计时剩余时间
-    const remaining = gameState.getStaminaRecoverRemaining()
-    const minutes = Math.floor(remaining / 60000)
-    const seconds = Math.floor((remaining % 60000) / 1000)
-    const countdownText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    
-    // 计算体力徽章的位置（与 drawTopCoins 保持一致）
-    const leftPadding = 20 * scale
-    const iconSize = 28 * scale
-    const iconGap = 12 * scale
-    const gapBetweenBadges = 10
-    
-    const coinsText = gameState.coins.toString()
-    const coinsWidth = this.numberWidths[gameState.coins] || this.measureText(coinsText)
-    const coinsBadgeWidth = leftPadding + iconSize + iconGap + coinsWidth + leftPadding
-    
-    const staminaText = `${Math.floor(gameState.stamina)}/${config.stamina.maxStamina}`
-    const staminaWidth = this.measureText(staminaText)
-    const staminaBadgeWidth = leftPadding + iconSize + iconGap + staminaWidth + leftPadding
-    
-    // 体力徽章的 X 坐标
-    const staminaX = padding + coinsBadgeWidth + gapBetweenBadges
-    const staminaCenterX = staminaX + staminaBadgeWidth / 2 + 10  // 往右移动 10px
-    
-    // 倒计时位置（体力徽章下方，居中）
-    const countdownY = verticalPadding + badgeHeight + textGap
-    
-    ctx.save()
-    ctx.font = `10px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    ctx.fillStyle = '#ffffff'
-    ctx.fillText(countdownText, staminaCenterX, countdownY)
-    
-    ctx.restore()
-  }
-
   // 加载 Logo 图片
   _loadLogoImage() {
     try {
@@ -2389,7 +2152,7 @@ export class UIManager {
       ctx.fillStyle = Colors.purple500
       ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('请观察！', centerX, titleY)
+      ctx.fillText('请观察', centerX, titleY)
       
       ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
@@ -2403,7 +2166,7 @@ export class UIManager {
       ctx.fillStyle = Colors.yellow300
       ctx.shadowColor = 'rgba(234, 179, 8, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('点它！', centerX, titleY)
+      ctx.fillText('点它', centerX, titleY)
       
       ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
@@ -2487,13 +2250,6 @@ export class UIManager {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.yellow300
-    
-    // 绘制时钟图标
-    const clockIconX = this.width / 2 - 50
-    const clockIconY = barY - 16
-    this.drawClockIcon(ctx, clockIconX, clockIconY, 14, Colors.yellow300)
-    
-    ctx.fillText(`剩余时间: ${(gameState.timerRemaining / 1000).toFixed(1)} 秒`, this.width / 2 + 10, barY - 16)
     
     ctx.restore()
   }
@@ -2606,11 +2362,25 @@ export class UIManager {
     // 判断是否破了赛季记录
     const isNewSeasonRecord = gameState.isNewSeasonRecord()
     
-    // 计算弹窗高度（新增"再来一局"按钮）
-    // 场景1：金币 + 广告并排 = 2 行复活按钮 + 再来一局 + 返回首页 = 4 行（56px）
-    // 场景2/3/4：3 行复活按钮 + 再来一局 + 返回首页 = 5 行（56px）
-    const isTwoRowLayout = hasPurchaseAttempts && canAdRevive
-    const modalH = isTwoRowLayout ? 600 : 670
+    // 计算弹窗高度（根据实际按钮行数动态计算）
+    const btnH = 56
+    const btnGap = 15
+    const titleAreaH = 125 + btnGap
+    const friendRankBtnH = 44
+    const friendRankBtnGap = 15
+    let buttonRows = 0
+    const hasGold = hasPurchaseAttempts
+    const hasAd = canAdRevive
+    
+    if (hasGold && hasAd) {
+      buttonRows++ // 金币+广告并排
+    } else if (hasGold || hasAd) {
+      buttonRows++ // 金币或广告全宽
+    }
+    buttonRows += 2 // 再来一局 + 返回首页
+    
+    // 弹窗高度 = 标题区 + 复活按钮区 + 好友排行按钮 + 底部间距
+    const modalH = titleAreaH + buttonRows * btnH + (buttonRows - 1) * btnGap + friendRankBtnGap + friendRankBtnH + 30
     const modalY = (this.height - modalH) / 2
     
     ctx.save()
@@ -2703,14 +2473,12 @@ export class UIManager {
     ctx.stroke()
     
     // 按钮区域
-    const btnH = 56  // 增加高度以容纳两行文字
-    const btnGap = 15
     const btnY1 = titleY + 125 + btnGap
     const halfBtnW = (modalW - 60) / 2
     const fullBtnW = modalW - 40
     
     // ========== 场景1：金币+广告并排 ==========
-    if (isTwoRowLayout) {
+    if (hasGold && hasAd) {
       // 金币购买按钮（左）
       if (canPurchase) {
         const purchaseBtnGradient = ctx.createLinearGradient(modalX + 20, btnY1, modalX + 20 + halfBtnW, btnY1 + btnH)
@@ -2851,52 +2619,13 @@ export class UIManager {
         h: btnH
       })
       
-      // 第二行：分享复活（全宽）
+      // 第二行：再来一局
       const btnY2 = btnY1 + btnH + btnGap
-      if (canShareRevive) {
-        const shareBtnGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + fullBtnW, btnY2 + btnH)
-        shareBtnGradient.addColorStop(0, '#3b82f6')
-        shareBtnGradient.addColorStop(1, '#2563eb')
-        ctx.fillStyle = shareBtnGradient
-      } else {
-        ctx.fillStyle = Colors.gray700
-      }
-      drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = canShareRevive ? '#93c5fd' : Colors.gray500
-      ctx.lineWidth = canShareRevive ? 2 : 1
-      ctx.stroke()
-      
-      // 分享复活标题（上半部分）
-      ctx.font = `bold 14px ${FONT_FAMILY}`
-      ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + 18)
-      
-      // 分享复活剩余次数（下半部分）
-      if (canShareRevive) {
-        const shareRemaining = gameState.getShareReviveRemaining()
-        ctx.font = `11px ${FONT_FAMILY}`
-        ctx.fillStyle = '#93c5fd'
-        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY2 + 38)
-      }
-      
-      this.buttons.push({
-        id: 'shareRevive',
-        x: modalX + 20,
-        y: btnY2,
-        w: fullBtnW,
-        h: btnH
-      })
-      
-      // 第三行：再来一局
-      const btnY3 = btnY2 + btnH + btnGap
-      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY3, modalX + 20 + fullBtnW, btnY3 + btnH)
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + fullBtnW, btnY2 + btnH)
       restartBtnGradient.addColorStop(0, '#f59e0b')
       restartBtnGradient.addColorStop(1, '#d97706')
       ctx.fillStyle = restartBtnGradient
-      drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
+      drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = '#fde68a'
       ctx.lineWidth = 2
@@ -2906,20 +2635,20 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('再来一局', modalX + modalW / 2, btnY3 + btnH / 2)
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY2 + btnH / 2)
       
       this.buttons.push({
         id: 'restart',
         x: modalX + 20,
-        y: btnY3,
+        y: btnY2,
         w: fullBtnW,
         h: btnH
       })
       
-      // 第四行：返回首页
-      const btnY4 = btnY3 + btnH + btnGap
+      // 返回首页
+      const btnY3 = btnY2 + btnH + btnGap
       ctx.fillStyle = Colors.gray700
-      drawRoundRect(ctx, modalX + 20, btnY4, fullBtnW, btnH, 12)
+      drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
       ctx.fill()
       ctx.strokeStyle = Colors.gray500
       ctx.lineWidth = 1
@@ -2929,17 +2658,42 @@ export class UIManager {
       ctx.fillStyle = Colors.white
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', modalX + modalW / 2, btnY4 + btnH / 2)
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY3 + btnH / 2)
       
       this.buttons.push({
         id: 'home',
         x: modalX + 20,
-        y: btnY4,
+        y: btnY3,
         w: fullBtnW,
         h: btnH
       })
+      
+      // 好友排行按钮（在返回首页按钮下方）
+      const friendRankBtnY = btnY3 + btnH + friendRankBtnGap
+      const friendRankBtnW = modalW - 40
+      
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
+      drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
+      
+      this.buttons.push({
+        id: 'leaderboard',
+        x: modalX + 20,
+        y: friendRankBtnY,
+        w: friendRankBtnW,
+        h: friendRankBtnH
+      })
     }
-    // ========== 场景3：金币可用，广告不可用 ==========
+    // ========== 场景 3：金币可用，广告不可用 ==========
     else if (hasPurchaseAttempts && !canAdRevive) {
       // 第一行：金币购买（全宽）
       if (canPurchase) {
@@ -2959,134 +2713,6 @@ export class UIManager {
       
       this.buttons.push({
         id: 'purchase',
-        x: modalX + 20,
-        y: btnY1,
-        w: fullBtnW,
-        h: btnH
-      })
-      
-      // 第二行：分享复活（全宽）
-      const btnY2 = btnY1 + btnH + btnGap
-      if (canShareRevive) {
-        const shareBtnGradient = ctx.createLinearGradient(modalX + 20, btnY2, modalX + 20 + fullBtnW, btnY2 + btnH)
-        shareBtnGradient.addColorStop(0, '#3b82f6')
-        shareBtnGradient.addColorStop(1, '#2563eb')
-        ctx.fillStyle = shareBtnGradient
-      } else {
-        ctx.fillStyle = Colors.gray700
-      }
-      drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = canShareRevive ? '#93c5fd' : Colors.gray500
-      ctx.lineWidth = canShareRevive ? 2 : 1
-      ctx.stroke()
-      
-      // 分享复活标题（上半部分）
-      ctx.font = `bold 14px ${FONT_FAMILY}`
-      ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY2 + 18)
-      
-      // 分享复活剩余次数（下半部分）
-      if (canShareRevive) {
-        const shareRemaining = gameState.getShareReviveRemaining()
-        ctx.font = `11px ${FONT_FAMILY}`
-        ctx.fillStyle = '#93c5fd'
-        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY2 + 38)
-      }
-      
-      this.buttons.push({
-        id: 'shareRevive',
-        x: modalX + 20,
-        y: btnY2,
-        w: fullBtnW,
-        h: btnH
-      })
-      
-      // 第三行：再来一局
-      const btnY3 = btnY2 + btnH + btnGap
-      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY3, modalX + 20 + fullBtnW, btnY3 + btnH)
-      restartBtnGradient.addColorStop(0, '#f59e0b')
-      restartBtnGradient.addColorStop(1, '#d97706')
-      ctx.fillStyle = restartBtnGradient
-      drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = '#fde68a'
-      ctx.lineWidth = 2
-      ctx.stroke()
-      
-      ctx.font = `bold 14px ${FONT_FAMILY}`
-      ctx.fillStyle = Colors.white
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('再来一局', modalX + modalW / 2, btnY3 + btnH / 2)
-      
-      this.buttons.push({
-        id: 'restart',
-        x: modalX + 20,
-        y: btnY3,
-        w: fullBtnW,
-        h: btnH
-      })
-      
-      // 第四行：返回首页
-      const btnY4 = btnY3 + btnH + btnGap
-      ctx.fillStyle = Colors.gray700
-      drawRoundRect(ctx, modalX + 20, btnY4, fullBtnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = Colors.gray500
-      ctx.lineWidth = 1
-      ctx.stroke()
-      
-      ctx.font = `bold 14px ${FONT_FAMILY}`
-      ctx.fillStyle = Colors.white
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('返回首页', modalX + modalW / 2, btnY4 + btnH / 2)
-      
-      this.buttons.push({
-        id: 'home',
-        x: modalX + 20,
-        y: btnY4,
-        w: fullBtnW,
-        h: btnH
-      })
-    }
-    // ========== 场景4：金币和广告都不可用 ==========
-    else {
-      // 第一行：分享复活（全宽）
-      if (canShareRevive) {
-        const shareBtnGradient = ctx.createLinearGradient(modalX + 20, btnY1, modalX + 20 + fullBtnW, btnY1 + btnH)
-        shareBtnGradient.addColorStop(0, '#3b82f6')
-        shareBtnGradient.addColorStop(1, '#2563eb')
-        ctx.fillStyle = shareBtnGradient
-      } else {
-        ctx.fillStyle = Colors.gray700
-      }
-      drawRoundRect(ctx, modalX + 20, btnY1, fullBtnW, btnH, 12)
-      ctx.fill()
-      ctx.strokeStyle = canShareRevive ? '#93c5fd' : Colors.gray500
-      ctx.lineWidth = canShareRevive ? 2 : 1
-      ctx.stroke()
-      
-      // 分享复活标题（上半部分）
-      ctx.font = `bold 14px ${FONT_FAMILY}`
-      ctx.fillStyle = canShareRevive ? Colors.white : Colors.gray400
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(canShareRevive ? '分享复活' : '分享复活（已用完）', modalX + modalW / 2, btnY1 + 18)
-      
-      // 分享复活剩余次数（下半部分）
-      if (canShareRevive) {
-        const shareRemaining = gameState.getShareReviveRemaining()
-        ctx.font = `11px ${FONT_FAMILY}`
-        ctx.fillStyle = '#93c5fd'
-        ctx.fillText(`剩余${shareRemaining}次`, modalX + modalW / 2, btnY1 + 38)
-      }
-      
-      this.buttons.push({
-        id: 'shareRevive',
         x: modalX + 20,
         y: btnY1,
         w: fullBtnW,
@@ -3119,7 +2745,7 @@ export class UIManager {
         h: btnH
       })
       
-      // 第三行：返回首页
+      // 返回首页
       const btnY3 = btnY2 + btnH + btnGap
       ctx.fillStyle = Colors.gray700
       drawRoundRect(ctx, modalX + 20, btnY3, fullBtnW, btnH, 12)
@@ -3141,34 +2767,108 @@ export class UIManager {
         w: fullBtnW,
         h: btnH
       })
+      
+      // 好友排行按钮（在返回首页按钮下方）
+      const friendRankBtnY = btnY3 + btnH + friendRankBtnGap
+      const friendRankBtnW = modalW - 40
+      
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
+      drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
+      
+      this.buttons.push({
+        id: 'leaderboard',
+        x: modalX + 20,
+        y: friendRankBtnY,
+        w: friendRankBtnW,
+        h: friendRankBtnH
+      })
     }
-    
-    // 好友排行按钮（弹窗内底部）
-    // 调整 Y 位置以适应新增的"再来一局"按钮
-    const friendRankBtnY = isTwoRowLayout ? btnY1 + 254 : btnY1 + 325
-    const friendRankBtnH = 44
-    const friendRankBtnW = modalW - 40
-    
-    ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
-    drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-    
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
-    
-    this.buttons.push({
-      id: 'leaderboard',
-      x: modalX + 20,
-      y: friendRankBtnY,
-      w: friendRankBtnW,
-      h: friendRankBtnH
-    })
+    // ========== 场景 4：金币和广告都不可用 ==========
+    else {
+      // 第一行：再来一局
+      const btnY1 = titleY + 125 + btnGap
+      const restartBtnGradient = ctx.createLinearGradient(modalX + 20, btnY1, modalX + 20 + fullBtnW, btnY1 + btnH)
+      restartBtnGradient.addColorStop(0, '#f59e0b')
+      restartBtnGradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = restartBtnGradient
+      drawRoundRect(ctx, modalX + 20, btnY1, fullBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#fde68a'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('再来一局', modalX + modalW / 2, btnY1 + btnH / 2)
+      
+      this.buttons.push({
+        id: 'restart',
+        x: modalX + 20,
+        y: btnY1,
+        w: fullBtnW,
+        h: btnH
+      })
+      
+      // 返回首页
+      const btnY2 = btnY1 + btnH + btnGap
+      ctx.fillStyle = Colors.gray700
+      drawRoundRect(ctx, modalX + 20, btnY2, fullBtnW, btnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = Colors.gray500
+      ctx.lineWidth = 1
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('返回首页', modalX + modalW / 2, btnY2 + btnH / 2)
+      
+      this.buttons.push({
+        id: 'home',
+        x: modalX + 20,
+        y: btnY2,
+        w: fullBtnW,
+        h: btnH
+      })
+      
+      // 好友排行按钮（在返回首页按钮下方）
+      const friendRankBtnY = btnY2 + btnH + friendRankBtnGap
+      const friendRankBtnW = modalW - 40
+      
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
+      drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
+      
+      this.buttons.push({
+        id: 'leaderboard',
+        x: modalX + 20,
+        y: friendRankBtnY,
+        w: friendRankBtnW,
+        h: friendRankBtnH
+      })
+    }
     
     ctx.restore()
     
@@ -3452,9 +3152,6 @@ export class UIManager {
         break
       case 'share':
         this.drawShareModal(gameState)
-        break
-      case 'stamina_insufficient':
-        this.drawStaminaInsufficientModal(gameState)
         break
       case 'rules':
         this.drawRulesModal(gameState)

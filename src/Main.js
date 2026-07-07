@@ -62,10 +62,6 @@ export class Main {
     this._checkinRewardedVideoAd = null
     this._initCheckinRewardedVideoAd()
     
-    // 体力激励视频广告
-    this._staminaAd = null
-    this._initStaminaAd()
-    
     // 初始化
     this.init()
   }
@@ -84,9 +80,6 @@ export class Main {
       
       // 绑定游戏生命周期事件
       this.bindLifecycleEvents()
-      
-      // 启动体力恢复倒计时定时器
-      this._startStaminaCountdown()
       
       // 从云端加载数据（异步，不阻塞游戏启动）
       this.gameState.loadCloudData().catch(() => {})
@@ -165,63 +158,19 @@ export class Main {
   }
 
   /**
-   * 初始化体力激励视频广告
-   */
-  _initStaminaAd() {
-    if (typeof wx === 'undefined' || !wx.createRewardedVideoAd) return
-    
-    try {
-      this._staminaAd = wx.createRewardedVideoAd({
-        adUnitId: config.stamina.staminaAdUnitId
-      })
-      
-      this._staminaAd.onError((err) => {
-        console.warn('体力激励视频广告加载失败:', err)
-      })
-    } catch (e) {
-      console.warn('创建体力激励视频广告失败:', e)
-    }
-  }
-  
-  /**
-   * 启动体力恢复倒计时定时器
-   */
-  _startStaminaCountdown() {
-    if (this._staminaCountdownTimer) return
-    
-    this._staminaCountdownTimer = setInterval(() => {
-      // 只在体力未满且显示菜单/游戏界面时触发重绘
-      if (this.gameState.stamina < config.stamina.maxStamina &&
-          (this.uiManager.currentScreen === 'menu' || this.uiManager.currentScreen === 'game')) {
-        // 强制触发菜单缓存更新
-        if (this.uiManager.currentScreen === 'menu') {
-          this.uiManager.menuNeedsUpdate = true
-        }
-      }
-    }, 1000)
-  }
-  
-  /**
    * 绑定游戏生命周期事件
    */
   bindLifecycleEvents() {
-    // 游戏隐藏（切换到后台）—— 保存体力数据并停止倒计时
+    // 游戏隐藏（切换到后台）
     wx.onHide(() => {
       console.log('游戏隐藏')
-      // 立即保存体力数据到本地
+      // 立即保存数据到本地
       this.gameState._flushStorageWrites()
-      // 停止倒计时定时器以节省性能
-      if (this._staminaCountdownTimer) {
-        clearInterval(this._staminaCountdownTimer)
-        this._staminaCountdownTimer = null
-      }
     })
     
-    // 游戏显示（回到前台）—— 重新启动倒计时
+    // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
-      // 重新启动体力倒计时
-      this._startStaminaCountdown()
       
       // 清除分享复活超时
       if (this._shareReviveTimeout) {
@@ -551,21 +500,9 @@ export class Main {
           this.uiManager.currentScreen = 'menu'
         }
         return
-      }
-      
-      // 如果当前是体力不足弹窗，处理购买按钮
-      if (this.uiManager.currentScreen === 'stamina_insufficient') {
-        if (buttonId === 'purchase') {
-          this.purchaseStamina()
-        } else if (buttonId === 'adRecover') {
-          this.adRecoverStamina()
-        } else if (buttonId === 'close') {
-          this.uiManager.currentScreen = 'menu'
-        }
-        return
-      }
-      
-      // 如果当前是游戏规则弹窗
+    }
+    
+    // 如果当前是游戏规则弹窗
       if (this.uiManager.currentScreen === 'rules') {
         if (buttonId === 'rules_ok') {
           this.gameState.markAsPlayed()
@@ -605,10 +542,6 @@ export class Main {
         case 'game_club':
           // 游戏圈按钮：打开游戏圈
           this.openGameClub()
-          break
-        case 'stamina_badge':
-          // 点击顶部体力徽章：弹出购买体力弹窗
-          this.showStaminaInsufficientModal()
           break
       }
     }
@@ -697,12 +630,6 @@ export class Main {
 
   // 重新开始游戏
   restartGame() {
-    // 检查体力是否足够（失败后重玩需要扣除体力）
-    if (!this.gameState.canStartGame()) {
-      this.showStaminaInsufficientModal()
-      return
-    }
-    
     this.gameState.isNewScoreRecord = false
     this.gameState.reset()
     // 修复：移除重复的 incrementSeasonGames()，只在 startGame() 中调用
@@ -712,12 +639,6 @@ export class Main {
 
   // 开始游戏
   startGame() {
-    // 检查体力是否足够
-    if (!this.gameState.canStartGame()) {
-      this.showStaminaInsufficientModal()
-      return
-    }
-    
     // 首次游玩：显示游戏规则弹窗
     if (!this.gameState.hasPlayedBefore) {
       this.uiManager.currentScreen = 'rules'
@@ -741,9 +662,6 @@ export class Main {
     this.gameState.activeWaveCompleted = false
     this.gameState.playerClicks = []
     this.setGameState('OBSERVE', 'game')
-    
-    // 消耗体力（进入 OBSERVE 阶段时扣除）
-    this.gameState.consumeStamina()
     
     // 重置关卡状态（清空当关得分和购买次数）
     this.gameState.resetWave()
@@ -1480,83 +1398,6 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     this.uiManager.currentScreen = 'menu'
-  }
-  
-  // 显示体力不足弹窗
-  showStaminaInsufficientModal() {
-    this.audioManager.play('click')
-    this.vibrate('light')
-    this.uiManager.currentScreen = 'stamina_insufficient'
-  }
-  
-  // 金币购买体力
-  purchaseStamina() {
-    this.audioManager.play('click')
-    
-    if (this.gameState.purchaseStamina()) {
-      this.vibrate('medium')
-      this.uiManager.showToast(`购买成功！体力 +${config.stamina.recoverAmount * 3}，花费 ${config.stamina.purchasePrice} 金币`)
-      this.uiManager.currentScreen = 'menu'
-    } else {
-      this.vibrate('light')
-      this.uiManager.showToast('金币不足或今日购买次数已达上限')
-    }
-  }
-  
-  // 广告恢复体力
-  adRecoverStamina() {
-    this.audioManager.play('click')
-    
-    if (!this.gameState.canAdRecoverStamina()) {
-      this.vibrate('light')
-      this.uiManager.showToast('今日广告恢复次数已达上限')
-      return
-    }
-    
-    if (!this._staminaAd) {
-      this.uiManager.showToast('广告功能暂不可用')
-      return
-    }
-    
-    try {
-      // 监听关闭回调（一次性）
-      const onCloseHandler = (res) => {
-        this._staminaAd.offClose(onCloseHandler)
-        
-        if (res && res.isEnded) {
-          // 用户完整观看广告
-          if (this.gameState.adRecoverStamina()) {
-            this.vibrate('medium')
-            this.audioManager.play('success')
-            this.uiManager.showToast(`广告观看成功！体力 +10（剩余${this.gameState.getStaminaAdRemaining()}次）`)
-            this.uiManager.currentScreen = 'menu'
-          } else {
-            this.vibrate('light')
-            this.uiManager.showToast('领取失败')
-          }
-        } else {
-          this.vibrate('light')
-          this.uiManager.showToast('需要完整观看广告才能获得体力')
-        }
-      }
-      
-      this._staminaAd.onClose(onCloseHandler)
-      
-      // 尝试展示广告
-      this._staminaAd.show().catch(() => {
-        // 展示失败，先加载再展示
-        this._staminaAd.load().then(() => {
-          this._staminaAd.show()
-        }).catch((err) => {
-          this._staminaAd.offClose(onCloseHandler)
-          console.warn('体力广告加载失败:', err)
-          this.uiManager.showToast('广告加载失败，请稍后再试')
-        })
-      })
-    } catch (error) {
-      console.warn('广告恢复体力失败:', error)
-      this.uiManager.showToast('广告功能暂不可用')
-    }
   }
 
   // 显示分享礼包（右上角图标）

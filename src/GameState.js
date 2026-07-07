@@ -54,15 +54,6 @@ export class GameState {
     // 初始化时检查今天是否已领取
     this.updateShareGiftStatus()
     
-    // 体力数据
-    this.stamina = saved.stamina !== undefined ? saved.stamina : config.stamina.initialStamina
-    this.lastStaminaUpdateTime = saved.lastStaminaUpdateTime || Date.now()
-    this.staminaPurchaseCount = saved.staminaPurchaseCount || 0  // 今日金币购买体力次数
-    this.staminaAdCount = saved.staminaAdCount || 0  // 今日广告恢复体力次数
-    this.staminaConsumedThisGame = false  // 本局游戏是否已扣除体力
-    // 初始化时更新体力
-    this.updateStamina()
-    
     // 分享次数数据（用于限制每日分享刷金币）
     this.lastShareDate = saved.lastShareDate
     this.todayShareCount = saved.todayShareCount
@@ -142,11 +133,6 @@ export class GameState {
       nickname: getStorage('nickname', ''),
       avatarUrl: getStorage('avatarUrl', ''),
       authorized: getStorage('userInfoAuthorized', false),
-      // 体力数据
-      stamina: getStorage('stamina', config.stamina.initialStamina),
-      lastStaminaUpdateTime: getStorage('lastStaminaUpdateTime', Date.now()),
-      staminaPurchaseCount: getStorage('staminaPurchaseCount', 0),
-      staminaAdCount: getStorage('staminaAdCount', 0),
       // 首次游玩标记
       hasPlayedBefore: getStorage('hasPlayedBefore', false)
     }
@@ -199,7 +185,6 @@ export class GameState {
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
     this.isWaitingShareRevive = false  // 重置分享复活等待标志
-    this.staminaConsumedThisGame = false  // 重置体力扣除标记
     this.clearTimer()
   }
   
@@ -211,15 +196,13 @@ export class GameState {
     }
   }
   
-  // 返回主菜单（重置体力购买次数检查）
+  // 返回主菜单
   resetToMenu() {
     this.clearTimer()
     this.phase = 'MENU'
     this.isPaused = false
     this.pausedPhase = null
     this.pausedTimerRemaining = 0
-    // 检查并重置每日购买次数
-    this.checkAndResetDailyPurchaseCount()
     // 不再同步待同步数据，数据只保存在本地
     // 注意：不重置 uiManager.currentScreen，由 Main.js 控制
   }
@@ -356,125 +339,6 @@ export class GameState {
     // 奖励金币
     this.addCoins(config.rewards.shareGift)
     return { type: 'coin', amount: config.rewards.shareGift }
-  }
-  
-  // ==================== 体力系统 ====================
-  
-  // 更新体力（自动恢复）
-  updateStamina() {
-    const now = Date.now()
-    const elapsed = now - this.lastStaminaUpdateTime
-    const recoverCount = Math.floor(elapsed / config.stamina.recoverInterval)
-    
-    if (recoverCount > 0) {
-      const recoverAmount = recoverCount * config.stamina.recoverAmount
-      this.stamina = Math.min(config.stamina.maxStamina, this.stamina + recoverAmount)
-      this.lastStaminaUpdateTime = now
-      this._scheduleStorageWrite('stamina', this.stamina)
-      this._scheduleStorageWrite('lastStaminaUpdateTime', this.lastStaminaUpdateTime)
-      // 立即 flush，确保恢复数据被保存
-      this._flushStorageWrites()
-    }
-  }
-  
-  // 检查并重置每日购买次数（每日 0 点）
-  checkAndResetDailyPurchaseCount() {
-    const today = getTodayString()
-    const lastResetDate = getStorage('staminaLastResetDate', '')
-    
-    if (lastResetDate !== today) {
-      // 新的一天，重置购买次数
-      this.staminaPurchaseCount = 0
-      this.staminaAdCount = 0
-      setStorage('staminaLastResetDate', today)
-      setStorage('staminaPurchaseCount', 0)
-      setStorage('staminaAdCount', 0)
-    }
-  }
-  
-  // 检查是否可以开始游戏
-  canStartGame() {
-    return this.stamina >= config.stamina.gameCost
-  }
-  
-  // 消耗体力（进入 OBSERVE 阶段时调用，每局只扣一次）
-  consumeStamina() {
-    // 如果本局已扣过，不再扣除
-    if (this.staminaConsumedThisGame) {
-      return false
-    }
-    
-    if (this.stamina >= config.stamina.gameCost) {
-      this.stamina -= config.stamina.gameCost
-      this.staminaConsumedThisGame = true  // 标记本局已扣
-      this._scheduleStorageWrite('stamina', this.stamina)
-      this._scheduleStorageWrite('lastStaminaUpdateTime', this.lastStaminaUpdateTime)
-      // 立即 flush，确保体力扣除被保存
-      this._flushStorageWrites()
-      return true
-    }
-    return false
-  }
-  
-  // 检查是否可以金币购买体力
-  canPurchaseStamina() {
-    return this.staminaPurchaseCount < config.stamina.maxPurchaseCountPerDay && 
-           this.coins >= config.stamina.purchasePrice
-  }
-  
-  // 金币购买体力
-  purchaseStamina() {
-    if (this.canPurchaseStamina()) {
-      this.stamina = Math.min(config.stamina.maxStamina, this.stamina + config.stamina.recoverAmount * 3)
-      this.coins -= config.stamina.purchasePrice
-      this.staminaPurchaseCount++
-      this._scheduleStorageWrite('stamina', this.stamina)
-      this._scheduleStorageWrite('coins', this.coins)
-      this._scheduleStorageWrite('staminaPurchaseCount', this.staminaPurchaseCount)
-      this._scheduleStorageWrite('lastStaminaUpdateTime', this.lastStaminaUpdateTime)
-      // 立即 flush，确保购买数据被保存
-      this._flushStorageWrites()
-      return true
-    }
-    return false
-  }
-  
-  // 检查是否可以看广告恢复体力
-  canAdRecoverStamina() {
-    return this.staminaAdCount < config.stamina.maxAdCountPerDay
-  }
-  
-  // 看广告恢复体力
-  adRecoverStamina() {
-    if (this.canAdRecoverStamina()) {
-      this.stamina = Math.min(config.stamina.maxStamina, this.stamina + config.stamina.adAmount)
-      this.staminaAdCount++
-      this._scheduleStorageWrite('stamina', this.stamina)
-      this._scheduleStorageWrite('staminaAdCount', this.staminaAdCount)
-      this._scheduleStorageWrite('lastStaminaUpdateTime', this.lastStaminaUpdateTime)
-      // 立即 flush，确保恢复数据被保存
-      this._flushStorageWrites()
-      return true
-    }
-    return false
-  }
-  
-  // 获取体力购买剩余次数
-  getStaminaPurchaseRemaining() {
-    return config.stamina.maxPurchaseCountPerDay - this.staminaPurchaseCount
-  }
-  
-  // 获取体力广告剩余次数
-  getStaminaAdRemaining() {
-    return config.stamina.maxAdCountPerDay - this.staminaAdCount
-  }
-  
-  // 获取体力恢复剩余时间（毫秒）
-  getStaminaRecoverRemaining() {
-    const now = Date.now()
-    const elapsed = now - this.lastStaminaUpdateTime
-    const timeSinceLastRecover = elapsed % config.stamina.recoverInterval
-    return config.stamina.recoverInterval - timeSinceLastRecover
   }
 
   // 执行签到（完全本地处理，不调用云函数）
