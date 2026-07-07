@@ -346,9 +346,6 @@ export class Main {
       case 'PLAY':
         this.handleGameTouch(x, y)
         break
-      case 'WIN':
-        this.handleWinTouch(x, y)
-        break
       case 'FAIL':
         this.handleFailTouch(x, y)
         break
@@ -647,25 +644,6 @@ export class Main {
         }
         // 处理气泡点击
         this.handleBubbleClick(bubbleIndex)
-      }
-    }
-  }
-
-  // 处理胜利弹窗触摸
-  handleWinTouch(x, y) {
-    const buttonId = this.uiManager.handleTouch(x, y)
-    
-    if (buttonId) {
-      this.audioManager.play('click')
-      this.vibrate()
-      
-      switch (buttonId) {
-        case 'home':
-          this.navigateToMenu()
-          break
-        case 'next':
-          this.nextLevel()
-          break
       }
     }
   }
@@ -995,53 +973,12 @@ export class Main {
     
     // 不再每关都保存，等待用户点击"返回首页"时统一保存
     
-    // 检查是否显示胜利弹窗（在保存之前判断）
-    const modalType = this.shouldShowVictoryModal()
-    const isNewScoreRecord = this.gameState.isNewHighScore()
-    this.gameState.isNewScoreRecord = modalType ? isNewScoreRecord : false
-    
-    // 设置胜利状态（用于 saveHighScore 判断）
-    this.setGameState('WIN', 'win')
-    
     // 保存最高分和最高关卡
     await this.gameState.saveHighScore()
     
-    // 如果是破纪录弹窗，标记已显示
-    if (modalType === 'record') {
-      this.gameState.hasShownRecordBreakModal = true
-    }
-    
-    if (modalType) {
-      // 显示胜利弹窗（传递弹窗类型）
-      this.uiManager.winModalType = modalType
-    } else {
-      // 进入下一关
-      this.gameState.wave++
-      this.startNewWave()
-    }
-  }
-
-  // 判断是否显示胜利弹窗
-  shouldShowVictoryModal() {
-    const wave = this.gameState.wave
-    const bestWave = this.gameState.bestWave
-    
-    // 条件 1：破历史最高关卡（本局只弹一次）
-    if (wave > bestWave && !this.gameState.hasShownRecordBreakModal) {
-      return 'record'  // 返回 'record' 表示破纪录弹窗
-    }
-    
-    // 条件 2：固定关卡（5, 10, 20, 30, 40, 50, 60...）
-    if (wave === 5 || wave === 10 || wave === 20 || wave === 30 || wave === 40) {
-      return 'victory'  // 返回 'victory' 表示胜利弹窗
-    }
-    // 40 关之后每 10 关
-    if (wave > 40 && wave % 10 === 0) {
-      return 'victory'
-    }
-    
-    // 不满足任何条件
-    return null
+    // 进入下一关
+    this.gameState.wave++
+    this.startNewWave()
   }
 
   // 游戏失败（生命归零等）
@@ -1064,14 +1001,6 @@ export class Main {
     this.gameState.saveHighScore().catch(err => {
       console.error('保存最高分失败:', err)
     })
-  }
-
-  // 下一关
-  nextLevel() {
-    this.gameState.isNewScoreRecord = false
-    this.gameState.wave++
-    this.uiManager.currentScreen = 'game'
-    this.startNewWave()
   }
 
   // 重试关卡

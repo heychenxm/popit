@@ -33,7 +33,7 @@ export class UIManager {
     this.toastTimer = 0
     
     // 当前屏幕
-    this.currentScreen = 'menu' // 'menu' | 'game' | 'win' | 'fail' | 'leaderboard' | 'checkin' | 'share' | 'profile'
+    this.currentScreen = 'menu' // 'menu' | 'game' | 'fail' | 'leaderboard' | 'checkin' | 'share' | 'profile'
     
     // 动画状态
     this.animationFrame = 0
@@ -2556,164 +2556,6 @@ export class UIManager {
     ctx.textAlign = 'center'
   }
 
-  // 绘制胜利弹窗中的最高分栏（破纪录时显示「新纪录!」徽章）
-  drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState) {
-    const barH = 28
-    const centerY = scoreY + barH / 2
-    
-    this.drawScoreWithRecordBadge(ctx, centerY, '最高分: ', `${gameState.highScore}`, {
-      isNewRecord: gameState.isNewHighScore(),
-      labelColor: Colors.gray300,
-      scoreColor: Colors.gray300,
-      fontSize: 11
-    })
-  }
-
-  // 绘制胜利弹窗
-  drawWinModal(gameState) {
-    const ctx = this.ctx
-    const modalW = 320
-    const modalH = 420
-    const modalX = (this.width - modalW) / 2
-    const modalY = (this.height - modalH) / 2
-    
-    // 清空按钮数组
-    this.buttons.length = 0
-    
-    ctx.save()
-    
-    // 半透明背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-    ctx.fillRect(0, 0, this.width, this.height)
-    
-    // 弹窗背景
-    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
-    gradient.addColorStop(0, '#4c2299')
-    gradient.addColorStop(1, '#290f63')
-    
-    ctx.fillStyle = gradient
-    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
-    ctx.fill()
-    ctx.strokeStyle = Colors.purple500
-    ctx.lineWidth = 4
-    ctx.stroke()
-    
-    // 胜利标题
-    const titleY = modalY + 30
-    ctx.fillStyle = '#ef4444'
-    drawRoundRect(ctx, modalX + 60, titleY, modalW - 120, 44, 16)
-    ctx.fill()
-    ctx.strokeStyle = Colors.yellow400
-    ctx.lineWidth = 2
-    ctx.stroke()
-    
-    ctx.font = `bold 24px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = Colors.white
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-    ctx.shadowBlur = 4
-    ctx.fillText('挑战成功', this.width / 2, titleY + 22)
-    
-    // 星星（使用 Canvas 路径绘制）
-    ctx.shadowBlur = 0
-    const starY = titleY + 50
-    this.drawStar(ctx, this.width / 2 - 30, starY, 14, Colors.yellow400)
-    this.drawStar(ctx, this.width / 2, starY - 8, 18, Colors.yellow400)
-    this.drawStar(ctx, this.width / 2 + 30, starY, 14, Colors.yellow400)
-    
-    // 关卡
-    ctx.font = `14px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.yellow300
-    ctx.fillText(`第 ${gameState.wave} 关`, this.width / 2, starY + 30)
-    
-    // 分隔线
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(modalX + 20, starY + 50)
-    ctx.lineTo(modalX + modalW - 20, starY + 50)
-    ctx.stroke()
-    
-    // 奖励标题
-    ctx.font = `12px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.gray300
-    ctx.fillText('获得奖励', this.width / 2, starY + 70)
-    
-    // 奖励物品（居中展示）
-    const rewardY = starY + 90
-    const rewardBoxH = 60
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    drawRoundRect(ctx, modalX + 20, rewardY, modalW - 40, rewardBoxH, 12)
-    ctx.fill()
-    
-    const rewardCenterX = this.width / 2
-    const rewardCenterY = rewardY + rewardBoxH / 2
-    const coinSize = 24
-    const valueText = `+${gameState.getWaveReward()}`
-    
-    ctx.font = `bold 14px ${FONT_FAMILY}`
-    ctx.textBaseline = 'middle'
-    const valueWidth = ctx.measureText(valueText).width
-    const totalWidth = coinSize + 8 + valueWidth
-    let startX = rewardCenterX - totalWidth / 2
-    
-    drawCoinIcon(ctx, startX + coinSize / 2, rewardCenterY, coinSize, '#facc15')
-    startX += coinSize + 8
-    
-    ctx.textAlign = 'left'
-    ctx.fillStyle = Colors.white
-    ctx.fillText(valueText, startX, rewardCenterY)
-    
-    // 最高分
-    const scoreY = rewardY + 80
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    drawRoundRect(ctx, modalX + 30, scoreY, modalW - 60, 28, 14)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    ctx.font = `11px ${FONT_FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    this.drawWinHighScoreBanner(ctx, modalX, modalW, scoreY, gameState)
-    
-    // 按钮（全宽）
-    const btnY = scoreY + 40
-    const btnW = modalW - 40
-    const btnH = 48
-    
-    // 下一关按钮（全宽）
-    const nextBtnX = modalX + 20
-    const nextGradient = ctx.createLinearGradient(nextBtnX, btnY, nextBtnX, btnY + btnH)
-    nextGradient.addColorStop(0, '#a3e635')
-    nextGradient.addColorStop(1, '#16a34a')
-    
-    ctx.fillStyle = nextGradient
-    drawRoundRect(ctx, nextBtnX, btnY, btnW, btnH, 12)
-    ctx.fill()
-    ctx.strokeStyle = '#f0fdf4'
-    ctx.lineWidth = 2
-    ctx.stroke()
-    
-    ctx.font = `bold 18px ${FONT_FAMILY}`
-    ctx.fillStyle = Colors.white
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('下一关', nextBtnX + btnW / 2, btnY + btnH / 2)
-    
-    this.buttons.push({
-      id: 'next',
-      x: nextBtnX,
-      y: btnY,
-      w: btnW,
-      h: btnH
-    })
-    
-    ctx.restore()
-  }
-
   // 绘制失败弹窗中的「继续 + 金币价格」按钮文字
   drawContinuePurchaseButton(ctx, btnX, btnY, btnW, btnH, price, enabled = true) {
     const centerY = btnY + btnH / 2
@@ -3593,9 +3435,6 @@ export class UIManager {
       case 'game':
         this.drawGameUI(gameState)
         break
-      case 'win':
-        this.drawWinModal(gameState)
-        break
       case 'fail':
         this.drawFailModal(gameState)
         break
@@ -3695,37 +3534,6 @@ export class UIManager {
       w: closeBtnSize,
       h: closeBtnSize
     })
-  }
-
-  // 绘制星星
-  drawStar(ctx, x, y, size, color) {
-    ctx.save()
-    ctx.translate(x, y)
-    
-    const spikes = 5
-    const outerRadius = size
-    const innerRadius = size * 0.4
-    
-    ctx.fillStyle = color
-    ctx.beginPath()
-    
-    for (let i = 0; i < spikes * 2; i++) {
-      const radius = i % 2 === 0 ? outerRadius : innerRadius
-      const angle = (i * Math.PI) / spikes - Math.PI / 2
-      const px = Math.cos(angle) * radius
-      const py = Math.sin(angle) * radius
-      
-      if (i === 0) {
-        ctx.moveTo(px, py)
-      } else {
-        ctx.lineTo(px, py)
-      }
-    }
-    
-    ctx.closePath()
-    ctx.fill()
-    
-    ctx.restore()
   }
 
   // 绘制宝石图标

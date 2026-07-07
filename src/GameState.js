@@ -24,7 +24,7 @@ export class GameState {
     this.wave = 1
     this.targets = []       // 需要记住的目标泡泡索引
     this.playerClicks = []  // 玩家点击的索引
-    this.phase = 'MENU'     // 'MENU' | 'COUNTDOWN' | 'OBSERVE' | 'PLAY' | 'WIN' | 'FAIL'
+    this.phase = 'MENU'     // 'MENU' | 'COUNTDOWN' | 'OBSERVE' | 'PLAY' | 'FAIL'
     
     // 计时器
     this.soundEnabled = true
@@ -76,7 +76,6 @@ export class GameState {
     this.shareReviveCount = 0    // 分享复活次数（整个游戏会话累计，最多 3 次）
     this.adReviveCount = 0       // 广告复活次数（整个游戏会话累计，最多 3 次）
     this.sessionCoins = 0        // 本次游戏会话获得的金币（不包含初始 1000）
-    this.hasShownRecordBreakModal = false  // 本局是否已显示破纪录弹窗
     this.isNewScoreRecord = false        // 本次结算是否破了最高分纪录
     this.sessionStartHighScore = this.highScore  // 本局开始时的历史最高分
     this.sessionStartSeasonScore = 0  // 本局开始时的赛季最高分（seasonData 初始化后更新）
@@ -193,7 +192,6 @@ export class GameState {
     this.shareReviveCount = 0  // 重置分享复活次数
     this.adReviveCount = 0     // 重置广告复活次数
     this.sessionCoins = 0  // 重置会话金币
-    this.hasShownRecordBreakModal = false  // 重置破纪录弹窗标志
     this.isNewScoreRecord = false
     this.sessionStartHighScore = this.highScore
     this.sessionStartSeasonScore = this.seasonData.seasonScore
@@ -266,7 +264,7 @@ export class GameState {
     }
     
     // 更新最高关卡（只有成功通过的关卡才算）
-    if (this.phase === 'WIN' && this.wave > this.bestWave) {
+    if (this.wave > this.bestWave) {
       this.bestWave = this.wave
       setStorage('bestWave', this.bestWave)
       hasUpdate = true
