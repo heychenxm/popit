@@ -53,6 +53,11 @@ export class UIManager {
     // 历史赛季查看模式
     this.viewingSeasonArchive = false
     this.archiveSeasonId = null
+    
+    // 好友排行榜状态
+    this.friendLeaderboardLoading = false
+    this.friendLeaderboardData = null
+    this.friendLeaderboardError = null
 
     // Logo 图片
     this.logoImage = null
@@ -1661,6 +1666,246 @@ export class UIManager {
     })
   }
 
+  // 绘制好友排行榜弹窗
+  drawFriendLeaderboardModal(gameState) {
+    const ctx = this.ctx
+    const modalW = 360
+    const modalH = 560
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
+    
+    // 清空按钮数组
+    this.buttons.length = 0
+    
+    ctx.save()
+    
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    ctx.fillRect(0, 0, this.width, this.height)
+    
+    // 弹窗背景渐变
+    const gradient = ctx.createLinearGradient(modalX, modalY, modalX, modalY + modalH)
+    gradient.addColorStop(0, '#312e81')
+    gradient.addColorStop(1, '#4c1d95')
+    
+    ctx.fillStyle = gradient
+    drawRoundRect(ctx, modalX, modalY, modalW, modalH, 24)
+    ctx.fill()
+    ctx.strokeStyle = '#818cf8'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    
+    // 关闭按钮
+    this._drawCloseButton(modalX, modalW, modalY)
+    
+    // 标题
+    const titleY = modalY + 35
+    ctx.font = `bold 20px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText('🏆 好友排行榜', this.width / 2, titleY)
+    
+    // 刷新提示
+    const hintY = titleY + 28
+    ctx.font = `10px ${FONT_FAMILY}`
+    ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
+    ctx.textAlign = 'center'
+    ctx.fillText('每周一凌晨刷新', this.width / 2, hintY)
+    
+    // 检查加载状态和错误状态
+    if (this.friendLeaderboardError) {
+      // 显示错误提示
+      this._drawFriendLeaderboardError(ctx, modalX, modalY, modalW, modalH, hintY)
+    } else if (this.friendLeaderboardLoading) {
+      // 显示加载骨架屏
+      this._drawFriendLeaderboardSkeleton(ctx, modalX, modalY, modalW, modalH, hintY)
+    } else if (this.friendLeaderboardData && this.friendLeaderboardData.leaderboard && this.friendLeaderboardData.leaderboard.length > 0) {
+      // 显示排行榜列表
+      this._drawFriendLeaderboardList(ctx, modalX, modalY, modalW, modalH, hintY, gameState)
+    } else {
+      // 无数据提示
+      this._drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY)
+    }
+    
+    ctx.restore()
+  }
+
+  // 绘制好友排行榜错误提示
+  _drawFriendLeaderboardError(ctx, modalX, modalY, modalW, modalH, hintY) {
+    const centerY = modalY + modalH / 2
+    
+    ctx.font = `14px ${FONT_FAMILY}`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.textAlign = 'center'
+    
+    if (this.friendLeaderboardError === 'auth_deny') {
+      ctx.fillText('请在设置中授权好友信息', this.width / 2, centerY)
+    } else if (this.friendLeaderboardError === 'not_wechat') {
+      ctx.fillText('请在微信小游戏中运行', this.width / 2, centerY)
+    } else {
+      // 不显示 unknown，显示通用错误提示
+      ctx.fillText('加载失败，请稍后再试', this.width / 2, centerY)
+    }
+  }
+
+  // 绘制好友排行榜骨架屏
+  _drawFriendLeaderboardSkeleton(ctx, modalX, modalY, modalW, modalH, hintY) {
+    const listStartY = hintY + 30
+    const listItemH = 50
+    const listItemGap = 8
+    
+    for (let i = 0; i < 5; i++) {
+      const itemY = listStartY + i * (listItemH + listItemGap)
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+      drawRoundRect(ctx, modalX + 20, itemY, modalW - 40, listItemH, 8)
+      ctx.fill()
+      
+      const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
+      ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
+      drawRoundRect(ctx, modalX + 25, itemY + 5, modalW - 50, listItemH - 10, 6)
+      ctx.fill()
+    }
+  }
+
+  // 绘制好友排行榜无数据提示
+  _drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY) {
+    const centerY = modalY + modalH / 2
+    
+    ctx.font = `14px ${FONT_FAMILY}`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.textAlign = 'center'
+    ctx.fillText('暂无好友数据，邀请好友一起玩吧！', this.width / 2, centerY)
+  }
+
+  // 绘制好友排行榜列表
+  _drawFriendLeaderboardList(ctx, modalX, modalY, modalW, modalH, hintY, gameState) {
+    const leaderboard = this.friendLeaderboardData.leaderboard
+    const listStartY = hintY + 30
+    const listItemH = 50
+    const listItemGap = 8
+    const listPadding = 15
+    
+    // 找到当前用户
+    const currentUserIndex = leaderboard.findIndex(user => user.isUser)
+    const currentUser = currentUserIndex >= 0 ? leaderboard[currentUserIndex] : null
+    
+    // 计算需要显示的列表范围（支持滚动，显示所有好友）
+    const maxVisibleItems = Math.floor((modalH - 100) / (listItemH + listItemGap))
+    let startIndex = 0
+    let endIndex = leaderboard.length
+    
+    // 如果当前用户在列表中但不在可见范围内，调整显示范围
+    if (currentUserIndex >= maxVisibleItems) {
+      // 当前用户不在前 N 个，显示包含用户的范围
+      startIndex = Math.max(0, currentUserIndex - maxVisibleItems + 1)
+      endIndex = Math.min(leaderboard.length, startIndex + maxVisibleItems)
+    }
+    
+    // 绘制可见的好友列表
+    for (let i = startIndex; i < endIndex; i++) {
+      const user = leaderboard[i]
+      const itemY = listStartY + (i - startIndex) * (listItemH + listItemGap)
+      const isHighlight = user.isUser
+      
+      this.drawFriendLeaderboardListItem(
+        ctx,
+        modalX + listPadding,
+        itemY,
+        modalW - listPadding * 2,
+        listItemH,
+        user.rank,
+        user.nickname,
+        user.avatarUrl,
+        user.score,
+        isHighlight,
+        user.isUser
+      )
+    }
+    
+    // 如果当前用户不在可见范围内，在底部单独显示
+    if (currentUser && (currentUserIndex < startIndex || currentUserIndex >= endIndex)) {
+      const separatorY = listStartY + (endIndex - startIndex) * (listItemH + listItemGap) + 10
+      
+      // 分隔线
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(modalX + 20, separatorY)
+      ctx.lineTo(modalX + modalW - 20, separatorY)
+      ctx.stroke()
+      
+      // 当前用户项
+      const userItemY = separatorY + 15
+      this.drawFriendLeaderboardListItem(
+        ctx,
+        modalX + listPadding,
+        userItemY,
+        modalW - listPadding * 2,
+        listItemH,
+        currentUser.rank,
+        currentUser.nickname,
+        currentUser.avatarUrl,
+        currentUser.score,
+        true,
+        true
+      )
+    }
+  }
+
+  // 绘制好友排行榜列表项
+  drawFriendLeaderboardListItem(ctx, x, y, w, h, rank, nickname, avatarUrl, score, isHighlight, isUser) {
+    const itemPadding = 12
+    
+    ctx.save()
+    
+    // 背景
+    if (isUser) {
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.3)'
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+    }
+    
+    drawRoundRect(ctx, x, y, w, h, 12)
+    ctx.fill()
+    
+    if (isUser) {
+      ctx.strokeStyle = '#6366f1'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+    
+    // 排名
+    ctx.font = isHighlight ? `bold 14px ${FONT_FAMILY}` : `12px ${FONT_FAMILY}`
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.gray400
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(`${rank}`, x + itemPadding, y + h / 2)
+    
+    // 头像
+    const avatarSize = 36
+    const avatarX = x + itemPadding + 24
+    const avatarY = y + h / 2
+    this.drawAvatar(avatarX, avatarY, avatarSize, avatarUrl, false, isUser)
+    
+    // 昵称
+    ctx.font = isHighlight ? `bold 13px ${FONT_FAMILY}` : `13px ${FONT_FAMILY}`
+    ctx.fillStyle = isHighlight ? '#fbbf24' : Colors.white
+    ctx.textAlign = 'left'
+    const safeNickname = nickname || '微信用户'
+    const displayNickname = safeNickname.length > 12 ? safeNickname.substring(0, 11) + '...' : safeNickname
+    ctx.fillText(displayNickname, avatarX + avatarSize / 2 + 16, y + h / 2)
+    
+    // 分数
+    ctx.font = `bold 16px ${FONT_FAMILY}`
+    ctx.fillStyle = '#a5b4fc'
+    ctx.textAlign = 'right'
+    ctx.fillText(score.toString(), x + w - itemPadding, y + h / 2)
+    
+    ctx.restore()
+  }
+
   // 通用排行榜弹窗绘制方法
   _drawLeaderboardModal(gameState, options) {
     const ctx = this.ctx
@@ -3184,6 +3429,9 @@ export class UIManager {
         break
       case 'season_leaderboard':
         this.drawSeasonLeaderboardModal(gameState)
+        break
+      case 'friend_leaderboard':
+        this.drawFriendLeaderboardModal(gameState)
         break
       case 'checkin':
         this.drawCheckinModal(gameState)

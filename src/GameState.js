@@ -3,6 +3,7 @@ import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './
 import { config } from './config.js'
 import { getSeasonCycle, getSeasonTimeRemaining, formatSeasonCountdown } from './seasonUtils.js'
 import { wechatAPI } from './WechatAPI.js'
+import { FriendLeaderboard } from './FriendLeaderboard.js'
 
 /**
  * 游戏状态管理
@@ -117,6 +118,9 @@ export class GameState {
     
     // 赛季数据初始化后，记录本局开始时的赛季最高分
     this.sessionStartSeasonScore = this.seasonData.seasonScore
+    
+    // 好友排行榜
+    this.friendLeaderboard = new FriendLeaderboard(this)
   }
 
   // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）
@@ -251,6 +255,15 @@ export class GameState {
       this.bestWave = this.wave
       setStorage('bestWave', this.bestWave)
       hasUpdate = true
+    }
+    
+    // 上报当前分数到微信排行榜（每次都上报，确保排行榜数据最新）
+    if (this.friendLeaderboard) {
+      // 上报当前分数和最高分中的较大值
+      const scoreToSubmit = Math.max(this.score, this.highScore)
+      this.friendLeaderboard.syncScore(scoreToSubmit).catch(err => {
+        console.warn('微信排行榜上报失败:', err)
+      })
     }
     
     return hasUpdate
@@ -1165,6 +1178,31 @@ export class GameState {
     } catch (err) {
       console.warn('云端签到异常，降级到本地签到:', err.message || err)
       return this.doLocalCheckin()
+    }
+  }
+
+  /**
+   * 获取好友排行榜数据
+   * @param {boolean} forceRefresh - 是否强制刷新
+   * @returns {Promise<Object>} - { success, data, message, fromCache }
+   */
+  async getFriendLeaderboard(forceRefresh = false) {
+    if (!this.friendLeaderboard) {
+      return {
+        success: false,
+        message: '好友排行榜未初始化'
+      }
+    }
+
+    return await this.friendLeaderboard.getLeaderboard(forceRefresh)
+  }
+
+  /**
+   * 清除好友排行榜缓存
+   */
+  clearFriendLeaderboard() {
+    if (this.friendLeaderboard) {
+      this.friendLeaderboard.clearData()
     }
   }
 }

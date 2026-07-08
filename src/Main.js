@@ -275,6 +275,12 @@ export class Main {
       return
     }
     
+    // 检查是否在好友排行榜界面
+    if (this.uiManager.currentScreen === 'friend_leaderboard') {
+      this.handleFriendLeaderboardTouch(x, y)
+      return
+    }
+    
     // 检查是否在签到界面
     if (this.uiManager.currentScreen === 'checkin') {
       this.handleCheckinTouch(x, y)
@@ -472,6 +478,41 @@ export class Main {
     this.uiManager.archiveSeasonId = null
   }
 
+  // 处理好友排行榜触摸
+  async handleFriendLeaderboardTouch(x, y) {
+    const buttonId = this.uiManager.handleTouch(x, y)
+    
+    if (buttonId) {
+      this.audioManager.play('click')
+      this.vibrate()
+      
+      switch (buttonId) {
+        case 'close':
+          this.closeFriendLeaderboard()
+          break
+      }
+    }
+  }
+
+  // 关闭好友排行榜
+  closeFriendLeaderboard() {
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 清除好友排行榜状态
+    this.uiManager.friendLeaderboardData = null
+    this.uiManager.friendLeaderboardLoading = false
+    this.uiManager.friendLeaderboardError = null
+    
+    // 切换到主菜单
+    this.uiManager.currentScreen = 'menu'
+    
+    // 确保游戏状态也是 MENU 阶段
+    if (this.gameState.phase !== 'MENU') {
+      this.gameState.phase = 'MENU'
+    }
+  }
+
   // 处理签到触摸
   async handleCheckinTouch(x, y) {
     const buttonId = this.uiManager.handleTouch(x, y)
@@ -523,6 +564,7 @@ export class Main {
           this.startGame()
           break
         case 'leaderboard':
+          // 首页的排行榜按钮 - 显示全局排行榜
           this.showLeaderboard()
           break
         case 'leaderboard_detail':
@@ -585,6 +627,7 @@ export class Main {
   // 处理失败弹窗触摸
   handleFailTouch(x, y) {
     const buttonId = this.uiManager.handleTouch(x, y)
+    console.log('handleFailTouch - buttonId:', buttonId)
     
     if (buttonId) {
       this.audioManager.play('click')
@@ -610,7 +653,9 @@ export class Main {
           this.restartGame()
           break
         case 'leaderboard':
-          this.showLeaderboard()
+          // 失败弹窗中的好友排行按钮
+          console.log('点击好友排行按钮')
+          this.showFriendLeaderboard()
           break
       }
     }
@@ -1208,6 +1253,115 @@ export class Main {
     // 获取排行榜数据（默认最高分）
     this.uiManager.leaderboardType = 'score'
     await this.refreshLeaderboard()
+  }
+
+  // 显示好友排行榜
+  async showFriendLeaderboard() {
+    console.log('showFriendLeaderboard 被调用')
+    this.audioManager.play('click')
+    this.vibrate('light')
+    
+    // 切换到好友排行榜界面
+    this.uiManager.currentScreen = 'friend_leaderboard'
+    console.log('currentScreen 设置为:', this.uiManager.currentScreen)
+    
+    // 清除之前的错误状态
+    this.uiManager.friendLeaderboardError = null
+    
+    // 获取好友排行榜数据
+    await this.refreshFriendLeaderboard()
+  }
+
+  // 请求好友互动授权
+  async requestFriendInteractionAuth() {
+    return new Promise((resolve) => {
+      if (typeof wx === 'undefined' || !wx.authorize) {
+        console.warn('当前环境不支持 wx.authorize')
+        this.uiManager.showToast('当前环境不支持授权')
+        resolve(false)
+        return
+      }
+
+      console.log('开始请求好友互动授权...')
+      wx.authorize({
+        scope: 'scope.WxFriendInteraction',
+        success: () => {
+          console.log('好友互动授权成功')
+          resolve(true)
+        },
+        fail: (err) => {
+          console.warn('好友互动授权失败:', err)
+          resolve(false)
+        }
+      })
+    })
+  }
+
+  // 刷新好友排行榜数据
+  async refreshFriendLeaderboard() {
+    console.log('refreshFriendLeaderboard 开始执行')
+    
+    // 检查是否在微信环境中
+    if (typeof wx === 'undefined') {
+      console.error('不在微信小游戏环境中')
+      this.uiManager.friendLeaderboardError = null
+      this.uiManager.friendLeaderboardData = { leaderboard: [] }  // 空数据
+      this.uiManager.friendLeaderboardLoading = false
+      this.uiManager.showToast('请在微信小游戏中运行')
+      return
+    }
+    
+    // 设置加载状态
+    this.uiManager.friendLeaderboardLoading = true
+    
+    // 第一步：先请求授权
+    console.log('第一步：请求好友互动授权')
+    this.uiManager.showToast('正在请求授权...')
+    const authSuccess = await this.requestFriendInteractionAuth()
+    
+    if (!authSuccess) {
+      // 授权失败
+      console.log('授权失败，显示错误提示')
+      this.uiManager.friendLeaderboardData = null
+      this.uiManager.friendLeaderboardError = 'auth_deny'
+      this.uiManager.friendLeaderboardLoading = false
+      this.uiManager.showToast('需要授权才能查看好友排行榜')
+      return
+    }
+    
+    console.log('授权成功，第二步：获取好友排行榜数据')
+    this.uiManager.showToast('授权成功，获取数据中...')
+    
+    // 第二步：授权成功后，获取好友数据
+    const result = await this.gameState.getFriendLeaderboard(true)
+    console.log('getFriendLeaderboard 返回结果:', result)
+    
+    if (result.success) {
+      this.uiManager.friendLeaderboardData = result.data
+      this.uiManager.friendLeaderboardError = null
+      console.log('好友排行榜数据加载成功，好友数量:', result.data?.leaderboard?.length)
+      this.uiManager.showToast(`加载成功，${result.data?.leaderboard?.length || 0}个好友`)
+    } else {
+      this.uiManager.friendLeaderboardData = null
+      // 只显示已知错误，不显示 unknown
+      if (result.error && result.error !== 'unknown') {
+        this.uiManager.friendLeaderboardError = result.error
+      } else {
+        this.uiManager.friendLeaderboardError = null
+      }
+      console.log('好友排行榜加载失败:', result.message, 'error:', result.error)
+      
+      // 特殊处理：如果是开发工具环境，提示使用真机调试
+      if (result.message === '请在微信小游戏中运行') {
+        this.uiManager.showToast('请在真机上测试')
+      } else if (result.message) {
+        this.uiManager.showToast(result.message)
+      }
+    }
+    
+    // 清除加载状态
+    this.uiManager.friendLeaderboardLoading = false
+    console.log('refreshFriendLeaderboard 执行完成')
   }
 
   // 刷新排行榜数据
