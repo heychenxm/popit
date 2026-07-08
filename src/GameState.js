@@ -279,10 +279,18 @@ export class GameState {
   // 更新今日是否已签到状态
   updateCheckinStatus() {
     const today = getTodayString()
-    this.hasCheckedInToday = (this.lastCheckinDate === today)
-    // 新的一天，重置所有签到状态
-    this.hasNormalCheckinToday = false
-    this.hasAdDoubleCheckinToday = false
+    const isToday = (this.lastCheckinDate === today)
+    this.hasCheckedInToday = isToday
+    
+    // 根据 lastCheckinType 恢复签到状态
+    if (isToday) {
+      this.hasNormalCheckinToday = (this.lastCheckinType !== 'ad')
+      this.hasAdDoubleCheckinToday = (this.lastCheckinType === 'ad')
+    } else {
+      // 新的一天，重置所有签到状态
+      this.hasNormalCheckinToday = false
+      this.hasAdDoubleCheckinToday = false
+    }
   }
   
   // 更新分享礼包状态（每天 0 点重置）

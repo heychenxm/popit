@@ -20,7 +20,7 @@ exports.main = async (event, context) => {
       .limit(1)
       .field({ 
         coins: true, highScore: true, bestWave: true,
-        lastCheckinDate: true, checkinStreak: true,
+        lastCheckinDate: true, checkinStreak: true, lastCheckinType: true,
         lastShareDate: true, todayShareCount: true, lastShareGiftDate: true,
         seasonId: true, seasonScore: true, seasonWave: true,
         totalGames: true, totalClears: true, bestStreak: true,
