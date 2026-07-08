@@ -330,6 +330,9 @@ export class GameState {
     this._scheduleStorageWrite('todayShareCount', this.todayShareCount)
     // 发放奖励金币
     this.addCoins(config.rewards.share)
+    
+    // 保存到云端
+    this.saveToCloud().catch(() => {})
   }
   
   // 检查是否可以领取分享礼包
@@ -346,6 +349,10 @@ export class GameState {
     
     // 奖励金币
     this.addCoins(config.rewards.shareGift)
+    
+    // 保存到云端
+    this.saveToCloud().catch(() => {})
+    
     return { type: 'coin', amount: config.rewards.shareGift }
   }
 
