@@ -528,7 +528,7 @@ export class UIManager {
     const y = this.height * 0.3388  // 跟随 Logo 下移 10%（0.308 * 1.1）
     
     ctx.save()
-    ctx.font = `14px ${FONT_FAMILY}`
+    ctx.font = `16px ${FONT_FAMILY}`  // 14px + 2px = 16px
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
@@ -595,17 +595,17 @@ export class UIManager {
   // 绘制开始按钮
   drawStartButton() {
     const ctx = this.ctx
-    const btnWidth = 200
-    const btnHeight = 56
+    const btnWidth = 240  // 200 * 1.2 = 240 (放大20%)
+    const btnHeight = 67.2  // 56 * 1.2 = 67.2 (放大20%)
     const btnX = this.width / 2 - btnWidth / 2
     const btnY = this.height * 0.52
-    const btnRadius = 28
+    const btnRadius = 33.6  // 28 * 1.2 = 33.6 (放大20%)
     
     ctx.save()
     
     // 3D 阴影层（底部）
     ctx.fillStyle = '#c26a00'
-    drawRoundRect(ctx, btnX, btnY + 6, btnWidth, btnHeight, btnRadius)
+    drawRoundRect(ctx, btnX, btnY + 7.2, btnWidth, btnHeight, btnRadius)  // 6 * 1.2 = 7.2
     ctx.fill()
     
     // 使用预创建的渐变
@@ -613,7 +613,7 @@ export class UIManager {
       this.cachedGradients = {}
     }
     if (!this.cachedGradients.startBtn) {
-      this.cachedGradients.startBtn = ctx.createLinearGradient(0, 0, 0, 56)
+      this.cachedGradients.startBtn = ctx.createLinearGradient(0, 0, 0, 67.2)  // 56 * 1.2 = 67.2
       this.cachedGradients.startBtn.addColorStop(0, '#ffd13b')
       this.cachedGradients.startBtn.addColorStop(1, '#ff9e00')
     }
@@ -625,23 +625,23 @@ export class UIManager {
     
     // 白色边框
     ctx.strokeStyle = '#fffdf0'
-    ctx.lineWidth = 3
+    ctx.lineWidth = 3.6  // 3 * 1.2 = 3.6 (放大20%)
     ctx.stroke()
     
     // 顶部高光
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
-    drawRoundRect(ctx, btnX + 6, btnY + 4, btnWidth - 12, 14, 7)
+    drawRoundRect(ctx, btnX + 7.2, btnY + 4.8, btnWidth - 14.4, 16.8, 8.4)  // 所有值 * 1.2
     ctx.fill()
     
     // 文字 - 带阴影
-    ctx.font = `bold 22px ${FONT_FAMILY}`
+    ctx.font = `bold 26.4px ${FONT_FAMILY}`  // 22 * 1.2 = 26.4 (放大20%)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
     // 文字阴影
     ctx.shadowColor = 'rgba(171, 81, 0, 0.8)'
     ctx.shadowBlur = 0
-    ctx.shadowOffsetY = 2
+    ctx.shadowOffsetY = 2.4  // 2 * 1.2 = 2.4 (放大20%)
     ctx.fillStyle = Colors.white
     ctx.fillText('开始游戏', this.width / 2, btnY + btnHeight / 2)
     
