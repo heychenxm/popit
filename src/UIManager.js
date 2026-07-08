@@ -2597,6 +2597,31 @@ export class UIManager {
         w: fullBtnW,
         h: btnH
       })
+      
+      // 好友排行按钮（在返回首页按钮下方）
+      const friendRankBtnY = btnY3 + btnH + friendRankBtnGap
+      const friendRankBtnW = modalW - 40
+      
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.2)'
+      drawRoundRect(ctx, modalX + 20, friendRankBtnY, friendRankBtnW, friendRankBtnH, 12)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      
+      ctx.font = `bold 14px ${FONT_FAMILY}`
+      ctx.fillStyle = Colors.white
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('🏆 好友排行', this.width / 2, friendRankBtnY + friendRankBtnH / 2)
+      
+      this.buttons.push({
+        id: 'leaderboard',
+        x: modalX + 20,
+        y: friendRankBtnY,
+        w: friendRankBtnW,
+        h: friendRankBtnH
+      })
     }
     // ========== 场景2：广告可用，金币不可用 ==========
     else if (!hasPurchaseAttempts && canAdRevive) {

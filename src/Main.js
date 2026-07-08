@@ -47,6 +47,9 @@ export class Main {
     // 延迟定时器（用于清理）
     this._pendingTimers = []
     
+    // 隐私合规授权标记
+    this._privacyAuthorized = false
+    
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
     this._userInfoButton = null
@@ -89,7 +92,11 @@ export class Main {
       
       // 开始游戏循环（先启动，保证快速响应）
       this.start()
-      
+
+      // 游戏初始化时拉起隐私合规弹窗和好友关系授权弹窗（非阻塞）
+      this._initPrivacyAuthorize()
+      this._initFriendAuthorize()
+
       // 阶段 2：延迟创建非必要的缓存（使用 requestIdleCallback 或 setTimeout）
       this.createDeferredCaches()
     } catch (error) {
@@ -1497,16 +1504,53 @@ export class Main {
     this.startShareForReward('gift')
   }
 
+  // 游戏初始化时触发隐私合规授权（非阻塞）
+  _initPrivacyAuthorize() {
+    if (typeof wx !== 'undefined' && wx.requirePrivacyAuthorize) {
+      wx.requirePrivacyAuthorize({
+        success: () => {
+          console.log('隐私合规授权同意')
+          this._privacyAuthorized = true
+        },
+        fail: (err) => {
+          console.warn('隐私合规授权拒绝:', err)
+        }
+      })
+    }
+  }
+
+  // 游戏初始化时触发好友关系授权（非阻塞）
+  _initFriendAuthorize() {
+    if (typeof wx !== 'undefined' && wx.authorize) {
+      wx.authorize({
+        scope: 'scope.userFriendInfo',
+        success: () => {
+          console.log('好友关系授权同意')
+        },
+        fail: (err) => {
+          console.warn('好友关系授权拒绝:', err)
+        }
+      })
+    }
+  }
+
   // 处理用户授权（获取昵称和头像）
   handleAuthorize() {
     console.log('handleAuthorize----》')
     this.audioManager.play('click')
     this.vibrate('light')
     
+    // 隐私已授权过，直接获取用户信息
+    if (this._privacyAuthorized) {
+      this._doAuthorize()
+      return
+    }
+    
     // 先触发隐私授权，用户同意后再继续
     if (typeof wx !== 'undefined' && wx.requirePrivacyAuthorize) {
       wx.requirePrivacyAuthorize({
         success: () => {
+          this._privacyAuthorized = true
           this._doAuthorize()
         },
         fail: (err) => {
@@ -1536,7 +1580,29 @@ export class Main {
       return
     }
     
-    // 未授权：创建微信原生按钮，用户点击后弹出授权弹窗
+    // 未授权但隐私已通过：直接尝试获取用户信息（当前处于用户点击事件中，满足调用条件）
+    if (this._privacyAuthorized && wx.getUserProfile) {
+      wx.getUserProfile({
+        desc: '用于完善用户资料',
+        success: (res) => {
+          const userInfo = res.userInfo
+          // 检查是否返回了有效用户信息（新版微信可能返回默认值"微信用户"）
+          if (userInfo && userInfo.nickName && userInfo.nickName !== '微信用户') {
+            this.saveAndSyncUserInfo(userInfo.nickName, userInfo.avatarUrl)
+          } else {
+            // 返回默认值，回退到原生按钮方式
+            this._createUserInfoButton()
+          }
+        },
+        fail: () => {
+          // getUserProfile 不可用或失败，回退到原生按钮方式
+          this._createUserInfoButton()
+        }
+      })
+      return
+    }
+    
+    // 回退：创建微信原生按钮，用户点击后弹出授权弹窗
     this._createUserInfoButton()
   }
   
@@ -1578,9 +1644,6 @@ export class Main {
         this._userInfoButton = null
       }
     })
-    
-    // 提示用户点击按钮
-    this.uiManager.showToast('请点击按钮授权')
   }
   
   // 保存用户信息并同步到云端
