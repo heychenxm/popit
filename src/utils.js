@@ -295,7 +295,7 @@ export function getPhaseIndicatorLayout(width, height) {
 }
 
 export function getBubbleGridTop(width, height) {
-  return getGameScreenLayout(width, height).gridY
+  return getGameScreenLayout(width, height).gridY + 12  // 向下移动12px
 }
 
 export function getBubbleGridMaxSize(width, height) {
