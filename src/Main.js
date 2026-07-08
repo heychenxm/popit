@@ -95,7 +95,7 @@ export class Main {
 
       // 游戏初始化时拉起隐私合规弹窗和好友关系授权弹窗（非阻塞）
       this._initPrivacyAuthorize()
-      this._initFriendAuthorize()
+      // this._initFriendAuthorize()
 
       // 阶段 2：延迟创建非必要的缓存（使用 requestIdleCallback 或 setTimeout）
       this.createDeferredCaches()
@@ -1511,6 +1511,7 @@ export class Main {
         success: () => {
           console.log('隐私合规授权同意')
           this._privacyAuthorized = true
+          this._initFriendAuthorize()
         },
         fail: (err) => {
           console.warn('隐私合规授权拒绝:', err)
@@ -1520,10 +1521,11 @@ export class Main {
   }
 
   // 游戏初始化时触发好友关系授权（非阻塞）
+  // 好友关系授权通过调用开放数据域 API 隐式触发，不能用 wx.authorize
   _initFriendAuthorize() {
-    if (typeof wx !== 'undefined' && wx.authorize) {
-      wx.authorize({
-        scope: 'scope.userFriendInfo',
+    if (typeof wx !== 'undefined' && wx.getUserCloudStorage) {
+      wx.getUserCloudStorage({
+        keyList: ['popit_friend_rank'],
         success: () => {
           console.log('好友关系授权同意')
         },
