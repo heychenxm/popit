@@ -276,12 +276,39 @@ export class UIManager {
   drawRulesModal(gameState) {
     const ctx = this.ctx
     const modalW = 340
-    const modalH = 520
-    const modalX = (this.width - modalW) / 2
-    const modalY = (this.height - modalH) / 2
     
     // 清空按钮数组
     this.buttons.length = 0
+    
+    // 规则内容
+    const rules = [
+      '1. 观察阶段：记住闪烁的泡泡位置',
+      '2. 游戏阶段：在倒计时结束前',
+      '   点破所有闪烁的泡泡',
+      '3. 点错不扣分，但会提示错误',
+      '4. 超时未点完将失去 1 点生命',
+      '5. 生命归零则游戏结束',
+      '6. 连续胜利可恢复生命',
+      '7. 关卡越高，难度越大！'
+    ]
+    
+    // 计算各区域高度
+    const paddingTop = 30        // 顶部边距
+    const titleH = 28            // 标题高度
+    const titleBottomGap = 40    // 标题到底部间距
+    const lineH = 28             // 每行规则高度
+    const rulesH = rules.length * lineH  // 规则内容总高度
+    const tipTopGap = 15         // 提示文字顶部间距
+    const tipH = 18              // 提示文字高度
+    const btnTopGap = 40         // 按钮顶部间距
+    const btnH = 50              // 按钮高度
+    const paddingBottom = 30     // 底部边距
+    
+    // 动态计算弹窗总高度
+    const modalH = paddingTop + titleH + titleBottomGap + rulesH + tipTopGap + tipH + btnTopGap + btnH + paddingBottom
+    
+    const modalX = (this.width - modalW) / 2
+    const modalY = (this.height - modalH) / 2
     
     ctx.save()
     
@@ -302,7 +329,7 @@ export class UIManager {
     ctx.stroke()
     
     // 标题
-    const titleY = modalY + 30
+    const titleY = modalY + paddingTop + titleH / 2
     ctx.font = `bold 22px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -310,19 +337,7 @@ export class UIManager {
     ctx.fillText('🎮 游戏规则', this.width / 2, titleY)
     
     // 规则内容
-    const contentY = titleY + 40
-    const lineH = 28
-    const rules = [
-      '1. 观察阶段：记住闪烁的泡泡位置',
-      '2. 游戏阶段：在倒计时结束前',
-      '   点破所有闪烁的泡泡',
-      '3. 点错不扣分，但会提示错误',
-      '4. 超时未点完将失去 1 点生命',
-      '5. 生命归零则游戏结束',
-      '6. 连续胜利可恢复生命',
-      '7. 关卡越高，难度越大！'
-    ]
-    
+    const contentY = titleY + titleBottomGap / 2 + titleH / 2
     ctx.font = `13px ${FONT_FAMILY}`
     ctx.textAlign = 'left'
     ctx.fillStyle = '#e0e7ff'
@@ -332,16 +347,15 @@ export class UIManager {
     }
     
     // 提示文字
-    const tipY = contentY + rules.length * lineH + 15
+    const tipY = contentY + rules.length * lineH + tipTopGap + tipH / 2
     ctx.font = `bold 12px ${FONT_FAMILY}`
     ctx.textAlign = 'center'
     ctx.fillStyle = '#fde68a'
     ctx.fillText('💡 提示：每关目标泡泡颜色不同', this.width / 2, tipY)
     
     // 按钮区域
-    const btnY = tipY + 40
+    const btnY = tipY + tipH / 2 + btnTopGap
     const btnW = modalW - 60
-    const btnH = 50
     
     const btnGradient = ctx.createLinearGradient(modalX + 30, btnY, modalX + 30, btnY + btnH)
     btnGradient.addColorStop(0, '#22c55e')
