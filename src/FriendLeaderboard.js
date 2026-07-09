@@ -43,6 +43,7 @@ export class FriendLeaderboard {
    * @returns {Promise<Object>} - { success, data, error, message }
    */
   async fetchLeaderboard() {
+    console.log("wx.getFriendCloudStorage ---->", wx.getFriendCloudStorage)
     // 检查 wx 是否存在
     if (typeof wx === 'undefined') {
       console.warn('wx 未定义，当前不是微信小游戏环境')

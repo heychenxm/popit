@@ -1679,9 +1679,9 @@ export class Main {
   _initFriendAuthorize() {
     if (typeof wx !== 'undefined' && wx.getUserCloudStorage) {
       wx.getUserCloudStorage({
-        keyList: ['popit_friend_rank'],
-        success: () => {
-          console.log('好友关系授权同意')
+        keyList: ['score'],
+        success: (res) => {
+          console.log('好友关系授权同意', res)
         },
         fail: (err) => {
           console.warn('好友关系授权拒绝:', err)
