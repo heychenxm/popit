@@ -239,8 +239,8 @@ export class GameState {
     return this.score > this.sessionStartSeasonScore && this.sessionStartSeasonScore >= 0
   }
 
-  // 保存最高分和最高关卡（关卡结束后调用）
-  async saveHighScore() {
+  // 保存最高分和最高关卡（本地存储，关卡结束后调用）
+  saveHighScoreLocal() {
     let hasUpdate = false
     
     // 更新最高分
@@ -257,16 +257,17 @@ export class GameState {
       hasUpdate = true
     }
     
-    // 上报当前分数到微信排行榜（每次都上报，确保排行榜数据最新）
+    return hasUpdate
+  }
+
+  // 上报当前得分到微信排行榜（生命值耗尽时调用）
+  reportScoreToLeaderboard() {
     if (this.friendLeaderboard) {
-      // 上报当前分数和最高分中的较大值
-      const scoreToSubmit = Math.max(this.score, this.highScore)
-      this.friendLeaderboard.syncScore(scoreToSubmit).catch(err => {
+      // 上报当前得分（不是历史最高分）
+      this.friendLeaderboard.syncScore(this.score).catch(err => {
         console.warn('微信排行榜上报失败:', err)
       })
     }
-    
-    return hasUpdate
   }
 
   // 增加金币

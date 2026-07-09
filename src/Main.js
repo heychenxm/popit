@@ -937,8 +937,8 @@ export class Main {
     
     // 不再每关都保存，等待用户点击"返回首页"时统一保存
     
-    // 保存最高分和最高关卡
-    await this.gameState.saveHighScore()
+    // 本地保存最高分和最高关卡（不上报排行榜）
+    this.gameState.saveHighScoreLocal()
     
     // 进入下一关
     this.gameState.wave++
@@ -960,10 +960,11 @@ export class Main {
     // 清理音频对象池（防止内存泄漏）
     this.audioManager.clearAudioPool()
     
-    // 保存最高分
-    this.gameState.saveHighScore().catch(err => {
-      console.error('保存最高分失败:', err)
-    })
+    // 本地保存最高分
+    this.gameState.saveHighScoreLocal()
+    
+    // 上报当前得分到排行榜（生命值耗尽时上报）
+    this.gameState.reportScoreToLeaderboard()
   }
 
   // 重试关卡
