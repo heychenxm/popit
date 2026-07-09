@@ -121,6 +121,7 @@ export class GameState {
     
     // 好友排行榜
     this.friendLeaderboard = new FriendLeaderboard(this)
+    this.friendLeaderboard.init()
   }
 
   // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）

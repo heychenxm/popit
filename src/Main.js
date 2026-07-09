@@ -50,6 +50,10 @@ export class Main {
     // 隐私合规授权标记
     this._privacyAuthorized = false
     
+    // 开放数据域 sharedCanvas（用于好友排行榜）
+    this.sharedCanvas = null
+    this._initSharedCanvas()
+    
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
     this._userInfoButton = null
@@ -126,6 +130,28 @@ export class Main {
     }, 50)
   }
   
+  /**
+   * 初始化开放数据域 sharedCanvas
+   * sharedCanvas 的宽高只能在主域设置
+   */
+  _initSharedCanvas() {
+    if (typeof wx === 'undefined' || typeof wx.getOpenDataContext !== 'function') return
+    
+    try {
+      const openDataContext = wx.getOpenDataContext()
+      this.sharedCanvas = openDataContext.canvas
+      
+      // 设置 sharedCanvas 尺寸（好友排行榜内容区域大小）
+      // 模态框宽 360，内容区域约 300；高度约 400
+      this.sharedCanvas.width = 300
+      this.sharedCanvas.height = 420
+      
+      console.log('sharedCanvas 初始化完成, 尺寸:', this.sharedCanvas.width, 'x', this.sharedCanvas.height)
+    } catch (e) {
+      console.warn('初始化 sharedCanvas 失败:', e)
+    }
+  }
+
   /**
    * 初始化激励视频广告
    */
@@ -1367,8 +1393,8 @@ export class Main {
     if (result.success) {
       this.uiManager.friendLeaderboardData = result.data
       this.uiManager.friendLeaderboardError = null
-      console.log('好友排行榜数据加载成功，好友数量:', result.data?.leaderboard?.length)
-      this.uiManager.showToast(`加载成功，${result.data?.leaderboard?.length || 0}个好友`)
+      console.log('好友排行榜数据加载成功')
+      this.uiManager.showToast('加载成功')
     } else {
       this.uiManager.friendLeaderboardData = null
       // 只显示已知错误，不显示 unknown

@@ -1719,9 +1719,9 @@ export class UIManager {
     } else if (this.friendLeaderboardLoading) {
       // 显示加载骨架屏
       this._drawFriendLeaderboardSkeleton(ctx, modalX, modalY, modalW, modalH, hintY)
-    } else if (this.friendLeaderboardData && this.friendLeaderboardData.leaderboard && this.friendLeaderboardData.leaderboard.length > 0) {
-      // 显示排行榜列表
-      this._drawFriendLeaderboardList(ctx, modalX, modalY, modalW, modalH, hintY, gameState)
+    } else if (this.friendLeaderboardData && this.friendLeaderboardData.useSharedCanvas) {
+      // 使用开放数据域的 sharedCanvas 渲染排行榜
+      this._drawFriendLeaderboardSharedCanvas(ctx, modalX, modalY, modalW, modalH, hintY)
     } else {
       // 无数据提示
       this._drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY)
@@ -1828,6 +1828,41 @@ export class UIManager {
       drawRoundRect(ctx, modalX + 25, itemY + 5, modalW - 50, listItemH - 10, 6)
       ctx.fill()
     }
+  }
+
+  // 绘制好友排行榜 sharedCanvas（开放数据域渲染）
+  _drawFriendLeaderboardSharedCanvas(ctx, modalX, modalY, modalW, modalH, hintY) {
+    // 获取 sharedCanvas（从 gameState 的 friendLeaderboard 获取）
+    const sharedCanvas = this._getSharedCanvas()
+    
+    if (!sharedCanvas) {
+      // 如果 sharedCanvas 不可用，显示无数据提示
+      this._drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY)
+      return
+    }
+    
+    // 计算 sharedCanvas 绘制位置（内容区域）
+    const canvasW = 300
+    const canvasH = 420
+    const canvasX = modalX + (modalW - canvasW) / 2
+    const canvasY = hintY + 20
+    
+    // 绘制 sharedCanvas 到主画布
+    ctx.save()
+    ctx.drawImage(sharedCanvas, canvasX, canvasY, canvasW, canvasH)
+    ctx.restore()
+  }
+
+  // 获取 sharedCanvas 引用
+  _getSharedCanvas() {
+    // 尝试从全局 game 实例获取
+    if (typeof globalThis !== 'undefined' && globalThis.game && globalThis.game.sharedCanvas) {
+      return globalThis.game.sharedCanvas
+    }
+    if (typeof global !== 'undefined' && global.game && global.game.sharedCanvas) {
+      return global.game.sharedCanvas
+    }
+    return null
   }
 
   // 绘制好友排行榜无数据提示

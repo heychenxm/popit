@@ -1,19 +1,34 @@
 /**
  * 好友排行榜数据管理
- * 基于微信云托管数据实现好友排行榜功能
+ * 基于微信开放数据域 + sharedCanvas 实现好友排行榜功能
+ *
+ * 架构说明：
+ * - 主域通过 postMessage 通知开放数据域获取数据
+ * - 开放数据域调用 wx.getFriendCloudStorage 获取数据并渲染到 sharedCanvas
+ * - 主域通过 drawImage(sharedCanvas) 将排行榜显示到主屏
+ * - 开放数据域不能向主域发送消息，数据通过 sharedCanvas 共享
  */
 
 export class FriendLeaderboard {
   constructor(gameState) {
     this.gameState = gameState
     this.isLoading = false
-    this.data = null
     this.error = null
     this.lastFetchTime = 0
+    this.openDataContext = null
   }
 
   /**
-   * 同步分数到微信排行榜
+   * 初始化开放数据域引用
+   */
+  init() {
+    if (typeof wx !== 'undefined' && typeof wx.getOpenDataContext === 'function') {
+      this.openDataContext = wx.getOpenDataContext()
+    }
+  }
+
+  /**
+   * 同步分数到微信排行榜（主域可直接调用）
    * @param {number} score - 要上报的分数
    * @returns {Promise<boolean>} - 是否上报成功
    */
@@ -26,11 +41,15 @@ export class FriendLeaderboard {
     try {
       await wx.setUserCloudStorage({
         KVDataList: [{
-          key: 'score',  // 与 MP 后台配置一致
-          value: score.toString()  // 必须是字符串
+          key: 'score',
+          value: score.toString()
         }]
       })
       console.log('排行榜分数上报成功:', score)
+
+      // 上报成功后通知开放数据域刷新
+      this._notifyOpenDataFetch()
+
       return true
     } catch (err) {
       console.error('排行榜分数上报失败:', err)
@@ -39,12 +58,11 @@ export class FriendLeaderboard {
   }
 
   /**
-   * 获取好友排行榜数据
-   * 通过开放数据域（open data context）调用 wx.getFriendCloudStorage
-   * @returns {Promise<Object>} - { success, data, error, message }
+   * 触发好友排行榜数据获取
+   * 通知开放数据域调用 wx.getFriendCloudStorage，数据会渲染到 sharedCanvas
+   * @returns {Promise<Object>} - { success, error, message }
    */
   async fetchLeaderboard() {
-    // 检查 wx 是否存在
     if (typeof wx === 'undefined') {
       console.warn('wx 未定义，当前不是微信小游戏环境')
       return {
@@ -54,144 +72,47 @@ export class FriendLeaderboard {
       }
     }
 
-    // 检查是否有 getOpenDataContext（开放数据域通信）
-    if (typeof wx.getOpenDataContext !== 'function') {
-      console.warn('开放数据域 API 不可用，将使用空数据')
+    if (!this.openDataContext) {
+      this.init()
+    }
+
+    if (!this.openDataContext) {
+      console.warn('开放数据域不可用')
       return {
-        success: true,
-        data: { leaderboard: [] }
+        success: false,
+        error: 'no_open_data_context',
+        message: '开放数据域未配置'
       }
     }
 
     this.isLoading = true
     this.error = null
 
-    try {
-      const data = await this._requestFriendDataFromOpenData()
-      this.isLoading = false
-      this.lastFetchTime = Date.now()
+    // 通知开放数据域获取数据（开放数据域会渲染到 sharedCanvas）
+    this._notifyOpenDataFetch()
 
-      const leaderboard = this.processLeaderboardData(data)
-      this.data = { leaderboard }
-      return {
-        success: true,
-        data: this.data
-      }
-    } catch (err) {
-      this.isLoading = false
-      console.error('获取好友排行榜失败:', err)
+    // 等待一段时间让开放数据域完成渲染
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-      const errorMsg = (err.errMsg || err.message || '')
-      if (errorMsg.includes('auth') ||
-          errorMsg.includes('deny') ||
-          errorMsg.includes('authorize') ||
-          errorMsg.includes('授权') ||
-          errorMsg.includes('WxFriendInteraction')) {
-        this.error = 'auth_deny'
-        return {
-          success: false,
-          error: 'auth_deny',
-          message: '需要授权才能查看好友排行榜'
-        }
-      }
-      this.error = 'unknown'
-      return {
-        success: false,
-        error: 'unknown',
-        message: '获取好友排行榜失败，请稍后再试'
-      }
+    this.isLoading = false
+    this.lastFetchTime = Date.now()
+
+    return {
+      success: true,
+      data: { useSharedCanvas: true }
     }
   }
 
   /**
-   * 通过 postMessage 向开放数据域请求好友数据
-   * @returns {Promise<Array>} - 微信返回的原始 UserGameData 数组
+   * 通知开放数据域获取好友数据
    */
-  _requestFriendDataFromOpenData() {
-    return new Promise((resolve, reject) => {
-      const openDataContext = wx.getOpenDataContext()
-
-      // 监听开放数据域返回的消息
-      const onMessageHandler = (res) => {
-        if (res && res.command === 'fetchFriendLeaderboard') {
-          wx.offMessage(onMessageHandler)
-          if (res.success) {
-            resolve(res.data || [])
-          } else {
-            reject(res.error || new Error('开放数据域返回失败'))
-          }
-        }
-      }
-      wx.onMessage(onMessageHandler)
-
-      // 向开放数据域发送请求
-      openDataContext.postMessage({
+  _notifyOpenDataFetch() {
+    if (this.openDataContext) {
+      this.openDataContext.postMessage({
         command: 'fetchFriendLeaderboard',
         keyList: ['score']
       })
-
-      // 超时处理（10秒）
-      setTimeout(() => {
-        wx.offMessage(onMessageHandler)
-        reject(new Error('获取好友数据超时'))
-      }, 10000)
-    })
-  }
-
-  /**
-   * 处理排行榜数据
-   * @param {Array} data - 微信返回的原始数据
-   * @returns {Array} - 处理后的排行榜数据
-   */
-  processLeaderboardData(data) {
-    const currentUserNickname = this.gameState.userInfo.nickname
-    
-    console.log('原始数据:', data)
-    
-    // 微信已按 score 降序排列，我们只需要添加排名和标记当前用户
-    const leaderboard = data.map((user, index) => {
-      console.log('处理用户数据:', user)
-      
-      // 获取分数：从 KVDataList 中查找 key 为 'score' 的条目
-      // wx.getFriendCloudStorage 返回格式：UserGameData.KVDataList = [{ key, value }]
-      let score = 0
-      if (user.KVDataList && Array.isArray(user.KVDataList)) {
-        const scoreItem = user.KVDataList.find(item => item.key === 'score')
-        if (scoreItem) {
-          score = parseInt(scoreItem.value || '0')
-        }
-      }
-      
-      return {
-        rank: index + 1,
-        nickname: user.nickName || '微信用户',
-        avatarUrl: user.avatarUrl,
-        score: score,
-        isUser: false  // 后续标记
-      }
-    })
-
-    // 标记当前用户（通过昵称匹配）
-    // 注意：微信返回的数据中，自己的数据也在里面
-    if (currentUserNickname) {
-      const currentUser = leaderboard.find(user => 
-        user.nickname === currentUserNickname
-      )
-      if (currentUser) {
-        currentUser.isUser = true
-      }
     }
-
-    console.log('处理后的排行榜数据:', leaderboard)
-    return leaderboard
-  }
-
-  /**
-   * 清除缓存数据
-   */
-  clearData() {
-    this.data = null
-    this.error = null
   }
 
   /**
@@ -200,15 +121,22 @@ export class FriendLeaderboard {
    * @returns {Promise<Object>}
    */
   async getLeaderboard(forceRefresh = false) {
-    // 如果有缓存且不是强制刷新，直接返回
-    if (this.data && !forceRefresh && Date.now() - this.lastFetchTime < 30000) {
+    if (!forceRefresh && this.lastFetchTime > 0 && Date.now() - this.lastFetchTime < 30000) {
       return {
         success: true,
-        data: this.data,
+        data: { useSharedCanvas: true },
         fromCache: true
       }
     }
 
     return await this.fetchLeaderboard()
+  }
+
+  /**
+   * 清除缓存数据
+   */
+  clearData() {
+    this.error = null
+    this.lastFetchTime = 0
   }
 }
