@@ -1732,20 +1732,82 @@ export class UIManager {
 
   // 绘制好友排行榜错误提示
   _drawFriendLeaderboardError(ctx, modalX, modalY, modalW, modalH, hintY) {
-    const centerY = modalY + modalH / 2
-    
-    ctx.font = `14px ${FONT_FAMILY}`
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
-    ctx.textAlign = 'center'
-    
     if (this.friendLeaderboardError === 'auth_deny') {
-      ctx.fillText('请在设置中授权好友信息', this.width / 2, centerY)
-    } else if (this.friendLeaderboardError === 'not_wechat') {
-      ctx.fillText('请在微信小游戏中运行', this.width / 2, centerY)
+      this._drawFriendAuthPopup(ctx, modalX, modalY, modalW, modalH)
     } else {
-      // 不显示 unknown，显示通用错误提示
-      ctx.fillText('加载失败，请稍后再试', this.width / 2, centerY)
+      const centerY = modalY + modalH / 2
+      
+      ctx.font = `14px ${FONT_FAMILY}`
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+      ctx.textAlign = 'center'
+      
+      if (this.friendLeaderboardError === 'not_wechat') {
+        ctx.fillText('请在微信小游戏中运行', this.width / 2, centerY)
+      } else {
+        // 不显示 unknown，显示通用错误提示
+        ctx.fillText('加载失败，请稍后再试', this.width / 2, centerY)
+      }
     }
+  }
+
+  // 绘制好友授权引导弹窗
+  _drawFriendAuthPopup(ctx, modalX, modalY, modalW, modalH) {
+    // 弹窗内容区域
+    const contentW = modalW - 60
+    const contentH = 280
+    const contentX = modalX + 30
+    const contentY = modalY + (modalH - contentH) / 2 - 10
+    
+    // 背景卡片
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
+    drawRoundRect(ctx, contentX, contentY, contentW, contentH, 16)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    
+    // 图标
+    ctx.font = '48px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('', this.width / 2, contentY + 50)
+    
+    // 标题
+    ctx.font = `bold 16px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.fillText('需要好友信息授权', this.width / 2, contentY + 105)
+    
+    // 说明文字
+    ctx.font = `12px ${FONT_FAMILY}`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.fillText('请在设置中开启好友关系权限', this.width / 2, contentY + 135)
+    ctx.fillText('即可查看好友排行榜', this.width / 2, contentY + 155)
+    
+    // 去设置按钮
+    const btnW = contentW - 40
+    const btnH = 44
+    const btnX = contentX + 20
+    const btnY = contentY + contentH - btnH - 25
+    
+    const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH)
+    btnGradient.addColorStop(0, '#818cf8')
+    btnGradient.addColorStop(1, '#6366f1')
+    ctx.fillStyle = btnGradient
+    drawRoundRect(ctx, btnX, btnY, btnW, btnH, 22)
+    ctx.fill()
+    
+    ctx.font = `bold 15px ${FONT_FAMILY}`
+    ctx.fillStyle = Colors.white
+    ctx.fillText('去设置', this.width / 2, btnY + btnH / 2)
+    
+    // 注册按钮
+    this.buttons.push({
+      id: 'open_friend_setting',
+      x: btnX,
+      y: btnY,
+      w: btnW,
+      h: btnH
+    })
   }
 
   // 绘制好友排行榜骨架屏

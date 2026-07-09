@@ -40,10 +40,10 @@ export class FriendLeaderboard {
 
   /**
    * 获取好友排行榜数据
+   * 通过开放数据域（open data context）调用 wx.getFriendCloudStorage
    * @returns {Promise<Object>} - { success, data, error, message }
    */
   async fetchLeaderboard() {
-    console.log("wx.getFriendCloudStorage ---->", wx.getFriendCloudStorage)
     // 检查 wx 是否存在
     if (typeof wx === 'undefined') {
       console.warn('wx 未定义，当前不是微信小游戏环境')
@@ -54,16 +54,9 @@ export class FriendLeaderboard {
       }
     }
 
-    // 检查是否有 getFriendCloudStorage 或 getUserCloudStorage
-    const hasGetFriendCloudStorage = typeof wx.getFriendCloudStorage === 'function'
-    const hasGetUserCloudStorage = typeof wx.getUserCloudStorage === 'function'
-    
-    console.log('wx.getFriendCloudStorage 可用:', hasGetFriendCloudStorage)
-    console.log('wx.getUserCloudStorage 可用:', hasGetUserCloudStorage)
-    
-    if (!hasGetFriendCloudStorage && !hasGetUserCloudStorage) {
-      console.warn('微信好友排行榜 API 不可用，将使用降级方案')
-      // 返回空数据但不报错，显示无数据提示
+    // 检查是否有 getOpenDataContext（开放数据域通信）
+    if (typeof wx.getOpenDataContext !== 'function') {
+      console.warn('开放数据域 API 不可用，将使用空数据')
       return {
         success: true,
         data: { leaderboard: [] }
@@ -73,56 +66,75 @@ export class FriendLeaderboard {
     this.isLoading = true
     this.error = null
 
-    return new Promise((resolve) => {
-      // 优先使用 getFriendCloudStorage，如果不可用则使用 getUserCloudStorage
-      const apiMethod = hasGetFriendCloudStorage ? wx.getFriendCloudStorage : wx.getUserCloudStorage
-      
-      apiMethod({
-        keyList: ['score'],
-        success: (res) => {
-          console.log('获取好友排行榜成功:', res)
-          this.isLoading = false
-          this.lastFetchTime = Date.now()
+    try {
+      const data = await this._requestFriendDataFromOpenData()
+      this.isLoading = false
+      this.lastFetchTime = Date.now()
 
-          // 处理数据
-          const leaderboard = this.processLeaderboardData(res.data || [])
-          
-          this.data = { leaderboard }
-          resolve({
-            success: true,
-            data: this.data
-          })
-        },
-        fail: (err) => {
-          this.isLoading = false
-          console.error('获取好友排行榜失败:', err)
-          
-          // 判断是否是授权问题（多种错误格式）
-          const errorMsg = err.errMsg || err.message || ''
-          console.log('错误信息:', errorMsg)
-          
-          // 检查是否是好友互动授权问题
-          if (errorMsg.includes('auth') || 
-              errorMsg.includes('deny') || 
-              errorMsg.includes('authorize') ||
-              errorMsg.includes('授权') ||
-              errorMsg.includes('WxFriendInteraction')) {
-            this.error = 'auth_deny'
-            resolve({
-              success: false,
-              error: 'auth_deny',
-              message: '需要授权才能查看好友排行榜'
-            })
+      const leaderboard = this.processLeaderboardData(data)
+      this.data = { leaderboard }
+      return {
+        success: true,
+        data: this.data
+      }
+    } catch (err) {
+      this.isLoading = false
+      console.error('获取好友排行榜失败:', err)
+
+      const errorMsg = (err.errMsg || err.message || '')
+      if (errorMsg.includes('auth') ||
+          errorMsg.includes('deny') ||
+          errorMsg.includes('authorize') ||
+          errorMsg.includes('授权') ||
+          errorMsg.includes('WxFriendInteraction')) {
+        this.error = 'auth_deny'
+        return {
+          success: false,
+          error: 'auth_deny',
+          message: '需要授权才能查看好友排行榜'
+        }
+      }
+      this.error = 'unknown'
+      return {
+        success: false,
+        error: 'unknown',
+        message: '获取好友排行榜失败，请稍后再试'
+      }
+    }
+  }
+
+  /**
+   * 通过 postMessage 向开放数据域请求好友数据
+   * @returns {Promise<Array>} - 微信返回的原始 UserGameData 数组
+   */
+  _requestFriendDataFromOpenData() {
+    return new Promise((resolve, reject) => {
+      const openDataContext = wx.getOpenDataContext()
+
+      // 监听开放数据域返回的消息
+      const onMessageHandler = (res) => {
+        if (res && res.command === 'fetchFriendLeaderboard') {
+          wx.offMessage(onMessageHandler)
+          if (res.success) {
+            resolve(res.data || [])
           } else {
-            this.error = 'unknown'
-            resolve({
-              success: false,
-              error: 'unknown',
-              message: '获取好友排行榜失败，请稍后再试'
-            })
+            reject(res.error || new Error('开放数据域返回失败'))
           }
         }
+      }
+      wx.onMessage(onMessageHandler)
+
+      // 向开放数据域发送请求
+      openDataContext.postMessage({
+        command: 'fetchFriendLeaderboard',
+        keyList: ['score']
       })
+
+      // 超时处理（10秒）
+      setTimeout(() => {
+        wx.offMessage(onMessageHandler)
+        reject(new Error('获取好友数据超时'))
+      }, 10000)
     })
   }
 
@@ -140,14 +152,14 @@ export class FriendLeaderboard {
     const leaderboard = data.map((user, index) => {
       console.log('处理用户数据:', user)
       
-      // 获取分数：从 data 对象中获取
+      // 获取分数：从 KVDataList 中查找 key 为 'score' 的条目
+      // wx.getFriendCloudStorage 返回格式：UserGameData.KVDataList = [{ key, value }]
       let score = 0
-      if (user.data && typeof user.data === 'object') {
-        // wx.getFriendCloudStorage 返回的格式：user.data.score
-        score = parseInt(user.data.score || '0')
-      } else if (user.KVDataList && Array.isArray(user.KVDataList)) {
-        // wx.getUserCloudStorage 返回的格式：user.KVDataList[0].value
-        score = parseInt(user.KVDataList[0]?.value || '0')
+      if (user.KVDataList && Array.isArray(user.KVDataList)) {
+        const scoreItem = user.KVDataList.find(item => item.key === 'score')
+        if (scoreItem) {
+          score = parseInt(scoreItem.value || '0')
+        }
       }
       
       return {

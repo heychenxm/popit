@@ -490,8 +490,35 @@ export class Main {
         case 'close':
           this.closeFriendLeaderboard()
           break
+        case 'open_friend_setting':
+          this.openFriendSetting()
+          break
       }
     }
+  }
+
+  // 打开好友信息设置
+  openFriendSetting() {
+    if (typeof wx === 'undefined' || !wx.openSetting) {
+      this.uiManager.showToast('当前环境不支持打开设置')
+      return
+    }
+    wx.openSetting({
+      success: (res) => {
+        console.log('设置页面返回:', res)
+        // 用户从设置返回后，重新请求授权并刷新排行榜
+        if (res.authSetting && res.authSetting['scope.WxFriendInteraction']) {
+          this.uiManager.showToast('授权成功，正在刷新...')
+          this.refreshFriendLeaderboard()
+        } else {
+          this.uiManager.showToast('未开启好友权限，无法查看排行榜')
+        }
+      },
+      fail: (err) => {
+        console.warn('打开设置失败:', err)
+        this.uiManager.showToast('打开设置失败')
+      }
+    })
   }
 
   // 关闭好友排行榜
@@ -1676,19 +1703,21 @@ export class Main {
   }
 
   // 游戏初始化时触发好友关系授权（非阻塞）
-  // 好友关系授权通过调用开放数据域 API 隐式触发，不能用 wx.authorize
+  // 通过 wx.authorize 请求 scope.WxFriendInteraction 权限
   _initFriendAuthorize() {
-    if (typeof wx !== 'undefined' && wx.getUserCloudStorage) {
-      wx.getUserCloudStorage({
-        keyList: ['score'],
-        success: (res) => {
-          console.log('好友关系授权同意', res)
-        },
-        fail: (err) => {
-          console.warn('好友关系授权拒绝:', err)
-        }
-      })
+    if (typeof wx === 'undefined' || !wx.authorize) {
+      console.warn('当前环境不支持 wx.authorize')
+      return
     }
+    wx.authorize({
+      scope: 'scope.WxFriendInteraction',
+      success: () => {
+        console.log('好友互动授权同意')
+      },
+      fail: (err) => {
+        console.warn('好友互动授权拒绝:', err)
+      }
+    })
   }
 
   // 处理用户授权（获取昵称和头像）
