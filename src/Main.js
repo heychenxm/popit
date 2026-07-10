@@ -54,6 +54,11 @@ export class Main {
     this.sharedCanvas = null
     this._initSharedCanvas()
     
+    // 好友排行榜滚动状态
+    this.friendListScrollY = 0
+    this.friendListTouchStartY = 0
+    this.friendListTouchStartScrollY = 0
+    
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
     this._userInfoButton = null
@@ -269,6 +274,15 @@ export class Main {
       }
     })
     
+    // 触摸移动（用于好友排行榜滚动）
+    wx.onTouchMove((e) => {
+      if (this.uiManager.currentScreen === 'friend_leaderboard' && e.touches.length > 0) {
+        const touch = e.touches[0]
+        const y = touch.clientY || touch.y || 0
+        this.handleFriendLeaderboardTouchMove(y)
+      }
+    })
+    
     // 触摸结束
     wx.onTouchEnd((e) => {
       // 可以在这里添加触摸结束逻辑
@@ -303,6 +317,10 @@ export class Main {
     
     // 检查是否在好友排行榜界面
     if (this.uiManager.currentScreen === 'friend_leaderboard') {
+      // 记录触摸起始位置（用于滚动）
+      this.friendListTouchStartY = y
+      this.friendListTouchStartScrollY = this.friendListScrollY
+      this.friendListIsScrolling = false
       this.handleFriendLeaderboardTouch(x, y)
       return
     }
@@ -506,6 +524,9 @@ export class Main {
 
   // 处理好友排行榜触摸
   async handleFriendLeaderboardTouch(x, y) {
+    // 如果正在滚动，不处理按钮点击
+    if (this.friendListIsScrolling) return
+    
     const buttonId = this.uiManager.handleTouch(x, y)
     
     if (buttonId) {
@@ -521,6 +542,39 @@ export class Main {
           break
       }
     }
+  }
+
+  // 处理好友排行榜触摸移动（滚动）
+  handleFriendLeaderboardTouchMove(y) {
+    const deltaY = this.friendListTouchStartY - y
+    
+    // 移动超过 5px 视为滚动
+    if (Math.abs(deltaY) > 5) {
+      this.friendListIsScrolling = true
+    }
+    
+    if (!this.friendListIsScrolling) return
+    
+    // 计算新的滚动偏移
+    const newScrollY = this.friendListTouchStartScrollY + deltaY
+    
+    // 计算最大滚动范围
+    const maxScrollY = this.getMaxFriendListScroll()
+    
+    // 限制滚动范围
+    this.friendListScrollY = Math.max(0, Math.min(newScrollY, maxScrollY))
+  }
+
+  // 获取好友排行榜最大滚动偏移
+  getMaxFriendListScroll() {
+    const sharedCanvas = this.sharedCanvas
+    if (!sharedCanvas) return 0
+    
+    const dpr = this.pixelRatio || 2
+    const canvasLogicalH = sharedCanvas.height / dpr
+    const visibleH = 440  // 可视区域高度（与 UIManager 中 canvasH 一致）
+    
+    return Math.max(0, canvasLogicalH - visibleH)
   }
 
   // 打开好友信息设置
@@ -556,6 +610,10 @@ export class Main {
     this.uiManager.friendLeaderboardData = null
     this.uiManager.friendLeaderboardLoading = false
     this.uiManager.friendLeaderboardError = null
+    
+    // 重置滚动状态
+    this.friendListScrollY = 0
+    this.friendListIsScrolling = false
     
     // 切换到主菜单
     this.uiManager.currentScreen = 'menu'
@@ -1319,6 +1377,10 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     
+    // 重置滚动状态
+    this.friendListScrollY = 0
+    this.friendListIsScrolling = false
+    
     // 切换到好友排行榜界面
     this.uiManager.currentScreen = 'friend_leaderboard'
     console.log('currentScreen 设置为:', this.uiManager.currentScreen)
@@ -1358,6 +1420,10 @@ export class Main {
   // 刷新好友排行榜数据
   async refreshFriendLeaderboard() {
     console.log('refreshFriendLeaderboard 开始执行')
+    
+    // 重置滚动状态
+    this.friendListScrollY = 0
+    this.friendListIsScrolling = false
     
     // 检查是否在微信环境中
     if (typeof wx === 'undefined') {

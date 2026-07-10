@@ -1912,9 +1912,27 @@ export class UIManager {
     const canvasX = modalX + (modalW - canvasW) / 2
     const canvasY = hintY + 20
     
-    // 绘制 sharedCanvas 到主画布
+    // 获取滚动偏移（从全局 game 实例）
+    let scrollY = 0
+    if (typeof globalThis !== 'undefined' && globalThis.game) {
+      scrollY = globalThis.game.friendListScrollY || 0
+    } else if (typeof global !== 'undefined' && global.game) {
+      scrollY = global.game.friendListScrollY || 0
+    }
+    
+    // 获取 sharedCanvas 实际逻辑高度
+    const dpr = (typeof globalThis !== 'undefined' && globalThis.game ? globalThis.game.pixelRatio : 2) || 2
+    const actualCanvasH = sharedCanvas.height / dpr
+    
+    // 使用 9 参数 drawImage 实现源裁剪滚动
+    // 源矩形：从 scrollY 开始，高度为可视区域
+    // 目标矩形：固定位置
     ctx.save()
-    ctx.drawImage(sharedCanvas, canvasX, canvasY, canvasW, canvasH)
+    ctx.drawImage(
+      sharedCanvas,
+      0, scrollY * dpr, canvasW * dpr, canvasH * dpr,  // 源：从 scrollY 裁剪
+      canvasX, canvasY, canvasW, canvasH                // 目标：固定位置
+    )
     ctx.restore()
   }
 

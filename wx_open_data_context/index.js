@@ -16,13 +16,14 @@ const ctx = sharedCanvas.getContext('2d')
 const systemInfo = wx.getSystemInfoSync()
 const dpr = systemInfo.pixelRatio || 2
 
-// 逻辑坐标尺寸
+// 逻辑坐标尺寸（宽度固定，高度根据数据量动态计算）
 const LOGICAL_W = 340
-const LOGICAL_H = 440
+const BASE_LOGICAL_H = 440  // 基础高度（无数据时的最小高度）
 
 let cachedData = []
 let myNickname = ''
 let renderNeeded = true
+let currentLogicalH = BASE_LOGICAL_H  // 当前实际高度
 
 // 头像缓存
 const avatarCache = new Map()
@@ -73,6 +74,8 @@ wx.onMessage(function(data) {
           }
           return scoreB - scoreA
         })
+        // 更新画布尺寸
+        updateCanvasSize()
         renderNeeded = true
         console.log('开放数据域: 获取好友数据成功, 数量:', cachedData.length)
       },
@@ -93,10 +96,42 @@ function render() {
   requestAnimationFrame(render)
 }
 
+/**
+ * 根据数据量计算所需的画布逻辑高度
+ */
+function calculateLogicalHeight(data) {
+  const itemHeight = 60
+  const itemGap = 8
+  const startY = 10
+  const separatorGap = 10
+  const selfGap = 12
+  const selfHeight = 60
+  const bottomPadding = 20
+  
+  const dataCount = data ? data.length : 0
+  const friendListHeight = dataCount * itemHeight + Math.max(0, dataCount - 1) * itemGap
+  const totalHeight = startY + friendListHeight + separatorGap + selfGap + selfHeight + bottomPadding
+  
+  return Math.max(BASE_LOGICAL_H, totalHeight)
+}
+
+/**
+ * 更新画布尺寸（物理像素）
+ */
+function updateCanvasSize() {
+  const newLogicalH = calculateLogicalHeight(cachedData)
+  if (newLogicalH !== currentLogicalH) {
+    currentLogicalH = newLogicalH
+    sharedCanvas.width = LOGICAL_W * dpr
+    sharedCanvas.height = currentLogicalH * dpr
+    console.log('开放数据域: 画布尺寸更新为', LOGICAL_W, 'x', currentLogicalH, '(物理:', sharedCanvas.width, 'x', sharedCanvas.height, ')')
+  }
+}
+
 function drawLeaderboard(data) {
   // 物理像素尺寸
   const w = LOGICAL_W * dpr
-  const h = LOGICAL_H * dpr
+  const h = currentLogicalH * dpr
 
   // 清空画布
   ctx.clearRect(0, 0, w, h)
@@ -121,9 +156,8 @@ function drawLeaderboard(data) {
   const nicknameFontSize = 14 * dpr
   const scoreFontSize = 14 * dpr
 
-  // 好友列表区域（最多显示 4 条，留出底部自己排名的空间）
-  const maxFriendItems = 4
-  const friendListHeight = maxFriendItems * itemHeight + (maxFriendItems - 1) * itemGap
+  // 好友列表区域（渲染所有数据，不限制条数）
+  const friendListHeight = data.length * itemHeight + Math.max(0, data.length - 1) * itemGap
 
   // 分隔线位置
   const separatorY = startY + friendListHeight + 10 * dpr
@@ -131,20 +165,19 @@ function drawLeaderboard(data) {
   // 自己排名区域
   const selfY = separatorY + 12 * dpr
 
-  // 绘制好友列表
+  // 绘制好友列表（全部渲染）
   data.forEach(function(user, index) {
-    if (index >= maxFriendItems) return
     const y = startY + index * (itemHeight + itemGap)
-    if (y + itemHeight > separatorY) return
 
-    drawRankItem(ctx, user, index + 1, y, itemHeight, padding, w, avatarSize, avatarRadius, rankFontSize, nicknameFontSize, scoreFontSize, dpr, false)
+    const rank = getRank(data, index)
+    drawRankItem(ctx, user, rank, y, itemHeight, padding, w, avatarSize, avatarRadius, rankFontSize, nicknameFontSize, scoreFontSize, dpr, false)
   })
 
   // 绘制分隔线
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
   ctx.fillRect(padding, separatorY, w - padding * 2, 1 * dpr)
 
-  // 查找自己的排名
+  // 查找自己的排名（同分同名次）
   let selfRank = -1
   let selfUser = null
   if (myNickname) {
@@ -152,7 +185,7 @@ function drawLeaderboard(data) {
       const u = data[i]
       const name = u.nickName || u.nickname || u.NickName || ''
       if (name === myNickname) {
-        selfRank = i + 1
+        selfRank = getRank(data, i)
         selfUser = u
         break
       }
@@ -176,6 +209,34 @@ function drawLeaderboard(data) {
   }
 
   renderNeeded = false
+}
+
+/**
+ * 计算排名（同分同名次）
+ * 例如分数 [2025, 35, 35, 20] → 排名 [1, 2, 2, 4]
+ */
+function getRank(data, index) {
+  if (index === 0) return 1
+  var currentScore = getScore(data[index])
+  var prevScore = getScore(data[index - 1])
+  if (currentScore === prevScore) {
+    // 同分，往前找到第一个不同分的位置
+    for (var i = index - 1; i >= 0; i--) {
+      if (getScore(data[i]) !== currentScore) {
+        return i + 2
+      }
+    }
+    return 1
+  }
+  return index + 1
+}
+
+function getScore(user) {
+  if (user.KVDataList && Array.isArray(user.KVDataList)) {
+    var item = user.KVDataList.find(function(item) { return item.key === 'score' })
+    if (item) return parseInt(item.value || '0')
+  }
+  return 0
 }
 
 /**
@@ -235,11 +296,7 @@ function drawRankItem(ctx, user, rank, y, itemHeight, padding, w, avatarSize, av
   ctx.fillText(displayNickname, avatarX + avatarRadius + 8 * dpr, y + itemHeight / 2)
 
   // 分数
-  let score = 0
-  if (user.KVDataList && Array.isArray(user.KVDataList)) {
-    var scoreItem = user.KVDataList.find(function(item) { return item.key === 'score' })
-    if (scoreItem) score = parseInt(scoreItem.value || '0')
-  }
+  var score = getScore(user)
   ctx.fillStyle = isSelf ? '#fff' : '#a5b4fc'
   ctx.font = 'bold ' + scoreFontSize + 'px sans-serif'
   ctx.textAlign = 'right'
