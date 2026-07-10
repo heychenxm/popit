@@ -110,7 +110,8 @@ export class FriendLeaderboard {
     if (this.openDataContext) {
       this.openDataContext.postMessage({
         command: 'fetchFriendLeaderboard',
-        keyList: ['score']
+        keyList: ['score'],
+        myNickname: this.gameState.userInfo.nickname || ''
       })
     }
   }

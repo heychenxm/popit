@@ -132,7 +132,7 @@ export class Main {
   
   /**
    * 初始化开放数据域 sharedCanvas
-   * sharedCanvas 的宽高只能在主域设置
+   * sharedCanvas 的宽高只能在主域设置，按 DPR 放大实现高清渲染
    */
   _initSharedCanvas() {
     if (typeof wx === 'undefined' || typeof wx.getOpenDataContext !== 'function') return
@@ -141,12 +141,12 @@ export class Main {
       const openDataContext = wx.getOpenDataContext()
       this.sharedCanvas = openDataContext.canvas
       
-      // 设置 sharedCanvas 尺寸（好友排行榜内容区域大小）
-      // 模态框宽 360，内容区域约 300；高度约 400
-      this.sharedCanvas.width = 300
-      this.sharedCanvas.height = 420
+      // 按设备像素比放大（高清渲染）
+      const dpr = this.pixelRatio || 2
+      this.sharedCanvas.width = 340 * dpr
+      this.sharedCanvas.height = 440 * dpr
       
-      console.log('sharedCanvas 初始化完成, 尺寸:', this.sharedCanvas.width, 'x', this.sharedCanvas.height)
+      console.log('sharedCanvas 初始化完成, 物理尺寸:', this.sharedCanvas.width, 'x', this.sharedCanvas.height)
     } catch (e) {
       console.warn('初始化 sharedCanvas 失败:', e)
     }
@@ -615,6 +615,10 @@ export class Main {
       switch (buttonId) {
         case 'start':
           this.startGame()
+          break
+        case 'friend_rank':
+          // 好友排行按钮：检查授权并显示好友排行榜
+          this.showFriendLeaderboard()
           break
         case 'leaderboard':
           // 首页的排行榜按钮 - 显示全局排行榜

@@ -176,6 +176,7 @@ export class UIManager {
     this.drawBestScore(gameState)
     this.drawAuthButton(gameState)
     this.drawStartButton()
+    this.drawFriendRankButton()
     this.drawBottomButtons(gameState)
     this.drawSeasonBanner(gameState)
     if (gameState.canShareGift() && gameState.getTodayShareCount() < config.game.maxShareCountPerDay) {
@@ -240,6 +241,7 @@ export class UIManager {
       this.drawBestScore(gameState)
       this.drawAuthButton(gameState)
       this.drawStartButton()
+      this.drawFriendRankButton()
       this.drawBottomButtons(gameState)
       this.drawSeasonBanner(gameState)
       if (gameState.canShareGift() && gameState.getTodayShareCount() < config.game.maxShareCountPerDay) {
@@ -652,6 +654,69 @@ export class UIManager {
     // 记录按钮区域
     this.buttons.push({
       id: 'start',
+      x: btnX,
+      y: btnY,
+      w: btnWidth,
+      h: btnHeight
+    })
+    
+    ctx.restore()
+  }
+
+  // 绘制好友排行按钮（在开始游戏按钮下方）
+  drawFriendRankButton() {
+    const ctx = this.ctx
+    const btnWidth = 216
+    const btnHeight = 52
+    const btnX = this.width / 2 - btnWidth / 2
+    const btnY = this.height * 0.62
+    const btnRadius = 26
+    
+    ctx.save()
+    
+    // 3D 阴影层
+    ctx.fillStyle = '#4338ca'
+    drawRoundRect(ctx, btnX, btnY + 4, btnWidth, btnHeight, btnRadius)
+    ctx.fill()
+    
+    // 渐变背景
+    if (!this.cachedGradients) {
+      this.cachedGradients = {}
+    }
+    this.cachedGradients.friendRankBtn = ctx.createLinearGradient(0, 0, 0, btnHeight)
+    this.cachedGradients.friendRankBtn.addColorStop(0, '#6366f1')
+    this.cachedGradients.friendRankBtn.addColorStop(1, '#a855f7')
+    
+    // 主按钮体
+    ctx.fillStyle = this.cachedGradients.friendRankBtn
+    drawRoundRect(ctx, btnX, btnY, btnWidth, btnHeight, btnRadius)
+    ctx.fill()
+    
+    // 白色边框
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 顶部高光
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'
+    drawRoundRect(ctx, btnX + 8, btnY + 4, btnWidth - 16, 12, 6)
+    ctx.fill()
+    
+    // 奖杯图标
+    const iconX = this.width / 2 - 50
+    const iconY = btnY + btnHeight / 2
+    drawTrophyIcon(ctx, iconX, iconY, 20, Colors.white)
+    
+    // 文字
+    ctx.font = `bold 16px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.white
+    ctx.fillText('好友排行', this.width / 2 + 10, btnY + btnHeight / 2)
+    
+    // 记录按钮区域
+    this.buttons.push({
+      id: 'friend_rank',
       x: btnX,
       y: btnY,
       w: btnWidth,
@@ -1842,8 +1907,8 @@ export class UIManager {
     }
     
     // 计算 sharedCanvas 绘制位置（内容区域）
-    const canvasW = 300
-    const canvasH = 420
+    const canvasW = 340
+    const canvasH = 440
     const canvasX = modalX + (modalW - canvasW) / 2
     const canvasY = hintY + 20
     
