@@ -102,7 +102,12 @@ export class GameState {
       bestStreak: 0,
       userRank: 0,
       rewardCoins: 0,
-      settled: false
+      settled: false,
+      lastSeasonReward: 0,
+      lastSeasonId: '',
+      lastSeasonScoreRank: 0,
+      lastSeasonWaveRank: 0,
+      lastSeasonRewardDetail: null
     }
     
     // 赛季信息
@@ -113,15 +118,66 @@ export class GameState {
       timeRemaining: 0
     }
     
-    // 初始化赛季信息
+    // 初始化赛季信息，并恢复本赛季本地缓存
     this.initSeasonInfo()
+    this._loadSeasonDataFromStorage()
     
     // 赛季数据初始化后，记录本局开始时的赛季最高分
     this.sessionStartSeasonScore = this.seasonData.seasonScore
     
+    // 云端保存防抖
+    this._saveCloudTimer = null
+    
     // 好友排行榜
     this.friendLeaderboard = new FriendLeaderboard(this)
     this.friendLeaderboard.init()
+  }
+
+  /**
+   * 从本地恢复当前赛季进度（杀进程未回首页时不丢分）
+   */
+  _loadSeasonDataFromStorage() {
+    const saved = getStorage('seasonData', null)
+    if (!saved || typeof saved !== 'object') return
+
+    const currentId = this.seasonInfo.currentSeasonId
+    if (!currentId || saved.seasonId !== currentId) return
+
+    this.seasonData.seasonId = saved.seasonId
+    this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore || 0, Number(saved.seasonScore) || 0)
+    this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave || 0, Number(saved.seasonWave) || 0)
+    this.seasonData.totalGames = Math.max(this.seasonData.totalGames || 0, Number(saved.totalGames) || 0)
+    this.seasonData.totalClears = Math.max(this.seasonData.totalClears || 0, Number(saved.totalClears) || 0)
+    this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak || 0, Number(saved.bestStreak) || 0)
+  }
+
+  /**
+   * 持久化赛季进度到本地
+   */
+  _persistSeasonDataLocal() {
+    this._scheduleStorageWrite('seasonData', {
+      seasonId: this.seasonInfo.currentSeasonId || this.seasonData.seasonId || '',
+      seasonScore: this.seasonData.seasonScore || 0,
+      seasonWave: this.seasonData.seasonWave || 0,
+      totalGames: this.seasonData.totalGames || 0,
+      totalClears: this.seasonData.totalClears || 0,
+      bestStreak: this.seasonData.bestStreak || 0
+    })
+  }
+
+  /**
+   * 防抖保存到云端（避免触发 saveGameData 3 秒限流）
+   */
+  scheduleSaveToCloud(delayMs = 1000) {
+    if (this._saveCloudTimer) {
+      clearTimeout(this._saveCloudTimer)
+    }
+    this._saveCloudTimer = setTimeout(() => {
+      this._saveCloudTimer = null
+      this.saveToCloud().catch(err => {
+        console.warn('防抖保存云端失败:', err && err.message ? err.message : err)
+      })
+    }, delayMs)
   }
 
   // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）
@@ -240,19 +296,18 @@ export class GameState {
     return this.score > this.sessionStartSeasonScore && this.sessionStartSeasonScore >= 0
   }
 
-  // 保存最高分和最高关卡（本地存储，关卡结束后调用）
-  saveHighScoreLocal() {
+  // 保存最高分和最高关卡（本地存储）
+  // updateBestWave: 仅通关成功时为 true，失败时不把「进行中的关」计入最高关
+  saveHighScoreLocal({ updateBestWave = false } = {}) {
     let hasUpdate = false
     
-    // 更新最高分
     if (this.score > this.highScore) {
       this.highScore = this.score
       setStorage('highScore', this.highScore)
       hasUpdate = true
     }
     
-    // 更新最高关卡（只有成功通过的关卡才算）
-    if (this.wave > this.bestWave) {
+    if (updateBestWave && this.wave > this.bestWave) {
       this.bestWave = this.wave
       setStorage('bestWave', this.bestWave)
       hasUpdate = true
@@ -272,7 +327,11 @@ export class GameState {
   reportScoreToLeaderboard() {
     if (!this.friendLeaderboard) return
 
+    this.seasonData.seasonId = this.seasonInfo.currentSeasonId
     this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore || 0, this.score || 0)
+    this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave || 0, this.wave || 0)
+    this._persistSeasonDataLocal()
+
     const seasonScore = this.seasonData.seasonScore
 
     this.friendLeaderboard.syncScore(seasonScore).catch(err => {
@@ -701,7 +760,7 @@ export class GameState {
     if (wechatAPI.isCloudAvailable()) {
       try {
         const result = await fetchFn()
-        if (result.success && result.data) {
+        if (result && result.success && result.data) {
           setStorage(cacheKey, {
             data: result.data,
             timestamp: Date.now(),
@@ -709,12 +768,25 @@ export class GameState {
           })
           return { success: true, data: result.data, fromCache: false }
         }
+        // 云函数明确失败
+        if (result && result.success === false) {
+          return {
+            success: false,
+            message: result.error || `获取${label}失败`,
+            data: fallbackData
+          }
+        }
       } catch (err) {
         console.log(`获取云端${label}失败:`, err.message || err)
+        return {
+          success: false,
+          message: err.message || `获取${label}失败`,
+          data: fallbackData
+        }
       }
     }
 
-    // 返回 fallback 数据
+    // 无云能力时返回 fallback
     return { success: true, data: fallbackData, fromCache: false }
   }
 
@@ -792,12 +864,31 @@ export class GameState {
    * @returns {Promise<Object>} 赛季数据
    */
   async getSeasonData(type = 'score') {
+    // 打开前刷新赛季信息，避免跨周仍用旧 seasonId
+    this.initSeasonInfo()
+
+    const cacheKey = `season_leaderboard_${type}_cache`
+    const currentSeasonId = this.seasonInfo.currentSeasonId
+
+    // 缓存若属于旧赛季，直接丢弃，避免空榜或错季数据被当成「加载中」
+    try {
+      const cached = wx.getStorageSync(cacheKey)
+      if (cached) {
+        const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached
+        if (parsed && parsed.data && parsed.data.seasonId && parsed.data.seasonId !== currentSeasonId) {
+          wx.removeStorageSync(cacheKey)
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
     return this._fetchWithCache(
-      `season_leaderboard_${type}_cache`,
+      cacheKey,
       () => wechatAPI.getSeasonLeaderboard(type),
       {
         type,
-        seasonId: this.seasonInfo.currentSeasonId,
+        seasonId: currentSeasonId,
         seasonStartTime: this.seasonInfo.seasonStartTime,
         seasonEndTime: this.seasonInfo.seasonEndTime,
         leaderboard: [],
@@ -835,6 +926,8 @@ export class GameState {
    */
   incrementSeasonGames() {
     this.seasonData.totalGames = (this.seasonData.totalGames || 0) + 1
+    this.seasonData.seasonId = this.seasonInfo.currentSeasonId
+    this._persistSeasonDataLocal()
   }
 
   /**
@@ -846,10 +939,12 @@ export class GameState {
    */
   updateSeasonDataLocal(score, wave, clears, streak) {
     // 只更新本地数据
+    this.seasonData.seasonId = this.seasonInfo.currentSeasonId
     this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore, score)
     this.seasonData.seasonWave = Math.max(this.seasonData.seasonWave, wave)
     this.seasonData.totalClears = (this.seasonData.totalClears || 0) + (clears || 0)
     this.seasonData.bestStreak = Math.max(this.seasonData.bestStreak, streak || 0)
+    this._persistSeasonDataLocal()
   }
   
   /**
@@ -896,6 +991,20 @@ export class GameState {
     this.seasonData.lastSeasonRewardDetail = null
     // 同步到云端，标记已显示
     this.saveToCloud().catch(() => {})
+  }
+
+  /**
+   * 新赛季开始时重置本地赛季累计数据
+   */
+  resetSeasonProgressForNewSeason(seasonId) {
+    this.seasonData.seasonId = seasonId || this.seasonInfo.currentSeasonId
+    this.seasonData.seasonScore = 0
+    this.seasonData.seasonWave = 0
+    this.seasonData.totalGames = 0
+    this.seasonData.totalClears = 0
+    this.seasonData.bestStreak = 0
+    this.sessionStartSeasonScore = 0
+    this._persistSeasonDataLocal()
   }
 
   // ========== 云端同步 ==========
@@ -996,6 +1105,7 @@ export class GameState {
 
       // 加载赛季数据（修复：从云端加载赛季数据，支持跨会话累积）
       if (cloud.seasonId === this.seasonInfo.currentSeasonId) {
+        this.seasonData.seasonId = cloud.seasonId
         if (typeof cloud.seasonScore === 'number' && cloud.seasonScore > this.seasonData.seasonScore) {
           this.seasonData.seasonScore = cloud.seasonScore
           updated = true
@@ -1059,12 +1169,6 @@ export class GameState {
         coins: this.coins,
         highScore: this.highScore,
         bestWave: this.bestWave,
-        lastCheckinDate: this.lastCheckinDate,
-        checkinStreak: this.checkinStreak,
-        lastCheckinType: this.lastCheckinType || '',
-        lastShareDate: this.lastShareDate,
-        todayShareCount: this.todayShareCount,
-        lastShareGiftDate: this.lastShareGiftDate,
         seasonId: this.seasonInfo.currentSeasonId,
         seasonScore: this.seasonData.seasonScore,
         seasonWave: this.seasonData.seasonWave,
@@ -1072,7 +1176,13 @@ export class GameState {
         totalClears: this.seasonData.totalClears,
         bestStreak: this.seasonData.bestStreak,
         nickname: this.userInfo.nickname || '',
-        avatarUrl: this.userInfo.avatarUrl || ''
+        avatarUrl: this.userInfo.avatarUrl || '',
+        // 赛季奖励提示标记（清零后同步云端）
+        lastSeasonReward: this.seasonData.lastSeasonReward || 0,
+        lastSeasonId: this.seasonData.lastSeasonId || '',
+        lastSeasonScoreRank: this.seasonData.lastSeasonScoreRank || 0,
+        lastSeasonWaveRank: this.seasonData.lastSeasonWaveRank || 0,
+        lastSeasonRewardDetail: this.seasonData.lastSeasonRewardDetail || null
       }
       
       console.log('准备保存到云端（游戏数据）')
@@ -1094,21 +1204,20 @@ export class GameState {
     const lastSeasonId = getStorage('lastSeasonId', '')
     const currentSeasonId = this.seasonInfo.currentSeasonId
 
-    // 首次记录或赛季未变更
     if (!lastSeasonId || lastSeasonId === currentSeasonId) {
-      // 仅记录当前赛季
       if (!lastSeasonId) {
         setStorage('lastSeasonId', currentSeasonId)
       }
       return
     }
 
-    // 赛季变更，结算上赛季
     console.warn(`检测到赛季变更: ${lastSeasonId} → ${currentSeasonId}，开始结算上赛季`)
 
+    let settledOk = false
     try {
       const result = await wechatAPI.settleSeason(lastSeasonId)
       if (result.success) {
+        settledOk = true
         console.log(`赛季 ${lastSeasonId} 结算完成:`, result.data)
       } else {
         console.log(`赛季 ${lastSeasonId} 结算失败:`, result.error)
@@ -1117,17 +1226,27 @@ export class GameState {
       console.log(`赛季结算异常（不影响游戏）:`, err.message || err)
     }
 
-    // 修复：赛季变更时主动清除旧赛季的缓存，确保新赛季看到最新数据
+    // 仅结算成功后再推进本地赛季标记，失败时下次启动可重试
+    if (!settledOk) return
+
     try {
       wx.removeStorageSync(`season_leaderboard_score_cache`)
       wx.removeStorageSync(`season_leaderboard_wave_cache`)
-      console.log('已清除赛季排行榜缓存')
     } catch (e) {
       console.warn('清除赛季排行榜缓存失败:', e)
     }
 
-    // 更新本地记录的赛季 ID
+    // 若本地进度仍属旧赛季才清零；已从云端合并的新赛季数据予以保留
+    if (!this.seasonData.seasonId || this.seasonData.seasonId === lastSeasonId) {
+      this.resetSeasonProgressForNewSeason(currentSeasonId)
+    } else {
+      this.seasonData.seasonId = currentSeasonId
+    }
     setStorage('lastSeasonId', currentSeasonId)
+
+    if (this.friendLeaderboard) {
+      this.friendLeaderboard.syncScore(this.seasonData.seasonScore || 0).catch(() => {})
+    }
   }
 
   /**

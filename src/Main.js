@@ -95,7 +95,19 @@ export class Main {
       this.bindLifecycleEvents()
       
       // 从云端加载数据（异步，不阻塞游戏启动）
-      this.gameState.loadCloudData().catch(() => {})
+      this.gameState.loadCloudData().then(() => {
+        // 赛季奖励到账提示
+        const reward = this.gameState.checkPendingSeasonReward()
+        if (reward && reward.reward > 0) {
+          this.uiManager.showToast(`赛季奖励 +${reward.reward} 金币已到账`)
+          this.gameState.clearSeasonReward()
+        }
+        // 云端赛季分加载后刷新本局对照基准（仍在菜单时）
+        if (this.gameState.phase === 'MENU') {
+          this.gameState.sessionStartSeasonScore = this.gameState.seasonData.seasonScore || 0
+          this.gameState.sessionStartHighScore = this.gameState.highScore || 0
+        }
+      }).catch(() => {})
       
       // 阶段 1：立即创建必要的缓存（背景）
       this.bubbleGrid.createBgCache()
@@ -203,21 +215,36 @@ export class Main {
     // 游戏隐藏（切换到后台）
     wx.onHide(() => {
       console.log('游戏隐藏')
-      // 立即保存数据到本地
       this.gameState._flushStorageWrites()
+
+      // 对局中切后台自动暂停，避免回来后倒计时瞬间超时
+      if (!this.gameState.isPaused
+          && (this.gameState.phase === 'OBSERVE' || this.gameState.phase === 'PLAY'
+              || this.gameState.phase === 'COUNTDOWN')
+          && this.uiManager.currentScreen === 'game') {
+        this.pauseGame()
+      }
     })
     
     // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
+
+      // 刷新赛季信息（防止挂机跨周）
+      if (this.gameState && typeof this.gameState.initSeasonInfo === 'function') {
+        const prevSeasonId = this.gameState.seasonInfo && this.gameState.seasonInfo.currentSeasonId
+        this.gameState.initSeasonInfo()
+        const nextSeasonId = this.gameState.seasonInfo && this.gameState.seasonInfo.currentSeasonId
+        if (prevSeasonId && nextSeasonId && prevSeasonId !== nextSeasonId) {
+          this.gameState.checkAndSettleSeason().catch(() => {})
+        }
+      }
       
-      // 清除分享复活超时
       if (this._shareReviveTimeout) {
         clearTimeout(this._shareReviveTimeout)
         this._shareReviveTimeout = null
       }
       
-      // 检查是否正在等待分享复活返回
       if (this.gameState.isWaitingShareRevive) {
         this.gameState.isWaitingShareRevive = false
         this.executeShareRevive()
@@ -286,7 +313,9 @@ export class Main {
     
     // 触摸结束
     wx.onTouchEnd((e) => {
-      // 可以在这里添加触摸结束逻辑
+      if (this.uiManager.currentScreen === 'friend_leaderboard') {
+        this.friendListIsScrolling = false
+      }
     })
   }
 
@@ -434,8 +463,8 @@ export class Main {
 
   // 刷新赛季排名数据
   async refreshSeasonLeaderboard() {
-    // 设置加载状态
     this.uiManager.seasonLeaderboardLoading = true
+    this.uiManager.seasonLeaderboardData = null
     
     const result = await this.gameState.getSeasonData(this.uiManager.seasonLeaderboardType)
     
@@ -443,10 +472,15 @@ export class Main {
       this.uiManager.seasonLeaderboardData = result.data
     } else {
       this.uiManager.showToast(result.message || '获取赛季排名失败')
-      this.uiManager.seasonLeaderboardData = null
+      this.uiManager.seasonLeaderboardData = {
+        type: this.uiManager.seasonLeaderboardType,
+        seasonId: this.gameState.seasonInfo.currentSeasonId,
+        leaderboard: [],
+        userRank: 0,
+        userValue: 0
+      }
     }
     
-    // 清除加载状态
     this.uiManager.seasonLeaderboardLoading = false
   }
 
@@ -593,23 +627,30 @@ export class Main {
     this.audioManager.play('click')
     this.vibrate('light')
     
-    // 清除好友排行榜状态
     this.uiManager.friendLeaderboardData = null
     this.uiManager.friendLeaderboardLoading = false
     this.uiManager.friendLeaderboardError = null
     
-    // 重置滚动状态
     this.friendListIsScrolling = false
     this.friendListLastY = 0
     if (this.gameState.friendLeaderboard) {
       this.gameState.friendLeaderboard.resetScroll()
     }
-    
-    // 切换到主菜单
-    this.uiManager.currentScreen = 'menu'
-    
-    // 确保游戏状态也是 MENU 阶段
-    if (this.gameState.phase !== 'MENU') {
+
+    // 恢复打开前的界面（例如失败页），避免丢失复活入口
+    const returnScreen = this._friendLbReturnScreen || 'menu'
+    const returnPhase = this._friendLbReturnPhase || 'MENU'
+    this._friendLbReturnScreen = null
+    this._friendLbReturnPhase = null
+
+    if (returnScreen === 'fail') {
+      this.uiManager.currentScreen = 'fail'
+      this.gameState.phase = 'FAIL'
+    } else if (returnScreen === 'pause') {
+      this.uiManager.currentScreen = 'pause'
+      this.gameState.isPaused = true
+    } else {
+      this.uiManager.currentScreen = 'menu'
       this.gameState.phase = 'MENU'
     }
   }
@@ -686,7 +727,8 @@ export class Main {
           this.handleQuickShare()
           break
         case 'share_gift':
-          // 右上角分享礼包图标：显示分享礼包弹窗，每天可领一次，奖励 +1000 金币
+          // 右上角分享礼包图标：显示分享礼包弹窗，每天可领一次
+          // 奖励金额见 config.rewards.shareGift
           this.showShare()
           break
         case 'authorize':
@@ -1040,10 +1082,11 @@ export class Main {
       this.gameState.consecutiveWins
     )
     
-    // 不再每关都保存，等待用户点击"返回首页"时统一保存
+    // 通关后防抖写云，避免只依赖「返回首页」
+    this.gameState.scheduleSaveToCloud(2000)
     
-    // 本地保存最高分和最高关卡（不上报排行榜）
-    this.gameState.saveHighScoreLocal()
+    // 本地保存最高分和最高关卡（通关时才更新 bestWave）
+    this.gameState.saveHighScoreLocal({ updateBestWave: true })
     
     // 进入下一关
     this.gameState.wave++
@@ -1065,11 +1108,12 @@ export class Main {
     // 清理音频对象池（防止内存泄漏）
     this.audioManager.clearAudioPool()
     
-    // 本地保存最高分
-    this.gameState.saveHighScoreLocal()
+    // 本地保存最高分（失败不更新 bestWave）
+    this.gameState.saveHighScoreLocal({ updateBestWave: false })
     
-    // 上报当前赛季最高分到好友排行榜
+    // 并入赛季最高分，上报好友榜，并立即同步到云端 seasonRecords
     this.gameState.reportScoreToLeaderboard()
+    this.gameState.scheduleSaveToCloud(300)
   }
 
   // 重试关卡
@@ -1294,23 +1338,28 @@ export class Main {
 
   // 返回主菜单
   async navigateToMenu() {
+    // 回首页前合并本局成绩到赛季/历史最高，并上报好友榜
+    this.gameState.updateSeasonDataLocal(
+      this.gameState.score,
+      Math.max(1, this.gameState.wave - 1),
+      0,
+      this.gameState.consecutiveWins
+    )
+    this.gameState.saveHighScoreLocal({ updateBestWave: false })
+    this.gameState.reportScoreToLeaderboard()
+
     this.gameState.isNewScoreRecord = false
     this.gameState.resetToMenu()
     
-    // 清除待执行的定时器
     this._clearPendingTimers()
     
     this.bubbleGrid.resetBubbles()
-    
-    // 清理音频对象池（防止内存泄漏）
     this.audioManager.clearAudioPool()
     
-    // 启动过渡动画，阶段1结束时切换到菜单
     this.uiManager.startTransition(() => {
       this.uiManager.currentScreen = 'menu'
     })
     
-    // 异步保存到云端（不 await，用户无感知）
     this.gameState.saveToCloud().catch(err => {
       console.warn('保存到云端失败（不影响游戏）:', err.message || err)
     })
@@ -1366,26 +1415,24 @@ export class Main {
     console.log('showFriendLeaderboard 被调用')
     this.audioManager.play('click')
     this.vibrate('light')
+
+    // 记录来源界面，关闭时恢复
+    this._friendLbReturnScreen = this.uiManager.currentScreen
+    this._friendLbReturnPhase = this.gameState.phase
     
-    // 重置滚动状态
     this.friendListIsScrolling = false
     this.friendListLastY = 0
     if (this.gameState.friendLeaderboard) {
       this.gameState.friendLeaderboard.resetScroll()
     }
     
-    // 切换到好友排行榜界面
     this.uiManager.currentScreen = 'friend_leaderboard'
-    console.log('currentScreen 设置为:', this.uiManager.currentScreen)
-    
-    // 清除之前的错误状态
     this.uiManager.friendLeaderboardError = null
     
-    // 获取好友排行榜数据
     await this.refreshFriendLeaderboard()
   }
 
-  // 请求好友互动授权
+  // 请求好友互动授权（先读设置，已授权则跳过 authorize）
   async requestFriendInteractionAuth() {
     return new Promise((resolve) => {
       if (typeof wx === 'undefined' || !wx.authorize) {
@@ -1395,18 +1442,36 @@ export class Main {
         return
       }
 
-      console.log('开始请求好友互动授权...')
-      wx.authorize({
-        scope: 'scope.WxFriendInteraction',
-        success: () => {
-          console.log('好友互动授权成功')
-          resolve(true)
-        },
-        fail: (err) => {
-          console.warn('好友互动授权失败:', err)
-          resolve(false)
-        }
-      })
+      const doAuthorize = () => {
+        console.log('开始请求好友互动授权...')
+        wx.authorize({
+          scope: 'scope.WxFriendInteraction',
+          success: () => {
+            console.log('好友互动授权成功')
+            resolve(true)
+          },
+          fail: (err) => {
+            console.warn('好友互动授权失败:', err)
+            resolve(false)
+          }
+        })
+      }
+
+      if (typeof wx.getSetting === 'function') {
+        wx.getSetting({
+          success: (res) => {
+            if (res.authSetting && res.authSetting['scope.WxFriendInteraction']) {
+              console.log('已授权好友互动，跳过 authorize')
+              resolve(true)
+              return
+            }
+            doAuthorize()
+          },
+          fail: () => doAuthorize()
+        })
+      } else {
+        doAuthorize()
+      }
     })
   }
 

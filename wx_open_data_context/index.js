@@ -29,6 +29,7 @@ const ITEM_STRIDE = ITEM_H + ITEM_GAP
 
 let cachedData = []
 let myNickname = ''
+let scoreKey = 'score'
 let scrollY = 0
 let renderNeeded = true
 
@@ -76,19 +77,21 @@ wx.onMessage(function(data) {
 
   if (data.command === 'fetchFriendLeaderboard') {
     myNickname = data.myNickname || ''
+    scoreKey = data.scoreKey || (data.keyList && data.keyList[0]) || 'score'
     scrollY = 0
     renderNeeded = true
 
     wx.getFriendCloudStorage({
-      keyList: data.keyList || ['score'],
+      keyList: data.keyList || [scoreKey],
       success: function(res) {
         var rawData = res.data || []
-        cachedData = rawData.sort(function(a, b) {
-          return getScore(b) - getScore(a)
-        })
+        // 仅展示本赛季分数 > 0 的好友，0 分不上榜
+        cachedData = rawData
+          .filter(function(user) { return getScore(user) > 0 })
+          .sort(function(a, b) { return getScore(b) - getScore(a) })
         scrollY = clampScroll(scrollY)
         renderNeeded = true
-        console.log('开放数据域: 获取好友数据成功, 数量:', cachedData.length)
+        console.log('开放数据域: 获取好友数据成功, 上榜数量:', cachedData.length, 'key:', scoreKey)
       },
       fail: function(err) {
         console.warn('开放数据域: 获取好友数据失败:', err)
@@ -127,7 +130,11 @@ function drawLeaderboard(data) {
   const w = sharedCanvas.width
   const h = sharedCanvas.height
 
-  ctx.fillStyle = '#312e81'
+  // 与主域弹窗一致的纵向渐变，避免纯色底与弹窗分层
+  const bgGradient = ctx.createLinearGradient(0, 0, 0, h)
+  bgGradient.addColorStop(0, '#312e81')
+  bgGradient.addColorStop(1, '#4c1d95')
+  ctx.fillStyle = bgGradient
   ctx.fillRect(0, 0, w, h)
 
   if (!data || data.length === 0) {
@@ -135,7 +142,7 @@ function drawLeaderboard(data) {
     ctx.font = (14 * dpr) + 'px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('暂无好友数据', w / 2, h / 2)
+    ctx.fillText('本赛季暂无好友上榜', w / 2, h / 2)
     renderNeeded = false
     return
   }
@@ -238,8 +245,11 @@ function getRank(data, index) {
 
 function getScore(user) {
   if (user.KVDataList && Array.isArray(user.KVDataList)) {
-    var item = user.KVDataList.find(function(entry) { return entry.key === 'score' })
+    var item = user.KVDataList.find(function(entry) { return entry.key === scoreKey })
     if (item) return parseInt(item.value || '0')
+    // 兼容旧 key
+    var legacy = user.KVDataList.find(function(entry) { return entry.key === 'score' })
+    if (legacy) return parseInt(legacy.value || '0')
   }
   return 0
 }

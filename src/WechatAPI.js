@@ -187,9 +187,10 @@ export class WechatAPI {
     return this.callCloud('settleSeason', { seasonId })
   }
 
-  // 赛季奖励发放（已废弃：现在由 settleSeason 内部调用）
-  distributeSeasonReward(seasonId, scoreLeaderboard, waveLeaderboard) {
-    return this.callCloud('distributeSeasonReward', { seasonId, scoreLeaderboard, waveLeaderboard })
+  // 赛季奖励发放已改为 settleSeason 内部调用，客户端不可直接发奖
+  distributeSeasonReward() {
+    console.warn('distributeSeasonReward 已禁用客户端调用')
+    return Promise.resolve({ success: false, error: 'forbidden' })
   }
 
   // 查询历史赛季归档

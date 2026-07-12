@@ -5,9 +5,33 @@ const _ = db.command
 const { checkRateLimit } = require('./rateLimit')
 
 /**
+ * 按中国时区 UTC+8 计算当前赛季 ID（与客户端 seasonUtils 对齐）
+ * 周期：周一 00:00 ~ 下周一 00:00
+ */
+function getCurrentSeasonId() {
+  const chinaNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const day = chinaNow.getUTCDay()
+  let daysToNextMon = (1 - day + 7) % 7
+  if (daysToNextMon === 0) daysToNextMon = 7
+
+  const seasonStart = new Date(Date.UTC(
+    chinaNow.getUTCFullYear(),
+    chinaNow.getUTCMonth(),
+    chinaNow.getUTCDate() + daysToNextMon - 7
+  ))
+  const year = seasonStart.getUTCFullYear()
+  const startOfYear = new Date(Date.UTC(year, 0, 1))
+  const weekNum = Math.ceil(
+    ((seasonStart - startOfYear) / 86400000 + startOfYear.getUTCDay() + 1) / 7
+  )
+  return `${year}-S${String(weekNum).padStart(2, '0')}`
+}
+
+/**
  * 保存用户游戏数据（upsert）
- * 客户端传入需要保存的字段，服务端合并更新
- * 同时更新赛季记录
+ * - 分数类字段服务端 Math.max 合并
+ * - seasonId 由服务端计算
+ * - 同步写入 seasonRecords，供赛季排行榜查询
  */
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -17,180 +41,235 @@ exports.main = async (event, context) => {
     return { success: false, error: '无法获取用户标识' }
   }
 
-  // 速率限制：同一用户 3 秒内不允许重复保存
   const blocked = await checkRateLimit(db, openid, 'save', 3000)
   if (blocked) {
     return { success: false, error: '操作过于频繁，请稍后再试' }
   }
 
-  // 只允许保存白名单字段，防止客户端注入
   const allowedFields = [
     'coins', 'highScore', 'bestWave',
-    'lastCheckinDate', 'checkinStreak', 'lastCheckinType',
-    'lastShareDate', 'todayShareCount', 'lastShareGiftDate',
-    'seasonId', 'seasonScore', 'seasonWave',
+    'seasonScore', 'seasonWave',
     'totalGames', 'totalClears', 'bestStreak',
-    'nickname', 'avatarUrl'
+    'nickname', 'avatarUrl',
+    'lastSeasonReward', 'lastSeasonId', 'lastSeasonScoreRank', 'lastSeasonWaveRank', 'lastSeasonRewardDetail'
   ]
 
-  const updateData = {}
+  const raw = {}
   for (const key of allowedFields) {
     if (event[key] !== undefined) {
-      updateData[key] = event[key]
+      raw[key] = event[key]
     }
   }
 
-  // 数值范围校验，防止客户端传入不合理数据
   const numericLimits = {
     coins: [0, 999999],
     highScore: [0, 9999999],
     bestWave: [0, 999],
-    checkinStreak: [0, 365],
-    todayShareCount: [0, 100],
     seasonScore: [0, 9999999],
-    seasonWave: [0, 999]
+    seasonWave: [0, 999],
+    totalGames: [0, 999999],
+    totalClears: [0, 999999],
+    bestStreak: [0, 9999],
+    lastSeasonReward: [0, 999999],
+    lastSeasonScoreRank: [0, 9999],
+    lastSeasonWaveRank: [0, 9999]
   }
   for (const [key, [min, max]] of Object.entries(numericLimits)) {
-    if (updateData[key] !== undefined) {
-      const val = updateData[key]
+    if (raw[key] !== undefined) {
+      const val = raw[key]
       if (typeof val !== 'number' || !Number.isFinite(val) || val < min || val > max) {
         console.warn(`字段 ${key} 值异常: ${val}，已忽略`)
-        delete updateData[key]
+        delete raw[key]
       }
     }
   }
 
-  // 字符串长度校验
   const stringLimits = {
     nickname: 50,
     avatarUrl: 500,
-    lastCheckinDate: 10,
-    lastShareDate: 10,
-    lastShareGiftDate: 10,
-    seasonId: 20
+    lastSeasonId: 20
   }
   for (const [key, maxLen] of Object.entries(stringLimits)) {
-    if (updateData[key] !== undefined) {
-      const val = updateData[key]
+    if (raw[key] !== undefined) {
+      const val = raw[key]
       if (typeof val !== 'string' || val.length > maxLen) {
         console.warn(`字段 ${key} 值异常，已忽略`)
-        delete updateData[key]
+        delete raw[key]
       }
     }
   }
 
-  console.log('过滤后的数据:', JSON.stringify(updateData))
+  if (raw.lastSeasonRewardDetail !== undefined) {
+    if (raw.lastSeasonRewardDetail !== null && typeof raw.lastSeasonRewardDetail !== 'object') {
+      delete raw.lastSeasonRewardDetail
+    }
+  }
 
-  if (Object.keys(updateData).length === 0) {
+  if (Object.keys(raw).length === 0) {
     return { success: false, error: '没有可保存的数据' }
   }
 
-  updateData.updatedAt = db.serverDate()
+  const currentSeasonId = getCurrentSeasonId()
 
   try {
-    // ✅ 优化：并行执行 gameData 和 seasonRecords 的更新（减少等待时间）
-    const savePromises = []
-    
-    // 1. 保存 gameData（优化：直接更新，失败时再创建）
-    savePromises.push(
-      (async () => {
-        try {
-          // 尝试直接更新
-          await db.collection('gameData')
-            .where({ _openid: openid })
-            .update({ data: updateData })
-          console.log('更新 gameData 成功')
-        } catch (err) {
-          // 如果更新失败（记录不存在），则创建新记录
-          console.log('gameData 不存在，创建新记录')
-          updateData._openid = openid
-          await db.collection('gameData').add({ data: updateData })
-          console.log('创建 gameData 成功')
-        }
-      })()
-    )
-    
-    // 2. 保存 seasonRecords（如果有赛季数据）
+    const { data: existingList } = await db.collection('gameData')
+      .where({ _openid: openid })
+      .limit(1)
+      .get()
+
+    const existing = existingList[0] || null
+    const updateData = {}
+
+    const maxMergeFields = ['highScore', 'bestWave', 'totalGames', 'totalClears', 'bestStreak']
+    for (const key of maxMergeFields) {
+      if (raw[key] !== undefined) {
+        const prev = existing ? (existing[key] || 0) : 0
+        updateData[key] = Math.max(prev, raw[key])
+      }
+    }
+
+    if (raw.coins !== undefined) {
+      const prevCoins = existing ? (existing.coins || 0) : 1000
+      const MAX_COIN_INCREASE = 5000
+      if (raw.coins <= prevCoins) {
+        updateData.coins = raw.coins
+      } else {
+        updateData.coins = Math.min(raw.coins, prevCoins + MAX_COIN_INCREASE)
+      }
+    }
+
+    // 只要带了赛季相关字段，就绑定当前赛季并写入
+    const hasSeasonPayload =
+      raw.seasonScore !== undefined ||
+      raw.seasonWave !== undefined ||
+      raw.totalGames !== undefined ||
+      raw.totalClears !== undefined ||
+      raw.bestStreak !== undefined
+
+    if (hasSeasonPayload) {
+      updateData.seasonId = currentSeasonId
+      const sameSeason = existing && existing.seasonId === currentSeasonId
+
+      if (raw.seasonScore !== undefined) {
+        const prev = sameSeason ? (existing.seasonScore || 0) : 0
+        updateData.seasonScore = Math.max(prev, raw.seasonScore)
+      } else if (sameSeason && typeof existing.seasonScore === 'number') {
+        // 未传分数时保留已有赛季分，避免 seasonRecords 被写成 0
+        updateData.seasonScore = existing.seasonScore
+      }
+
+      if (raw.seasonWave !== undefined) {
+        const prev = sameSeason ? (existing.seasonWave || 0) : 0
+        updateData.seasonWave = Math.max(prev, raw.seasonWave)
+      } else if (sameSeason && typeof existing.seasonWave === 'number') {
+        updateData.seasonWave = existing.seasonWave
+      }
+    }
+
+    if (raw.nickname !== undefined) updateData.nickname = raw.nickname
+    if (raw.avatarUrl !== undefined) updateData.avatarUrl = raw.avatarUrl
+    if (raw.lastSeasonReward !== undefined) updateData.lastSeasonReward = raw.lastSeasonReward
+    if (raw.lastSeasonId !== undefined) updateData.lastSeasonId = raw.lastSeasonId
+    if (raw.lastSeasonScoreRank !== undefined) updateData.lastSeasonScoreRank = raw.lastSeasonScoreRank
+    if (raw.lastSeasonWaveRank !== undefined) updateData.lastSeasonWaveRank = raw.lastSeasonWaveRank
+    if (raw.lastSeasonRewardDetail !== undefined) updateData.lastSeasonRewardDetail = raw.lastSeasonRewardDetail
+
+    if (Object.keys(updateData).length === 0) {
+      return { success: false, error: '没有可保存的数据' }
+    }
+
+    updateData.updatedAt = db.serverDate()
+
+    if (existing) {
+      const res = await db.collection('gameData')
+        .where({ _openid: openid })
+        .update({ data: updateData })
+      if (!res.stats || res.stats.updated === 0) {
+        updateData._openid = openid
+        await db.collection('gameData').add({ data: updateData })
+      }
+    } else {
+      updateData._openid = openid
+      if (updateData.coins === undefined) updateData.coins = 1000
+      await db.collection('gameData').add({ data: updateData })
+    }
+
+    let seasonRecordOk = true
+    let seasonRecordError = null
+
     if (updateData.seasonId) {
       const seasonId = updateData.seasonId
-      console.log('更新赛季记录，seasonId:', seasonId)
-      
-      savePromises.push(
-        (async () => {
-          try {
-            // 查询现有赛季记录
-            const { data: seasonRecords } = await db.collection('seasonRecords')
-              .where({ _openid: openid, seasonId: seasonId })
-              .limit(1)
-              .get()
-            
-            const seasonUpdate = {
+      try {
+        const { data: seasonRecords } = await db.collection('seasonRecords')
+          .where({ _openid: openid, seasonId })
+          .limit(1)
+          .get()
+
+        const seasonUpdate = { updatedAt: db.serverDate() }
+        const nickname = updateData.nickname || (existing && existing.nickname) || ''
+        const avatarUrl = updateData.avatarUrl || (existing && existing.avatarUrl) || ''
+
+        if (nickname) seasonUpdate.nickname = nickname
+        if (avatarUrl) seasonUpdate.avatarUrl = avatarUrl
+
+        const nextScore = updateData.seasonScore !== undefined
+          ? updateData.seasonScore
+          : (seasonRecords[0] && seasonRecords[0].highScore) || 0
+        const nextWave = updateData.seasonWave !== undefined
+          ? updateData.seasonWave
+          : (seasonRecords[0] && seasonRecords[0].bestWave) || 0
+        const nextGames = raw.totalGames !== undefined
+          ? raw.totalGames
+          : (seasonRecords[0] && seasonRecords[0].totalGames) || 0
+        const nextClears = raw.totalClears !== undefined
+          ? raw.totalClears
+          : (seasonRecords[0] && seasonRecords[0].totalClears) || 0
+        const nextStreak = raw.bestStreak !== undefined
+          ? raw.bestStreak
+          : (seasonRecords[0] && seasonRecords[0].bestStreak) || 0
+
+        if (seasonRecords.length > 0) {
+          seasonUpdate.highScore = Math.max(seasonRecords[0].highScore || 0, nextScore || 0)
+          seasonUpdate.bestWave = Math.max(seasonRecords[0].bestWave || 0, nextWave || 0)
+          seasonUpdate.totalGames = Math.max(seasonRecords[0].totalGames || 0, nextGames || 0)
+          seasonUpdate.totalClears = Math.max(seasonRecords[0].totalClears || 0, nextClears || 0)
+          seasonUpdate.bestStreak = Math.max(seasonRecords[0].bestStreak || 0, nextStreak || 0)
+
+          await db.collection('seasonRecords')
+            .where({ _openid: openid, seasonId })
+            .update({ data: seasonUpdate })
+        } else {
+          await db.collection('seasonRecords').add({
+            data: {
+              _openid: openid,
+              seasonId,
+              nickname,
+              avatarUrl,
+              highScore: nextScore || 0,
+              bestWave: nextWave || 0,
+              totalGames: nextGames || 0,
+              totalClears: nextClears || 0,
+              bestStreak: nextStreak || 0,
               updatedAt: db.serverDate()
             }
-            
-            // 修复：每次保存都同步更新用户信息（昵称和头像），确保 seasonRecords 中的用户信息始终是最新的
-            if (updateData.nickname !== undefined) seasonUpdate.nickname = updateData.nickname
-            if (updateData.avatarUrl !== undefined) seasonUpdate.avatarUrl = updateData.avatarUrl
-            
-            // 赛季数据取较大值（修复：使用 Math.max 替代 _.max）
-            if (updateData.seasonScore !== undefined) {
-              const existingScore = seasonRecords.length > 0 ? (seasonRecords[0].highScore || 0) : 0
-              seasonUpdate.highScore = Math.max(existingScore, updateData.seasonScore)
-            }
-            if (updateData.seasonWave !== undefined) {
-              const existingWave = seasonRecords.length > 0 ? (seasonRecords[0].bestWave || 0) : 0
-              seasonUpdate.bestWave = Math.max(existingWave, updateData.seasonWave)
-            }
-            
-            // 修复：传递其他赛季统计字段（取较大值而非直接覆盖）
-            if (updateData.totalGames !== undefined) {
-              const existingGames = seasonRecords.length > 0 ? (seasonRecords[0].totalGames || 0) : 0
-              seasonUpdate.totalGames = Math.max(existingGames, updateData.totalGames)
-            }
-            if (updateData.totalClears !== undefined) {
-              const existingClears = seasonRecords.length > 0 ? (seasonRecords[0].totalClears || 0) : 0
-              seasonUpdate.totalClears = Math.max(existingClears, updateData.totalClears)
-            }
-            if (updateData.bestStreak !== undefined) {
-              const existingStreak = seasonRecords.length > 0 ? (seasonRecords[0].bestStreak || 0) : 0
-              seasonUpdate.bestStreak = Math.max(existingStreak, updateData.bestStreak)
-            }
-            
-            console.log('赛季更新数据:', JSON.stringify(seasonUpdate))
-            
-            if (seasonRecords.length > 0) {
-              console.log('更新已有赛季记录')
-              await db.collection('seasonRecords')
-                .where({ _openid: openid, seasonId: seasonId })
-                .update({ data: seasonUpdate })
-            } else {
-              console.log('创建新赛季记录')
-              seasonUpdate._openid = openid
-              seasonUpdate.seasonId = seasonId
-              seasonUpdate.nickname = updateData.nickname || ''
-              seasonUpdate.avatarUrl = updateData.avatarUrl || ''
-              seasonUpdate.highScore = updateData.seasonScore || 0
-              seasonUpdate.bestWave = updateData.seasonWave || 0
-              seasonUpdate.totalGames = event.totalGames || 0
-              seasonUpdate.totalClears = event.totalClears || 0
-              seasonUpdate.bestStreak = event.bestStreak || 0
-              await db.collection('seasonRecords').add({ data: seasonUpdate })
-            }
-          } catch (seasonErr) {
-            console.error('赛季记录保存失败:', seasonErr)
-            // 赛季记录保存失败不影响主流程
-          }
-        })()
-      )
-    } else {
-      console.log('没有赛季数据，跳过赛季记录更新')
+          })
+        }
+      } catch (seasonErr) {
+        seasonRecordOk = false
+        seasonRecordError = seasonErr.message || String(seasonErr)
+        console.error('赛季记录保存失败:', seasonErr)
+      }
     }
-    
-    // ✅ 优化：并行执行所有保存操作
-    await Promise.all(savePromises)
-    
-    console.log('保存成功')
-    return { success: true, data: updateData }
+
+    return {
+      success: true,
+      data: {
+        ...updateData,
+        seasonId: updateData.seasonId || currentSeasonId,
+        seasonRecordOk,
+        seasonRecordError
+      }
+    }
   } catch (err) {
     console.error('saveGameData error:', err)
     return { success: false, error: err.message }

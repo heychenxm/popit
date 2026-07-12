@@ -1565,7 +1565,7 @@ export class UIManager {
     // 奖励文字（高亮）
     ctx.font = `bold 14px ${FONT_FAMILY}`
     ctx.fillStyle = Colors.yellow400
-    ctx.fillText('1000 金币', this.width / 2, descY + 34)
+    ctx.fillText(`${config.rewards.shareGift} 金币`, this.width / 2, descY + 34)
     
     // 微信小游戏消息预览
     const previewX = modalX + 20
@@ -1726,7 +1726,8 @@ export class UIManager {
       btnPrefix: 'season_leaderboard',
       gradientKey: 'seasonSwitchActive',
       rankCardMethod: 'drawSeasonLeaderboardRankCard',
-      showFooter: !this.viewingSeasonArchive  // 历史赛季不显示底部提示
+      showFooter: !this.viewingSeasonArchive,  // 历史赛季不显示底部提示
+      emptyHint: this.viewingSeasonArchive ? '该赛季暂无归档数据' : '本赛季暂无人上榜，快去挑战吧'
     })
   }
 
@@ -2182,8 +2183,10 @@ export class UIManager {
     const top3ContainerH = 140
     const top3ItemW = (modalW - 60) / 3
     
-    // 检查是否需要显示骨架屏
-    const showSkeleton = loading || !data || !data.leaderboard || data.leaderboard.length === 0
+    const hasList = !!(data && Array.isArray(data.leaderboard) && data.leaderboard.length > 0)
+    const showSkeleton = !!loading
+    const showEmpty = !loading && !hasList
+    const emptyHint = options.emptyHint || '暂无排行数据'
     
     if (showSkeleton) {
       // 显示骨架屏 - 前三名
@@ -2201,6 +2204,14 @@ export class UIManager {
         drawRoundRect(ctx, itemX + 5, itemY + 5, top3ItemW - 10, itemH - 10, 12)
         ctx.fill()
       }
+    } else if (showEmpty) {
+      // 加载完成但无数据：明确空态，避免误认为一直在加载
+      const emptyY = top3ContainerY + top3ContainerH / 2
+      ctx.font = `14px ${FONT_FAMILY}`
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(emptyHint, this.width / 2, emptyY)
     } else {
       const leaderboard = data.leaderboard
       const top1 = leaderboard[0]
@@ -2241,9 +2252,10 @@ export class UIManager {
     const listItemH = 40
     const listItemGap = 8
     
-    // 判断用户是否在前 6 名
-    const userInTop6 = data && data.leaderboard && data.leaderboard.some(u => u.isUser)
-    const showUserUnranked = !showSkeleton && !userInTop6
+    // 判断用户是否在前 6 名；仅有赛季/榜数据且未进前 6 时才显示「未上榜」
+    const userInTop6 = hasList && data.leaderboard.some(u => u.isUser)
+    const hasUserData = (data.userValue || 0) > 0
+    const showUserUnranked = hasList && !userInTop6 && hasUserData
     const listCount = showUserUnranked ? 4 : 3
     const listContainerH = listInnerPadding + listCount * listItemH + (listCount - 1) * listItemGap + listInnerPadding
     
@@ -2265,7 +2277,7 @@ export class UIManager {
         drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
         ctx.fill()
       }
-    } else {
+    } else if (!showEmpty) {
       const leaderboard = data.leaderboard
       const listStartIndex = 3
       const itemX = listContainerX + listInnerPadding
@@ -2287,7 +2299,7 @@ export class UIManager {
         const itemY = listContainerY + listInnerPadding + 3 * (listItemH + listItemGap)
         this.drawLeaderboardListItem(
           itemX, itemY, itemW, listItemH,
-          0, gameState.userInfo.nickname, gameState.userInfo.avatarUrl, 0,
+          0, gameState.userInfo.nickname, gameState.userInfo.avatarUrl, data.userValue || 0,
           false, true, true
         )
       }
@@ -2795,8 +2807,10 @@ export class UIManager {
     }
     buttonRows += 2 // 再来一局 + 返回首页
     
-    // 弹窗高度 = 标题区 + 复活按钮区 + 好友排行按钮 + 底部间距
-    const modalH = titleAreaH + buttonRows * btnH + (buttonRows - 1) * btnGap + friendRankBtnGap + friendRankBtnH + 30
+    // 弹窗高度 = 顶距 + 标题区 + 按钮区 + 好友排行 + 底距（底距需单独预留，避免好友排行贴底）
+    const topPadding = 30
+    const bottomPadding = 24
+    const modalH = topPadding + titleAreaH + buttonRows * btnH + (buttonRows - 1) * btnGap + friendRankBtnGap + friendRankBtnH + bottomPadding
     const modalY = (this.height - modalH) / 2
     
     ctx.save()

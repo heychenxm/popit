@@ -24,7 +24,10 @@ exports.main = async (event, context) => {
         lastShareDate: true, todayShareCount: true, lastShareGiftDate: true,
         seasonId: true, seasonScore: true, seasonWave: true,
         totalGames: true, totalClears: true, bestStreak: true,
-        nickname: true, avatarUrl: true
+        nickname: true, avatarUrl: true,
+        lastSeasonReward: true, lastSeasonId: true,
+        lastSeasonScoreRank: true, lastSeasonWaveRank: true,
+        lastSeasonRewardDetail: true
       })
       .get()
 

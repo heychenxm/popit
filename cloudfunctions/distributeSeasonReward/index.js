@@ -5,98 +5,126 @@ const _ = db.command
 
 /**
  * 赛季奖励发放云函数
- * 根据赛季排行榜前 6 名发放金币奖励
- * 幂等设计：已发放的赛季不会重复发放
+ * - 只从 seasonArchive 读取排行数据，不信任客户端传入榜单
+ * - 仅允许内部调用（settleSeason）或定时触发器
+ * - 幂等：seasonArchive.rewardsDistributed
  */
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
-  const openid = wxContext.OPENID
-  const { seasonId, scoreLeaderboard, waveLeaderboard } = event
+  const source = wxContext.SOURCE || ''
+  const { seasonId, _internal } = event
 
   if (!seasonId) {
     return { success: false, error: '缺少 seasonId 参数' }
   }
 
-  // 奖励档位配置
+  const isTrigger = source === 'wx_trigger' || source === 'wx_devops'
+  if (!_internal && !isTrigger) {
+    return { success: false, error: '无权调用发奖接口' }
+  }
+
   const rewardConfig = {
-    1: 3000,  // 第 1 名：3000 金币
-    2: 2000,  // 第 2 名：2000 金币
-    3: 1500,  // 第 3 名：1500 金币
-    4: 1000,  // 第 4~6 名：1000 金币
+    1: 3000,
+    2: 2000,
+    3: 1500,
+    4: 1000,
     5: 1000,
     6: 1000
   }
 
   try {
-    // 幂等检查：检查该赛季是否已发放过奖励
-    // 通过查询任意玩家的 lastSeasonId 判断
-    const { data: checkData } = await db.collection('gameData')
-      .where({ lastSeasonId: seasonId })
+    const { data: archives } = await db.collection('seasonArchive')
+      .where({ seasonId })
       .limit(1)
       .get()
 
-    if (checkData.length > 0) {
-      console.log(`赛季 ${seasonId} 奖励已发放，跳过`)
+    if (archives.length === 0) {
+      return { success: false, error: '赛季尚未结算归档' }
+    }
+
+    const archive = archives[0]
+    if (archive.rewardsDistributed) {
       return { success: true, data: { alreadyDistributed: true, seasonId } }
     }
 
+    const scoreLeaderboard = archive.topByScore || []
+    const waveLeaderboard = archive.topByWave || []
+
     console.log(`开始发放赛季 ${seasonId} 奖励`)
 
-    // 收集所有获奖玩家及其奖励
-    const rewardMap = {}  // openid -> { totalReward, scoreRank, waveRank, scoreReward, waveReward }
+    const rewardMap = {}
 
-    // 处理分数榜前 6 名
-    if (scoreLeaderboard && scoreLeaderboard.length > 0) {
-      for (const player of scoreLeaderboard) {
-        if (player.rank <= 6 && rewardConfig[player.rank]) {
-          const reward = rewardConfig[player.rank]
-          if (!rewardMap[player.openid]) {
-            rewardMap[player.openid] = {
-              totalReward: 0,
-              scoreRank: 0,
-              waveRank: 0,
-              scoreReward: 0,
-              waveReward: 0
-            }
+    for (const player of scoreLeaderboard) {
+      if (player.openid && player.rank <= 6 && rewardConfig[player.rank]) {
+        const reward = rewardConfig[player.rank]
+        if (!rewardMap[player.openid]) {
+          rewardMap[player.openid] = {
+            totalReward: 0,
+            scoreRank: 0,
+            waveRank: 0,
+            scoreReward: 0,
+            waveReward: 0
           }
-          rewardMap[player.openid].totalReward += reward
-          rewardMap[player.openid].scoreRank = player.rank
-          rewardMap[player.openid].scoreReward = reward
         }
+        rewardMap[player.openid].totalReward += reward
+        rewardMap[player.openid].scoreRank = player.rank
+        rewardMap[player.openid].scoreReward = reward
       }
     }
 
-    // 处理关卡榜前 6 名
-    if (waveLeaderboard && waveLeaderboard.length > 0) {
-      for (const player of waveLeaderboard) {
-        if (player.rank <= 6 && rewardConfig[player.rank]) {
-          const reward = rewardConfig[player.rank]
-          if (!rewardMap[player.openid]) {
-            rewardMap[player.openid] = {
-              totalReward: 0,
-              scoreRank: 0,
-              waveRank: 0,
-              scoreReward: 0,
-              waveReward: 0
-            }
+    for (const player of waveLeaderboard) {
+      if (player.openid && player.rank <= 6 && rewardConfig[player.rank]) {
+        const reward = rewardConfig[player.rank]
+        if (!rewardMap[player.openid]) {
+          rewardMap[player.openid] = {
+            totalReward: 0,
+            scoreRank: 0,
+            waveRank: 0,
+            scoreReward: 0,
+            waveReward: 0
           }
-          rewardMap[player.openid].totalReward += reward
-          rewardMap[player.openid].waveRank = player.rank
-          rewardMap[player.openid].waveReward = reward
         }
+        rewardMap[player.openid].totalReward += reward
+        rewardMap[player.openid].waveRank = player.rank
+        rewardMap[player.openid].waveReward = reward
       }
     }
 
-    console.log(`获奖玩家数量: ${Object.keys(rewardMap).length}`)
+    // 先标记发奖中，降低并发重复发奖概率
+    const markRes = await db.collection('seasonArchive')
+      .where({ seasonId, rewardsDistributed: _.neq(true) })
+      .update({
+        data: {
+          rewardsDistributed: true,
+          rewardsDistributedAt: db.serverDate()
+        }
+      })
 
-    // 批量发放奖励
+    if (!markRes.stats || markRes.stats.updated === 0) {
+      return { success: true, data: { alreadyDistributed: true, seasonId } }
+    }
+
     const distributePromises = []
     let totalDistributed = 0
 
     for (const [playerOpenid, rewardData] of Object.entries(rewardMap)) {
       const promise = (async () => {
         try {
-          // 更新 gameData：增加金币 + 记录奖励信息
+          // 按人幂等：已有同赛季奖励记录则跳过
+          const { data: existingReward } = await db.collection('gameData')
+            .where({
+              _openid: playerOpenid,
+              lastSeasonId: seasonId,
+              lastSeasonReward: _.gt(0)
+            })
+            .limit(1)
+            .get()
+
+          if (existingReward.length > 0) {
+            console.log(`玩家 ${playerOpenid} 已领取赛季 ${seasonId} 奖励，跳过`)
+            return
+          }
+
           await db.collection('gameData')
             .where({ _openid: playerOpenid })
             .update({
@@ -116,18 +144,16 @@ exports.main = async (event, context) => {
                 updatedAt: db.serverDate()
               }
             })
-          
+
           totalDistributed += rewardData.totalReward
-          console.log(`玩家 ${playerOpenid} 获得 ${rewardData.totalReward} 金币（分数榜第${rewardData.scoreRank}名 +${rewardData.scoreReward}，关卡榜第${rewardData.waveRank}名 +${rewardData.waveReward}）`)
+          console.log(`玩家 ${playerOpenid} 获得 ${rewardData.totalReward} 金币`)
         } catch (err) {
           console.error(`发放玩家 ${playerOpenid} 奖励失败:`, err)
-          // 发放失败不影响其他玩家，继续处理
         }
       })()
       distributePromises.push(promise)
     }
 
-    // 并行发放所有奖励
     await Promise.all(distributePromises)
 
     console.log(`赛季 ${seasonId} 奖励发放完成，总发放: ${totalDistributed} 金币`)
@@ -138,8 +164,7 @@ exports.main = async (event, context) => {
         alreadyDistributed: false,
         seasonId,
         totalDistributed,
-        playerCount: Object.keys(rewardMap).length,
-        rewardDetails: rewardMap
+        playerCount: Object.keys(rewardMap).length
       }
     }
   } catch (err) {

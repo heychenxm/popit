@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "settleSeasonMonday",
+      "type": "timer",
+      "config": "0 5 0 * * 1 *"
+    }
+  ]
+}
