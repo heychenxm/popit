@@ -1,5 +1,6 @@
 import { Colors, FONT_FAMILY, drawRoundRect, isPointInRect, getPhaseIndicatorLayout } from './utils.js'
 import { config } from './config.js'
+import { FRIEND_RANK_LAYOUT } from './FriendLeaderboard.js'
 import { 
   drawBarChartIcon, 
   drawSpeakerIcon, 
@@ -1897,42 +1898,21 @@ export class UIManager {
 
   // 绘制好友排行榜 sharedCanvas（开放数据域渲染）
   _drawFriendLeaderboardSharedCanvas(ctx, modalX, modalY, modalW, modalH, hintY) {
-    // 获取 sharedCanvas（从 gameState 的 friendLeaderboard 获取）
     const sharedCanvas = this._getSharedCanvas()
     
     if (!sharedCanvas) {
-      // 如果 sharedCanvas 不可用，显示无数据提示
       this._drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY)
       return
     }
     
-    // 计算 sharedCanvas 绘制位置（内容区域）
-    const canvasW = 340
-    const canvasH = 440
+    // 固定视口：开放数据域已按 scrollY 裁剪绘制，主域整块贴图即可
+    const canvasW = FRIEND_RANK_LAYOUT.width
+    const canvasH = FRIEND_RANK_LAYOUT.height
     const canvasX = modalX + (modalW - canvasW) / 2
     const canvasY = hintY + 20
     
-    // 获取滚动偏移（从全局 game 实例）
-    let scrollY = 0
-    if (typeof globalThis !== 'undefined' && globalThis.game) {
-      scrollY = globalThis.game.friendListScrollY || 0
-    } else if (typeof global !== 'undefined' && global.game) {
-      scrollY = global.game.friendListScrollY || 0
-    }
-    
-    // 获取 sharedCanvas 实际逻辑高度
-    const dpr = (typeof globalThis !== 'undefined' && globalThis.game ? globalThis.game.pixelRatio : 2) || 2
-    const actualCanvasH = sharedCanvas.height / dpr
-    
-    // 使用 9 参数 drawImage 实现源裁剪滚动
-    // 源矩形：从 scrollY 开始，高度为可视区域
-    // 目标矩形：固定位置
     ctx.save()
-    ctx.drawImage(
-      sharedCanvas,
-      0, scrollY * dpr, canvasW * dpr, canvasH * dpr,  // 源：从 scrollY 裁剪
-      canvasX, canvasY, canvasW, canvasH                // 目标：固定位置
-    )
+    ctx.drawImage(sharedCanvas, canvasX, canvasY, canvasW, canvasH)
     ctx.restore()
   }
 

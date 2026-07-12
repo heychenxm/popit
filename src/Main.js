@@ -3,6 +3,7 @@ import { AudioManager } from './AudioManager.js'
 import { BubbleGrid } from './BubbleGrid.js'
 import { UIManager } from './UIManager.js'
 import { wechatAPI } from './WechatAPI.js'
+import { FRIEND_RANK_LAYOUT } from './FriendLeaderboard.js'
 import { getUniqueRandomIndices, setStorage, getColorClass, safeRequestAnimationFrame } from './utils.js'
 import { config } from './config.js'
 
@@ -54,10 +55,10 @@ export class Main {
     this.sharedCanvas = null
     this._initSharedCanvas()
     
-    // 好友排行榜滚动状态
-    this.friendListScrollY = 0
+    // 好友排行榜滚动状态（滚动位置由开放数据域持有并钳制，主域只转发增量）
     this.friendListTouchStartY = 0
-    this.friendListTouchStartScrollY = 0
+    this.friendListLastY = 0
+    this.friendListIsScrolling = false
     
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
@@ -137,7 +138,7 @@ export class Main {
   
   /**
    * 初始化开放数据域 sharedCanvas
-   * sharedCanvas 的宽高只能在主域设置，按 DPR 放大实现高清渲染
+   * sharedCanvas 的宽高只能在主域设置；使用固定视口，滚动在开放数据域内完成
    */
   _initSharedCanvas() {
     if (typeof wx === 'undefined' || typeof wx.getOpenDataContext !== 'function') return
@@ -146,10 +147,10 @@ export class Main {
       const openDataContext = wx.getOpenDataContext()
       this.sharedCanvas = openDataContext.canvas
       
-      // 按设备像素比放大（高清渲染）
+      // 按设备像素比放大（高清渲染），尺寸与开放数据域布局常量一致
       const dpr = this.pixelRatio || 2
-      this.sharedCanvas.width = 340 * dpr
-      this.sharedCanvas.height = 440 * dpr
+      this.sharedCanvas.width = FRIEND_RANK_LAYOUT.width * dpr
+      this.sharedCanvas.height = FRIEND_RANK_LAYOUT.height * dpr
       
       console.log('sharedCanvas 初始化完成, 物理尺寸:', this.sharedCanvas.width, 'x', this.sharedCanvas.height)
     } catch (e) {
@@ -317,9 +318,9 @@ export class Main {
     
     // 检查是否在好友排行榜界面
     if (this.uiManager.currentScreen === 'friend_leaderboard') {
-      // 记录触摸起始位置（用于滚动）
+      // 记录触摸起始位置（用于转发滚动增量）
       this.friendListTouchStartY = y
-      this.friendListTouchStartScrollY = this.friendListScrollY
+      this.friendListLastY = y
       this.friendListIsScrolling = false
       this.handleFriendLeaderboardTouch(x, y)
       return
@@ -546,35 +547,21 @@ export class Main {
 
   // 处理好友排行榜触摸移动（滚动）
   handleFriendLeaderboardTouchMove(y) {
-    const deltaY = this.friendListTouchStartY - y
-    
+    const totalDelta = this.friendListTouchStartY - y
+
     // 移动超过 5px 视为滚动
-    if (Math.abs(deltaY) > 5) {
+    if (Math.abs(totalDelta) > 5) {
       this.friendListIsScrolling = true
     }
-    
-    if (!this.friendListIsScrolling) return
-    
-    // 计算新的滚动偏移
-    const newScrollY = this.friendListTouchStartScrollY + deltaY
-    
-    // 计算最大滚动范围
-    const maxScrollY = this.getMaxFriendListScroll()
-    
-    // 限制滚动范围
-    this.friendListScrollY = Math.max(0, Math.min(newScrollY, maxScrollY))
-  }
 
-  // 获取好友排行榜最大滚动偏移
-  getMaxFriendListScroll() {
-    const sharedCanvas = this.sharedCanvas
-    if (!sharedCanvas) return 0
-    
-    const dpr = this.pixelRatio || 2
-    const canvasLogicalH = sharedCanvas.height / dpr
-    const visibleH = 440  // 可视区域高度（与 UIManager 中 canvasH 一致）
-    
-    return Math.max(0, canvasLogicalH - visibleH)
+    if (!this.friendListIsScrolling) return
+
+    // 转发本帧增量；滚动钳制在开放数据域内完成
+    const frameDelta = this.friendListLastY - y
+    this.friendListLastY = y
+    if (frameDelta !== 0 && this.gameState.friendLeaderboard) {
+      this.gameState.friendLeaderboard.postScrollDelta(frameDelta)
+    }
   }
 
   // 打开好友信息设置
@@ -612,8 +599,11 @@ export class Main {
     this.uiManager.friendLeaderboardError = null
     
     // 重置滚动状态
-    this.friendListScrollY = 0
     this.friendListIsScrolling = false
+    this.friendListLastY = 0
+    if (this.gameState.friendLeaderboard) {
+      this.gameState.friendLeaderboard.resetScroll()
+    }
     
     // 切换到主菜单
     this.uiManager.currentScreen = 'menu'
@@ -1378,8 +1368,11 @@ export class Main {
     this.vibrate('light')
     
     // 重置滚动状态
-    this.friendListScrollY = 0
     this.friendListIsScrolling = false
+    this.friendListLastY = 0
+    if (this.gameState.friendLeaderboard) {
+      this.gameState.friendLeaderboard.resetScroll()
+    }
     
     // 切换到好友排行榜界面
     this.uiManager.currentScreen = 'friend_leaderboard'
@@ -1422,8 +1415,11 @@ export class Main {
     console.log('refreshFriendLeaderboard 开始执行')
     
     // 重置滚动状态
-    this.friendListScrollY = 0
     this.friendListIsScrolling = false
+    this.friendListLastY = 0
+    if (this.gameState.friendLeaderboard) {
+      this.gameState.friendLeaderboard.resetScroll()
+    }
     
     // 检查是否在微信环境中
     if (typeof wx === 'undefined') {
