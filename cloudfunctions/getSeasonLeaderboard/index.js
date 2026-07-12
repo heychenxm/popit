@@ -15,19 +15,23 @@ exports.main = async (event, context) => {
   const limit = Math.min(event.limit || 50, 100)
 
   // 计算当前赛季 ID（与客户端 seasonUtils.js 保持一致）
-  // 赛季周期：周六 00:00 ~ 次周五 24:00，编号 YYYY-Sww
-  const now = new Date()
-  const day = now.getDay() // 0=周日, 6=周六
-  let daysToNextSat = 6 - day
-  if (daysToNextSat <= 0) daysToNextSat += 7
-  const seasonEnd = new Date(now)
-  seasonEnd.setDate(seasonEnd.getDate() + daysToNextSat)
-  seasonEnd.setHours(0, 0, 0, 0)
-  const seasonStart = new Date(seasonEnd)
-  seasonStart.setDate(seasonStart.getDate() - 7)
-  const year = seasonStart.getFullYear()
-  const startOfYear = new Date(year, 0, 1)
-  const weekNum = Math.ceil(((seasonStart - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7)
+  // 赛季周期：周一 00:00 ~ 下周一 00:00（每周一凌晨结算），编号 YYYY-Sww
+  // 云函数环境一般为 UTC，按中国时区 UTC+8 的墙上时间计算
+  const chinaNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const day = chinaNow.getUTCDay() // 0=周日, 1=周一, ..., 6=周六
+  let daysToNextMon = (1 - day + 7) % 7
+  if (daysToNextMon === 0) daysToNextMon = 7
+
+  const seasonStart = new Date(Date.UTC(
+    chinaNow.getUTCFullYear(),
+    chinaNow.getUTCMonth(),
+    chinaNow.getUTCDate() + daysToNextMon - 7
+  ))
+  const year = seasonStart.getUTCFullYear()
+  const startOfYear = new Date(Date.UTC(year, 0, 1))
+  const weekNum = Math.ceil(
+    ((seasonStart - startOfYear) / 86400000 + startOfYear.getUTCDay() + 1) / 7
+  )
   const seasonId = `${year}-S${String(weekNum).padStart(2, '0')}`
 
   try {

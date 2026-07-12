@@ -261,14 +261,23 @@ export class GameState {
     return hasUpdate
   }
 
-  // 上报当前得分到微信排行榜（生命值耗尽时调用）
+  /**
+   * 上报赛季最高分到微信好友排行榜
+   * 在本局结束（生命耗尽）时调用
+   *
+   * 规则：
+   * 1. 先将本局得分并入 seasonScore（避免中途失败时尚未 updateSeasonDataLocal）
+   * 2. 上报当前赛季最高分，而不是本局得分（避免低分局覆盖好友榜）
+   */
   reportScoreToLeaderboard() {
-    if (this.friendLeaderboard) {
-      // 上报当前得分（不是历史最高分）
-      this.friendLeaderboard.syncScore(this.score).catch(err => {
-        console.warn('微信排行榜上报失败:', err)
-      })
-    }
+    if (!this.friendLeaderboard) return
+
+    this.seasonData.seasonScore = Math.max(this.seasonData.seasonScore || 0, this.score || 0)
+    const seasonScore = this.seasonData.seasonScore
+
+    this.friendLeaderboard.syncScore(seasonScore).catch(err => {
+      console.warn('微信排行榜上报失败:', err)
+    })
   }
 
   // 增加金币

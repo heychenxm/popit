@@ -6,7 +6,6 @@ import {
   drawSpeakerIcon, 
   drawCalendarIcon, 
   drawShareIcon, 
-  drawTrophyIcon,
   drawCrownIcon, 
   drawChestIcon,
   drawHeartIcon,
@@ -703,10 +702,10 @@ export class UIManager {
     drawRoundRect(ctx, btnX + 8, btnY + 4, btnWidth - 16, 12, 6)
     ctx.fill()
     
-    // 奖杯图标
+    // 与全局排行榜相同的柱状图图标
     const iconX = this.width / 2 - 50
     const iconY = btnY + btnHeight / 2
-    drawTrophyIcon(ctx, iconX, iconY, 20, Colors.white)
+    drawBarChartIcon(ctx, iconX, iconY, 20, Colors.white)
     
     // 文字
     ctx.font = `bold 16px ${FONT_FAMILY}`
@@ -898,7 +897,7 @@ export class UIManager {
     ctx.font = `10px ${FONT_FAMILY}`
     ctx.textBaseline = 'middle'
     
-    const subtitleText = '每周五 24:00 结算排行榜'
+    const subtitleText = '每周一凌晨结算排行榜'
     ctx.fillStyle = Colors.gray300
     ctx.textAlign = 'left'
     ctx.fillText(subtitleText, textStartX, bannerY + bannerH / 2 + 10)
@@ -2307,7 +2306,7 @@ export class UIManager {
       ctx.font = `10px ${FONT_FAMILY}`
       ctx.fillStyle = 'rgba(165, 180, 252, 0.6)'
       ctx.textAlign = 'center'
-      ctx.fillText('赛季将于每周五 24:00 结束自动结算，前 6 名可获得金币奖励', this.width / 2, footerY)
+      ctx.fillText('赛季将于每周一凌晨结束自动结算，前 6 名可获得金币奖励', this.width / 2, footerY)
     }
     
     // 游戏圈按钮

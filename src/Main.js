@@ -1068,7 +1068,7 @@ export class Main {
     // 本地保存最高分
     this.gameState.saveHighScoreLocal()
     
-    // 上报当前得分到排行榜（生命值耗尽时上报）
+    // 上报当前赛季最高分到好友排行榜
     this.gameState.reportScoreToLeaderboard()
   }
 

@@ -35,8 +35,8 @@ export class FriendLeaderboard {
   }
 
   /**
-   * 同步分数到微信排行榜（主域可直接调用）
-   * @param {number} score - 要上报的分数
+   * 同步分数到微信好友排行榜（主域可直接调用）
+   * @param {number} score - 要上报的分数（应为当前赛季最高分）
    * @returns {Promise<boolean>} - 是否上报成功
    */
   async syncScore(score) {
@@ -49,17 +49,17 @@ export class FriendLeaderboard {
       await wx.setUserCloudStorage({
         KVDataList: [{
           key: 'score',
-          value: score.toString()
+          value: String(Math.max(0, Math.floor(Number(score) || 0)))
         }]
       })
-      console.log('排行榜分数上报成功:', score)
+      console.log('好友排行榜赛季最高分上报成功:', score)
 
       // 上报成功后通知开放数据域刷新
       this._notifyOpenDataFetch()
 
       return true
     } catch (err) {
-      console.error('排行榜分数上报失败:', err)
+      console.error('好友排行榜分数上报失败:', err)
       return false
     }
   }
