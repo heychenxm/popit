@@ -1657,6 +1657,8 @@ export class Main {
   async showCheckin() {
     this.audioManager.play('click')
     this.vibrate('light')
+
+    await this.gameState.ensureCheckinStateReady()
     
     // 切换到签到界面
     this.uiManager.currentScreen = 'checkin'
@@ -1664,18 +1666,19 @@ export class Main {
 
   // 执行签到（优先云端，降级本地）
   async doCheckin() {
+    await this.gameState.ensureCheckinStateReady()
     const result = await this.gameState.doCloudCheckin()
     
-    if (result) {
+    if (result && result.amount !== undefined) {
       this.vibrate('medium')
       this.audioManager.play('success')
       this.uiManager.showToast(
-        `签到成功！领取 ${result.amount} ${result.type === 'gem' ? '宝石 💎' : '金币'}`
+        `签到成功！领取 ${result.amount} 金币`
       )
       return true
     } else {
       this.vibrate('light')
-      this.uiManager.showToast('签到失败')
+      this.uiManager.showToast(result?.error || '签到失败')
       return false
     }
   }
@@ -1702,17 +1705,18 @@ export class Main {
 
         if (res && res.isEnded) {
           // 用户完整观看广告，调用云端广告签到
+          await this.gameState.ensureCheckinStateReady()
           const result = await this.gameState.doCloudCheckin(true)
-          if (result) {
+          if (result && result.amount !== undefined) {
             this.vibrate('medium')
             this.audioManager.play('success')
-            const rewardText = result.isAdDouble ? '广告奖励' : '签到奖励'
+            const rewardText = result.isAdDouble ? '双倍奖励' : '补齐奖励'
             this.uiManager.showToast(
               `广告签到成功！领取 ${result.amount} 金币（${rewardText}）`
             )
           } else {
             this.vibrate('light')
-            this.uiManager.showToast('签到失败')
+            this.uiManager.showToast(result?.error || '签到失败')
           }
         } else {
           this.vibrate('light')

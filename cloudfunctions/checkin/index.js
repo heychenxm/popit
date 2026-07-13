@@ -13,10 +13,40 @@ const BONUS_DAY = 7
 const BONUS_AMOUNT = 1000  // 与 config.checkin.bonusAmount 一致
 
 /**
+ * 按 _id 写入 gameData，不存在则创建
+ */
+async function upsertGameData(openid, patch) {
+  const { data } = await db.collection('gameData')
+    .where({ _openid: openid })
+    .limit(1)
+    .get()
+
+  const updateData = {
+    ...patch,
+    updatedAt: db.serverDate()
+  }
+
+  if (data.length > 0) {
+    await db.collection('gameData').doc(data[0]._id).update({ data: updateData })
+    return data[0]
+  }
+
+  const addData = { ...updateData, _openid: openid }
+  if (typeof addData.coins !== 'number') {
+    addData.coins = 1000
+  }
+  await db.collection('gameData').add({ data: addData })
+  return null
+}
+
+/**
  * 服务端签到
  * 在服务端校验日期、计算连续天数、发放奖励，防止本地篡改
  */
 exports.main = async (event, context) => {
+  // 必须最先声明，供下方限流逻辑使用
+  const isAd = !!(event && event.isAd)
+
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
 
@@ -24,14 +54,12 @@ exports.main = async (event, context) => {
     return { success: false, error: '无法获取用户标识' }
   }
 
-  // 速率限制：5 秒内不允许重复签到
-  const blocked = await checkRateLimit(db, openid, 'checkin', 5000)
+  // 速率限制：普通签到与广告签到分开计数，避免连点误拦
+  const rateAction = isAd ? 'checkin_ad' : 'checkin'
+  const blocked = await checkRateLimit(db, openid, rateAction, 5000)
   if (blocked) {
     return { success: false, error: '操作过于频繁，请稍后再试' }
   }
-
-  // 是否通过广告签到
-  const isAd = event.isAd === true
 
   // 获取今天的日期字符串 YYYY-MM-DD（东八区）
   const now = new Date(Date.now() + 8 * 3600 * 1000)
@@ -45,7 +73,7 @@ exports.main = async (event, context) => {
       .limit(1)
       .get()
 
-    let userData = data.length > 0 ? data[0] : {}
+    const userData = data.length > 0 ? data[0] : {}
     const lastCheckinDate = userData.lastCheckinDate || ''
     let checkinStreak = userData.checkinStreak || 0
     let coins = typeof userData.coins === 'number' ? userData.coins : 1000
@@ -53,7 +81,7 @@ exports.main = async (event, context) => {
 
     // 检查今天是否已签到
     if (lastCheckinDate === today) {
-      // 今天已普通签到，允许广告签到（翻倍奖励）
+      // 今天已普通签到，允许广告签到（补齐奖励）
       if (isAd && lastCheckinType !== 'ad') {
         const baseReward = CHECKIN_REWARDS[checkinStreak] || DEFAULT_BASE
         const bonusReward = (checkinStreak % BONUS_DAY === 0) ? BONUS_AMOUNT : 0
@@ -61,15 +89,12 @@ exports.main = async (event, context) => {
 
         coins += rewardAmount
 
-        const updateData = {
+        await upsertGameData(openid, {
+          lastCheckinDate: today,
+          checkinStreak: checkinStreak,
           lastCheckinType: 'ad',
-          coins: coins,
-          updatedAt: db.serverDate()
-        }
-
-        await db.collection('gameData')
-          .where({ _openid: openid })
-          .update({ data: updateData })
+          coins: coins
+        })
 
         return {
           success: true,
@@ -98,31 +123,20 @@ exports.main = async (event, context) => {
       checkinStreak = 1
     }
 
-    // 计算签到奖励
+    // 计算签到奖励（广告首次签到直接 2x，普通签到 1x）
     const baseReward = CHECKIN_REWARDS[checkinStreak] || DEFAULT_BASE
     const bonusReward = (checkinStreak % BONUS_DAY === 0) ? BONUS_AMOUNT : 0
-    const rewardAmount = baseReward + bonusReward
+    const multiplier = isAd ? 2 : 1
+    const rewardAmount = (baseReward + bonusReward) * multiplier
 
-    // 更新金币
     coins += rewardAmount
 
-    // 写入数据库
-    const updateData = {
+    await upsertGameData(openid, {
       lastCheckinDate: today,
       checkinStreak: checkinStreak,
       coins: coins,
-      lastCheckinType: isAd ? 'ad' : 'normal',
-      updatedAt: db.serverDate()
-    }
-
-    if (data.length > 0) {
-      await db.collection('gameData')
-        .where({ _openid: openid })
-        .update({ data: updateData })
-    } else {
-      updateData._openid = openid
-      await db.collection('gameData').add({ data: updateData })
-    }
+      lastCheckinType: isAd ? 'ad' : 'normal'
+    })
 
     return {
       success: true,
@@ -133,10 +147,10 @@ exports.main = async (event, context) => {
         lastCheckinType: isAd ? 'ad' : 'normal',
         reward: {
           amount: rewardAmount,
-          baseReward: baseReward,
-          bonusReward: bonusReward,
+          baseReward: baseReward * multiplier,
+          bonusReward: bonusReward * multiplier,
           isBonusDay: bonusReward > 0,
-          isAdDouble: false
+          isAdDouble: isAd
         }
       }
     }

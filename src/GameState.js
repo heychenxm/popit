@@ -46,10 +46,8 @@ export class GameState {
     this.lastCheckinDate = saved.lastCheckinDate
     this.checkinStreak = saved.checkinStreak
     this.lastCheckinType = saved.lastCheckinType || ''
-    // 根据 lastCheckinDate 正确初始化签到状态
-    this.hasCheckedInToday = (this.lastCheckinDate === getTodayString())
-    this.hasNormalCheckinToday = this.hasCheckedInToday
-    this.hasAdDoubleCheckinToday = false  // 广告双倍签到需要每次启动重新判断
+    // 根据 lastCheckinDate / lastCheckinType 初始化今日签到状态
+    this.updateCheckinStatus()
     this.hasSharedGiftToday = false  // 今天是否已领取分享礼包
     this.lastShareGiftDate = saved.lastShareGiftDate
     // 初始化时检查今天是否已领取
@@ -127,6 +125,7 @@ export class GameState {
     
     // 云端保存防抖
     this._saveCloudTimer = null
+    this._cloudDataLoaded = false
     
     // 好友排行榜
     this.friendLeaderboard = new FriendLeaderboard(this)
@@ -187,7 +186,8 @@ export class GameState {
       bestWave: Number(getStorage('bestWave', 0)) || 0,
       coins: Number(getStorage('coins', config.game.initialCoins)) || config.game.initialCoins,
       lastCheckinDate: getStorage('lastCheckinDate', ''),
-      checkinStreak: getStorage('checkinStreak', 0),
+      checkinStreak: Number(getStorage('checkinStreak', 0)) || 0,
+      lastCheckinType: getStorage('lastCheckinType', ''),
       lastShareGiftDate: getStorage('lastShareGiftDate', ''),
       lastShareDate: getStorage('lastShareDate', ''),
       todayShareCount: getStorage('todayShareCount', 0),
@@ -348,15 +348,88 @@ export class GameState {
 
   // 检查是否可以签到（用于 UI 显示红点）
   canCheckin() {
+    this.updateCheckinStatus()
     const today = getTodayString()
-    // 完全使用本地数据判断
     return this.lastCheckinDate !== today
   }
 
   // 检查是否可以看广告双倍签到
   canAdDoubleCheckin() {
-    // 未使用过广告双倍签到即可（允许普通签到后再看广告）
+    this.updateCheckinStatus()
+    const today = getTodayString()
+    // 今日已广告签到则不可再用
+    if (this.lastCheckinDate === today && this.lastCheckinType === 'ad') {
+      return false
+    }
     return !this.hasAdDoubleCheckinToday
+  }
+
+  // 立即持久化签到状态（签到数据不走延迟写入，防止刷新丢失）
+  _persistCheckinLocal() {
+    setStorage('lastCheckinDate', this.lastCheckinDate)
+    setStorage('checkinStreak', this.checkinStreak)
+    setStorage('lastCheckinType', this.lastCheckinType)
+  }
+
+  /**
+   * 合并云端签到数据：取较新日期，同日以云端为准；本地较新时不被旧云端覆盖
+   */
+  _mergeCheckinFromCloud(cloud) {
+    const cloudDate = cloud.lastCheckinDate || ''
+    const localDate = this.lastCheckinDate || ''
+    let updated = false
+
+    if (!cloudDate) {
+      if (localDate) {
+        this._persistCheckinLocal()
+      }
+      return updated
+    }
+
+    if (!localDate || cloudDate > localDate) {
+      this.lastCheckinDate = cloudDate
+      if (typeof cloud.checkinStreak === 'number') {
+        this.checkinStreak = cloud.checkinStreak
+      }
+      this.lastCheckinType = cloud.lastCheckinType || ''
+      updated = true
+    } else if (cloudDate === localDate) {
+      if (typeof cloud.checkinStreak === 'number' && cloud.checkinStreak !== this.checkinStreak) {
+        this.checkinStreak = cloud.checkinStreak
+        updated = true
+      }
+      if (cloud.lastCheckinType !== undefined && cloud.lastCheckinType !== this.lastCheckinType) {
+        this.lastCheckinType = cloud.lastCheckinType || ''
+        updated = true
+      }
+    } else {
+      // 本地日期较新，保留本地并确保写回 storage
+      this._persistCheckinLocal()
+      return false
+    }
+
+    if (updated) {
+      this._persistCheckinLocal()
+    }
+    return updated
+  }
+
+  /**
+   * 打开签到界面前确保签到状态已从本地/云端同步
+   */
+  async ensureCheckinStateReady() {
+    this.updateCheckinStatus()
+    if (!wechatAPI.isCloudAvailable()) return
+
+    try {
+      const result = await wechatAPI.loadGameData()
+      if (result.success && result.data) {
+        this._mergeCheckinFromCloud(result.data)
+        this.updateCheckinStatus()
+      }
+    } catch (err) {
+      console.warn('同步签到状态失败:', err.message || err)
+    }
   }
 
   // 更新今日是否已签到状态
@@ -459,13 +532,10 @@ export class GameState {
     
     this.lastCheckinDate = today
     this.lastCheckinType = 'normal'
-    setStorage('lastCheckinDate', today)
-    setStorage('checkinStreak', this.checkinStreak)
-    setStorage('lastCheckinType', this.lastCheckinType)
+    this._persistCheckinLocal()
 
     // 更新今日是否已签到状态
-    this.hasCheckedInToday = true
-    this.hasNormalCheckinToday = true
+    this.updateCheckinStatus()
     
     // 根据签到天数给予基础奖励
     const reward = this.getTodayReward(this.checkinStreak)
@@ -474,12 +544,6 @@ export class GameState {
     const isBonusDay = (this.checkinStreak % config.checkin.bonusDay === 0)
     const bonusAmount = isBonusDay ? config.checkin.bonusAmount : 0
     const totalAmount = reward.amount + bonusAmount
-    
-    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
-    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
-    if (isGem) {
-      return { type: 'gem', amount: totalAmount, baseReward: reward.amount, bonusReward: bonusAmount, isBonusDay }
-    }
     this.addCoins(totalAmount)
     return { type: 'coin', amount: totalAmount, baseReward: reward.amount, bonusReward: bonusAmount, isBonusDay }
   }
@@ -488,6 +552,7 @@ export class GameState {
   doAdDoubleCheckin() {
     const today = getTodayString()
     const yesterday = getYesterdayString()
+    this.updateCheckinStatus()
     
     // 检查是否可以使用广告双倍签到
     if (this.hasAdDoubleCheckinToday) {
@@ -506,13 +571,10 @@ export class GameState {
       }
       
       this.lastCheckinDate = today
-      setStorage('lastCheckinDate', today)
-      setStorage('checkinStreak', this.checkinStreak)
     }
     
     // 标记今天已使用广告双倍签到
-    this.hasAdDoubleCheckinToday = true
-    this.hasCheckedInToday = true
+    this.lastCheckinType = 'ad'
     
     // 根据签到天数给予基础奖励
     const reward = this.getTodayReward(this.checkinStreak)
@@ -524,18 +586,18 @@ export class GameState {
     // 已普通签到：补齐到 2 倍（再给 1x）；未签到：直接给 2 倍
     const multiplier = hasNormalCheckin ? 1 : 2
     const totalAmount = (reward.amount + bonusAmount) * multiplier
-    
-    // 判断是金币还是宝石（第 2 天和第 5 天为宝石）
-    const isGem = (this.checkinStreak === 2 || this.checkinStreak === 5)
-    
-    // 广告签到也需要保存到云端（防篡改）
-    this.saveToCloud().catch(() => {})
-    
-    if (isGem) {
-      return { type: 'gem', amount: totalAmount, baseReward: reward.amount * multiplier, bonusReward: bonusAmount * multiplier, isBonusDay, isDouble: !hasNormalCheckin }
-    }
+
+    this._persistCheckinLocal()
+    this.updateCheckinStatus()
     this.addCoins(totalAmount)
-    return { type: 'coin', amount: totalAmount, baseReward: reward.amount * multiplier, bonusReward: bonusAmount * multiplier, isBonusDay, isDouble: !hasNormalCheckin }
+    return {
+      type: 'coin',
+      amount: totalAmount,
+      baseReward: reward.amount * multiplier,
+      bonusReward: bonusAmount * multiplier,
+      isBonusDay,
+      isAdDouble: !hasNormalCheckin
+    }
   }
 
   // 获取当天签到基础奖励（不含 bonus，bonus 在签到时单独计算）
@@ -1072,20 +1134,8 @@ export class GameState {
         updated = true
       }
 
-      // 签到数据以云端为准（防篡改）
-      if (cloud.lastCheckinDate && cloud.lastCheckinDate !== this.lastCheckinDate) {
-        this.lastCheckinDate = cloud.lastCheckinDate
-        this._scheduleStorageWrite('lastCheckinDate', this.lastCheckinDate)
-        updated = true
-      }
-      if (typeof cloud.checkinStreak === 'number' && cloud.checkinStreak !== this.checkinStreak) {
-        this.checkinStreak = cloud.checkinStreak
-        this._scheduleStorageWrite('checkinStreak', this.checkinStreak)
-        updated = true
-      }
-      if (cloud.lastCheckinType && cloud.lastCheckinType !== this.lastCheckinType) {
-        this.lastCheckinType = cloud.lastCheckinType
-        this._scheduleStorageWrite('lastCheckinType', this.lastCheckinType)
+      // 签到数据：取较新日期合并，避免旧云端覆盖今日本地状态
+      if (this._mergeCheckinFromCloud(cloud)) {
         updated = true
       }
 
@@ -1149,6 +1199,7 @@ export class GameState {
 
       // 检测赛季变更，触发上赛季结算
       this.checkAndSettleSeason()
+      this._cloudDataLoaded = true
     } catch (err) {
       console.log('加载云端数据失败（不影响游戏）:', err.message || err)
     }
@@ -1256,34 +1307,31 @@ export class GameState {
    */
   async doCloudCheckin(isAd = false) {
     const today = getTodayString()
+    this.updateCheckinStatus()
 
     // 普通签到：今天已签到则直接返回
     if (!isAd && this.lastCheckinDate === today) {
-      return null
+      return { error: '今天已签到' }
     }
 
-    // 广告签到：今天已广告签到则返回
-    if (isAd && this.lastCheckinType === 'ad') {
-      return null
+    // 广告签到：仅今日已广告签到时拦截（昨日 ad 类型不影响今日）
+    if (isAd && this.lastCheckinDate === today && this.lastCheckinType === 'ad') {
+      return { error: '今天已使用广告双倍奖励' }
     }
 
     if (!wechatAPI.isCloudAvailable()) {
-      // 云端不可用，降级到本地签到
-      return this.doLocalCheckin()
+      const localResult = isAd ? this.doAdDoubleCheckin() : this.doLocalCheckin()
+      return localResult || { error: '签到失败' }
     }
 
     try {
       const result = await wechatAPI.cloudCheckin(isAd)
       if (!result.success) {
         console.warn('云端签到失败:', result.error)
-        // 如果是"今天已签到"，同步本地状态
         if (result.error === '今天已签到') {
-          this.lastCheckinDate = today
-          setStorage('lastCheckinDate', today)
-          this.hasCheckedInToday = true
-          this.hasNormalCheckinToday = true
+          await this.ensureCheckinStateReady()
         }
-        return null
+        return { error: result.error || '签到失败' }
       }
 
       const data = result.data
@@ -1292,22 +1340,15 @@ export class GameState {
       this.checkinStreak = data.checkinStreak
       this.lastCheckinDate = data.lastCheckinDate
       this.lastCheckinType = data.lastCheckinType || (isAd ? 'ad' : 'normal')
-      this.hasCheckedInToday = true
-      if (!isAd) {
-        this.hasNormalCheckinToday = true
-      } else {
-        this.hasAdDoubleCheckinToday = true
-      }
 
       setStorage('coins', this.coins)
-      setStorage('checkinStreak', this.checkinStreak)
-      setStorage('lastCheckinDate', this.lastCheckinDate)
-      setStorage('lastCheckinType', this.lastCheckinType)
+      this._persistCheckinLocal()
+      this.updateCheckinStatus()
 
       return data.reward
     } catch (err) {
-      console.warn('云端签到异常，降级到本地签到:', err.message || err)
-      return this.doLocalCheckin()
+      console.warn('云端签到异常:', err.message || err)
+      return { error: '云端签到失败，请稍后重试' }
     }
   }
 

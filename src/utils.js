@@ -207,23 +207,17 @@ export function getStorage(key, defaultValue = null) {
   }
 }
 
-// 获取当前日期字符串（YYYY-MM-DD 格式，使用本地时间）
+// 获取当前日期字符串（YYYY-MM-DD，中国时区 UTC+8，与云函数一致）
 export function getTodayString() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const chinaNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  return chinaNow.toISOString().slice(0, 10)
 }
 
-// 获取昨天的日期字符串（YYYY-MM-DD 格式）
+// 获取昨天的日期字符串（YYYY-MM-DD，中国时区 UTC+8）
 export function getYesterdayString() {
-  const now = new Date()
-  const yesterday = new Date(now.getTime() - 86400000)
-  const year = yesterday.getFullYear()
-  const month = String(yesterday.getMonth() + 1).padStart(2, '0')
-  const day = String(yesterday.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const chinaNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const yesterday = new Date(chinaNow.getTime() - 86400000)
+  return yesterday.toISOString().slice(0, 10)
 }
 
 // 安全的 requestAnimationFrame（兼容微信小游戏环境）
