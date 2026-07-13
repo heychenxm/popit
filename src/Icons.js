@@ -131,7 +131,7 @@ export function drawCalendarIcon(ctx, x, y, size, color = '#ffffff') {
   ctx.restore()
 }
 
-// 绘制分享图标
+// 绘制分享图标（三点连线）
 export function drawShareIcon(ctx, x, y, size, color = '#ffffff') {
   setupIconContext(ctx, x, y, size)
   
@@ -164,6 +164,38 @@ export function drawShareIcon(ctx, x, y, size, color = '#ffffff') {
   ctx.lineTo(7.5, 10.5)
   ctx.stroke()
   
+  ctx.restore()
+}
+
+// 绘制分享导出图标（方框 + 向上箭头，参考 iOS 分享样式）
+export function drawShareExportIcon(ctx, x, y, size, color = '#ffffff') {
+  setupIconContext(ctx, x, y, size)
+
+  ctx.strokeStyle = color
+  ctx.lineWidth = 2
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  // 方框（顶部开口，加宽加方）
+  ctx.beginPath()
+  ctx.moveTo(5, 11)
+  ctx.lineTo(5, 20)
+  ctx.lineTo(19, 20)
+  ctx.lineTo(19, 11)
+  ctx.stroke()
+
+  // 向上箭头
+  ctx.beginPath()
+  ctx.moveTo(12, 17)
+  ctx.lineTo(12, 4)
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.moveTo(8.5, 7.5)
+  ctx.lineTo(12, 4)
+  ctx.lineTo(15.5, 7.5)
+  ctx.stroke()
+
   ctx.restore()
 }
 

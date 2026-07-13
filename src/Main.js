@@ -575,6 +575,9 @@ export class Main {
         case 'open_friend_setting':
           this.openFriendSetting()
           break
+        case 'friend_leaderboard_share':
+          this.shareFriendLeaderboard()
+          break
       }
     }
   }
@@ -607,7 +610,6 @@ export class Main {
     wx.openSetting({
       success: (res) => {
         console.log('设置页面返回:', res)
-        // 用户从设置返回后，重新请求授权并刷新排行榜
         if (res.authSetting && res.authSetting['scope.WxFriendInteraction']) {
           this.uiManager.showToast('授权成功，正在刷新...')
           this.refreshFriendLeaderboard()
@@ -619,6 +621,51 @@ export class Main {
         console.warn('打开设置失败:', err)
         this.uiManager.showToast('打开设置失败')
       }
+    })
+  }
+
+  // 分享本局成绩（失败弹窗）
+  shareFailResult() {
+    if (typeof wx === 'undefined' || !wx.shareAppMessage) {
+      this.uiManager.showToast('当前环境不支持分享')
+      return
+    }
+
+    this.vibrate('light')
+    const wave = this.gameState.wave
+    const score = this.gameState.score
+    const title = score > 0
+      ? `我在第 ${wave} 关得了 ${score} 分，快来挑战！`
+      : `我闯到第 ${wave} 关了，你能超过我吗？`
+
+    wx.shareAppMessage({
+      title,
+      imageUrl: '/src/assets/images/share-cover1.png',
+      query: `wave=${wave}&score=${score}`
+    })
+  }
+
+  // 分享好友排行榜
+  shareFriendLeaderboard() {
+    if (typeof wx === 'undefined' || !wx.shareAppMessage) {
+      this.uiManager.showToast('当前环境不支持分享')
+      return
+    }
+
+    this.vibrate('light')
+    const seasonScore = this.gameState.seasonData.seasonScore || 0
+    const bestWave = this.gameState.bestWave || 0
+    let title = '来好友排行榜比比谁更强！'
+    if (seasonScore > 0) {
+      title = `我赛季最高分 ${seasonScore}，快来挑战我！`
+    } else if (bestWave > 0) {
+      title = `我轻松闯过第 ${bestWave} 关，快来挑战我！`
+    }
+
+    wx.shareAppMessage({
+      title,
+      imageUrl: '/src/assets/images/share-cover1.png',
+      query: `wave=${bestWave}&score=${seasonScore}`
     })
   }
 
@@ -803,6 +850,9 @@ export class Main {
           // 失败弹窗中的好友排行按钮
           console.log('点击好友排行按钮')
           this.showFriendLeaderboard()
+          break
+        case 'fail_share':
+          this.shareFailResult()
           break
       }
     }

@@ -6,6 +6,7 @@ import {
   drawSpeakerIcon, 
   drawCalendarIcon, 
   drawShareIcon, 
+  drawShareExportIcon,
   drawCrownIcon, 
   drawChestIcon,
   drawHeartIcon,
@@ -1788,6 +1789,7 @@ export class UIManager {
     } else if (this.friendLeaderboardData && this.friendLeaderboardData.useSharedCanvas) {
       // 使用开放数据域的 sharedCanvas 渲染排行榜
       this._drawFriendLeaderboardSharedCanvas(ctx, modalX, modalY, modalW, modalH, hintY)
+      this._drawFriendLeaderboardShareButton(ctx, modalX, modalW, hintY)
     } else {
       // 无数据提示
       this._drawFriendLeaderboardNoData(ctx, modalX, modalY, modalW, modalH, hintY)
@@ -1914,6 +1916,42 @@ export class UIManager {
     ctx.save()
     ctx.drawImage(sharedCanvas, canvasX, canvasY, canvasW, canvasH)
     ctx.restore()
+  }
+
+  // 绘制分享导出按钮（方框+箭头图标）
+  _drawShareExportButton(ctx, centerX, centerY, buttonId, size = 44) {
+    const btnSize = size
+    const btnX = centerX - btnSize / 2
+    const btnY = centerY - btnSize / 2
+
+    ctx.save()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, btnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    drawShareExportIcon(ctx, centerX, centerY, 24, 'rgba(255, 255, 255, 0.9)')
+    ctx.restore()
+
+    this.buttons.push({
+      id: buttonId,
+      x: btnX,
+      y: btnY,
+      w: btnSize,
+      h: btnSize
+    })
+  }
+
+  // 绘制好友排行榜底部分享按钮
+  _drawFriendLeaderboardShareButton(ctx, modalX, modalW, hintY) {
+    const canvasH = FRIEND_RANK_LAYOUT.height
+    const canvasY = hintY + 20
+    const centerX = modalX + modalW / 2
+    const centerY = canvasY + canvasH + 8 + 22
+    this._drawShareExportButton(ctx, centerX, centerY, 'friend_leaderboard_share')
   }
 
   // 获取 sharedCanvas 引用
@@ -3340,6 +3378,9 @@ export class UIManager {
     
     // 右侧：最高分
     ctx.fillText(`最高分：${gameState.highScore}`, modalX + modalW * 3 / 4, statsY)
+
+    // 底部分享按钮
+    this._drawShareExportButton(ctx, this.width / 2, statsY + 56, 'fail_share')
   }
 
   // 绘制暂停弹窗
