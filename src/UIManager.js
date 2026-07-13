@@ -2254,7 +2254,7 @@ export class UIManager {
     
     // 判断用户是否在前 6 名；仅有赛季/榜数据且未进前 6 时才显示「未上榜」
     const userInTop6 = hasList && data.leaderboard.some(u => u.isUser)
-    const hasUserData = (data.userValue || 0) > 0
+    const hasUserData = data && (data.userValue || 0) > 0
     const showUserUnranked = hasList && !userInTop6 && hasUserData
     const listCount = showUserUnranked ? 4 : 3
     const listContainerH = listInnerPadding + listCount * listItemH + (listCount - 1) * listItemGap + listInnerPadding
