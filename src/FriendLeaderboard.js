@@ -111,10 +111,20 @@ export class FriendLeaderboard {
   postScrollDelta(deltaY) {
     if (!this.openDataContext) this.init()
     if (!this.openDataContext || !deltaY) return
-    this.openDataContext.postMessage({
-      command: 'friendLeaderboardScroll',
-      deltaY
-    })
+
+    this._pendingScrollDelta = (this._pendingScrollDelta || 0) + deltaY
+    if (this._scrollFlushTimer) return
+
+    this._scrollFlushTimer = setTimeout(() => {
+      const delta = this._pendingScrollDelta || 0
+      this._pendingScrollDelta = 0
+      this._scrollFlushTimer = null
+      if (!delta || !this.openDataContext) return
+      this.openDataContext.postMessage({
+        command: 'friendLeaderboardScroll',
+        deltaY: delta
+      })
+    }, 32)
   }
 
   resetScroll() {
@@ -122,6 +132,15 @@ export class FriendLeaderboard {
     if (!this.openDataContext) return
     this.openDataContext.postMessage({
       command: 'friendLeaderboardResetScroll'
+    })
+  }
+
+  setRenderActive(active) {
+    if (!this.openDataContext) this.init()
+    if (!this.openDataContext) return
+    this.openDataContext.postMessage({
+      command: 'setRenderActive',
+      active: !!active
     })
   }
 

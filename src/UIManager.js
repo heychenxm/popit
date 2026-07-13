@@ -103,6 +103,14 @@ export class UIManager {
     this.menuCache = null
     this.menuCtx = null
     this.menuNeedsUpdate = true
+    this.gameHudCache = null
+    this.gameHudCtx = null
+    this.gameHudNeedsUpdate = true
+    this._avatarGradientCache = new Map()
+    this._avatarRenderVersion = 0
+    this._lastSeasonMinuteKey = -1
+    this._countdownBarGradient = null
+    this._countdownBarGradientW = 0
   }
   
   // 预计算数值宽度
@@ -121,6 +129,105 @@ export class UIManager {
     
     // 布局变化时标记 UI 需要重新缓存
     this.menuNeedsUpdate = true
+    this.gameHudNeedsUpdate = true
+  }
+  
+  _createOffscreenCanvas(w, h) {
+    try {
+      if (typeof wx !== 'undefined' && wx.createOffscreenCanvas) {
+        return wx.createOffscreenCanvas({ type: '2d', width: Math.ceil(w), height: Math.ceil(h) })
+      }
+      if (typeof OffscreenCanvas !== 'undefined') {
+        return new OffscreenCanvas(Math.ceil(w), Math.ceil(h))
+      }
+    } catch (e) {
+      // 忽略
+    }
+    return null
+  }
+
+  // 创建游戏 HUD 静态层缓存
+  createGameHudCache() {
+    if (this.gameHudCache && this.gameHudCtx) {
+      this.gameHudNeedsUpdate = true
+      return
+    }
+
+    const cacheH = 180
+    const offscreen = this._createOffscreenCanvas(this.width, cacheH)
+    if (!offscreen) {
+      this.gameHudCache = null
+      this.gameHudCtx = null
+      return
+    }
+
+    this.gameHudCache = offscreen
+    this.gameHudCtx = offscreen.getContext('2d')
+    this.gameHudNeedsUpdate = true
+  }
+
+  drawGameHudStaticToCache() {
+    if (!this.gameHudCtx) return
+
+    const ctx = this.gameHudCtx
+    const padding = 20
+    const topPadding = 60
+    const cardY = topPadding + 50
+    const cardHeight = 50
+    const cardGap = 8
+    const totalCardsWidth = this.width - padding * 2
+    const cardWidth = (totalCardsWidth - cardGap * 2) / 3
+
+    ctx.clearRect(0, 0, this.width, 180)
+
+    const originalCtx = this.ctx
+    this.ctx = ctx
+
+    // 暂停按钮
+    const pauseBtnX = padding
+    const pauseBtnY = topPadding
+    const pauseBtnSize = 40
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.beginPath()
+    ctx.arc(pauseBtnX + pauseBtnSize / 2, pauseBtnY + pauseBtnSize / 2, pauseBtnSize / 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    const pauseCenterX = pauseBtnX + pauseBtnSize / 2
+    const pauseCenterY = pauseBtnY + pauseBtnSize / 2
+    const pauseBarWidth = 4
+    const pauseBarHeight = 14
+    const pauseGap = 6
+
+    ctx.fillStyle = Colors.white
+    ctx.fillRect(pauseCenterX - pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
+    ctx.fillRect(pauseCenterX + pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
+
+    // 分数卡片背景（仅标签，数值每帧动态绘制）
+    this._drawScoreCardBackground(padding, cardY, cardWidth, cardHeight, '得分')
+    this._drawScoreCardBackground(padding + cardWidth + cardGap, cardY, cardWidth, cardHeight, '历史最高')
+    this._drawScoreCardBackground(padding + (cardWidth + cardGap) * 2, cardY, cardWidth, cardHeight, '生命')
+
+    this.ctx = originalCtx
+  }
+
+  _drawScoreCardBackground(x, y, w, h, label) {
+    const ctx = this.ctx
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.5)'
+    drawRoundRect(ctx, x, y, w, h, 12)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    this.setFont('normal10')
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = Colors.gray400
+    ctx.fillText(label, x + w / 2, y + 14)
   }
   
   // 创建主菜单缓存
@@ -1084,77 +1191,86 @@ export class UIManager {
     const ctx = this.ctx
     const padding = 20
     const topPadding = 60
-    
-    // 优化：减少 save/restore 调用
-    // ctx.save()  // 移除不必要的 save
-    
-    // 暂停按钮
-    const pauseBtnX = padding
-    const pauseBtnY = topPadding
-    const pauseBtnSize = 40
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
-    ctx.beginPath()
-    ctx.arc(pauseBtnX + pauseBtnSize / 2, pauseBtnY + pauseBtnSize / 2, pauseBtnSize / 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    
-    // 暂停图标（两条竖线）
-    const pauseCenterX = pauseBtnX + pauseBtnSize / 2
-    const pauseCenterY = pauseBtnY + pauseBtnSize / 2
-    const pauseBarWidth = 4
-    const pauseBarHeight = 14
-    const pauseGap = 6
-    
-    ctx.fillStyle = Colors.white
-    ctx.fillRect(pauseCenterX - pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
-    ctx.fillRect(pauseCenterX + pauseGap - pauseBarWidth / 2, pauseCenterY - pauseBarHeight / 2, pauseBarWidth, pauseBarHeight)
-    
-    this.buttons.push({
-      id: 'pause',
-      x: pauseBtnX,
-      y: pauseBtnY,
-      w: pauseBtnSize,
-      h: pauseBtnSize
-    })
-    
+    const cardY = topPadding + 50
+    const cardHeight = 50
+    const cardGap = 8
+    const totalCardsWidth = this.width - padding * 2
+    const cardWidth = (totalCardsWidth - cardGap * 2) / 3
+
+    if (this.gameHudCache && this.gameHudCtx) {
+      if (this.gameHudNeedsUpdate) {
+        this.drawGameHudStaticToCache()
+        this.gameHudNeedsUpdate = false
+      }
+      ctx.drawImage(this.gameHudCache, 0, 0)
+
+      this.buttons.push({
+        id: 'pause',
+        x: padding,
+        y: topPadding,
+        w: 40,
+        h: 40
+      })
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.beginPath()
+      ctx.arc(padding + 20, topPadding + 20, 20, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      const pauseCenterX = padding + 20
+      const pauseCenterY = topPadding + 20
+      ctx.fillStyle = Colors.white
+      ctx.fillRect(pauseCenterX - 10, pauseCenterY - 7, 4, 14)
+      ctx.fillRect(pauseCenterX + 2, pauseCenterY - 7, 4, 14)
+
+      this.buttons.push({
+        id: 'pause',
+        x: padding,
+        y: topPadding,
+        w: 40,
+        h: 40
+      })
+
+      this._drawScoreCardBackground(padding, cardY, cardWidth, cardHeight, '得分')
+      this._drawScoreCardBackground(padding + cardWidth + cardGap, cardY, cardWidth, cardHeight, '历史最高')
+      this._drawScoreCardBackground(padding + (cardWidth + cardGap) * 2, cardY, cardWidth, cardHeight, '生命')
+    }
+
     // 关卡数
     const waveX = this.width / 2
     const waveY = topPadding + 10
-    
+
     this.setFont('bold18')
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = Colors.white
     ctx.fillText(`第 ${gameState.wave} 波`, waveX, waveY)
-    
-    // 进度点（根据当前关卡显示进度）
+
+    // 进度点
     const dotY = waveY + 20
     const dotSpacing = 24
     const totalDots = 4
     const dotsStartX = waveX - (totalDots - 1) * dotSpacing / 2
-    
-    // 根据关卡计算进度（每 5 关为一个进度点）
     const progressDot = Math.min(Math.floor((gameState.wave - 1) / 5), totalDots - 1)
-    
+
     for (let i = 0; i < totalDots; i++) {
       const dotX = dotsStartX + i * dotSpacing
       const isActive = i <= progressDot
-      
+
       ctx.fillStyle = isActive ? Colors.green500 : Colors.gray600
       ctx.beginPath()
       ctx.arc(dotX, dotY, 6, 0, Math.PI * 2)
       ctx.fill()
-      
+
       if (isActive) {
         ctx.strokeStyle = '#a3e635'
         ctx.lineWidth = 2
         ctx.stroke()
       }
-      
-      // 连接线
+
       if (i < totalDots - 1) {
         ctx.strokeStyle = isActive ? Colors.green500 : Colors.gray600
         ctx.lineWidth = 4
@@ -1164,24 +1280,35 @@ export class UIManager {
         ctx.stroke()
       }
     }
-    
-    // 分数卡片
-    const cardY = topPadding + 50
-    const cardHeight = 50
-    const cardGap = 8
-    const totalCardsWidth = this.width - padding * 2
-    const cardWidth = (totalCardsWidth - cardGap * 2) / 3
-    
-    // 得分卡片
-    this.drawScoreCard(padding, cardY, cardWidth, cardHeight, '得分', gameState.score.toString(), Colors.white)
-    
-    // 历史最高
-    this.drawScoreCard(padding + cardWidth + cardGap, cardY, cardWidth, cardHeight, '历史最高', gameState.highScore.toString(), Colors.yellow300)
-    
-    // 生命
-    this.drawLifeCard(padding + (cardWidth + cardGap) * 2, cardY, cardWidth, cardHeight, gameState)
-    
-    // ctx.restore()  // 移除不必要的 restore
+
+    // 动态数值
+    this._drawScoreCardValue(padding, cardY, cardWidth, cardHeight, gameState.score.toString(), Colors.white)
+    this._drawScoreCardValue(padding + cardWidth + cardGap, cardY, cardWidth, cardHeight, gameState.highScore.toString(), Colors.yellow300)
+    this._drawLifeHearts(padding + (cardWidth + cardGap) * 2, cardY, cardWidth, cardHeight, gameState)
+  }
+
+  _drawScoreCardValue(x, y, w, h, value, valueColor) {
+    const ctx = this.ctx
+    this.setFont('bold16')
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = valueColor
+    ctx.fillText(value, x + w / 2, y + h - 14)
+  }
+
+  _drawLifeHearts(x, y, w, h, gameState) {
+    const ctx = this.ctx
+    const heartSize = 14
+    const totalHearts = gameState.maxLives
+    const heartsWidth = totalHearts * (heartSize + 4)
+    const heartsStartX = x + w / 2 - heartsWidth / 2
+
+    for (let i = 0; i < totalHearts; i++) {
+      const heartX = heartsStartX + i * (heartSize + 4) + heartSize / 2
+      const heartY = y + h - 14
+      const color = i < gameState.lives ? Colors.rose500 : Colors.gray600
+      drawHeartIcon(ctx, heartX, heartY, heartSize, color)
+    }
   }
 
   // 绘制分数卡片
@@ -2237,7 +2364,7 @@ export class UIManager {
         drawRoundRect(ctx, itemX, itemY, top3ItemW, itemH, 16)
         ctx.fill()
         
-        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.3)
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(this.animationFrame * 0.08 + i * 0.3)
         ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.2})`
         drawRoundRect(ctx, itemX + 5, itemY + 5, top3ItemW - 10, itemH - 10, 12)
         ctx.fill()
@@ -2310,7 +2437,7 @@ export class UIManager {
         drawRoundRect(ctx, listContainerX + listInnerPadding, itemY, listContainerW - listInnerPadding * 2, listItemH, 8)
         ctx.fill()
         
-        const skeletonAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 500 + i * 0.5)
+        const skeletonAlpha = 0.5 + 0.5 * Math.sin(this.animationFrame * 0.08 + i * 0.5)
         ctx.fillStyle = `rgba(255, 255, 255, ${skeletonAlpha * 0.15})`
         drawRoundRect(ctx, listContainerX + listInnerPadding + 5, itemY + 5, listContainerW - listInnerPadding * 2 - 10, listItemH - 10, 6)
         ctx.fill()
@@ -2616,13 +2743,10 @@ export class UIManager {
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = Colors.purple500
-      ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
-      ctx.shadowBlur = 10
       ctx.fillText('请观察', centerX, titleY)
       
       ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
-      ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
       ctx.fillText('记住闪烁的气泡', centerX, descY)
     } else if (gameState.phase === 'PLAY') {
@@ -2630,13 +2754,10 @@ export class UIManager {
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = Colors.yellow300
-      ctx.shadowColor = 'rgba(234, 179, 8, 0.5)'
-      ctx.shadowBlur = 10
       ctx.fillText('点它', centerX, titleY)
       
       ctx.font = `12px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.gray300
-      ctx.shadowBlur = 0
       ctx.textBaseline = 'middle'
       ctx.fillText('在倒计时结束前点破所有闪烁的气泡', centerX, descY)
       
@@ -2645,8 +2766,6 @@ export class UIManager {
       const countText = remaining > 0 ? `剩余: ${remaining} 个` : '全部点破！'
       ctx.font = `bold 14px ${FONT_FAMILY}`
       ctx.fillStyle = Colors.purple500
-      ctx.shadowColor = 'rgba(168, 85, 247, 0.4)'
-      ctx.shadowBlur = 6
       ctx.fillText(countText, centerX, countY)
     }
     
@@ -2702,14 +2821,23 @@ export class UIManager {
       : gameState.playDuration
     const progress = Math.max(0, gameState.timerRemaining / totalDuration)
     const fillW = progressW * progress
-    
-    const gradient = ctx.createLinearGradient(progressX, barY, progressX + fillW, barY)
-    gradient.addColorStop(0, Colors.pink500)
-    gradient.addColorStop(1, Colors.rose500)
-    
-    ctx.fillStyle = gradient
-    drawRoundRect(ctx, progressX, barY + 4, fillW, progressH, progressH / 2)
-    ctx.fill()
+
+    if (!this._countdownBarGradient || this._countdownBarGradientW !== progressW) {
+      this._countdownBarGradient = ctx.createLinearGradient(progressX, barY, progressX + progressW, barY)
+      this._countdownBarGradient.addColorStop(0, Colors.pink500)
+      this._countdownBarGradient.addColorStop(1, Colors.rose500)
+      this._countdownBarGradientW = progressW
+    }
+
+    if (fillW > 0) {
+      ctx.save()
+      drawRoundRect(ctx, progressX, barY + 4, fillW, progressH, progressH / 2)
+      ctx.clip()
+      ctx.fillStyle = this._countdownBarGradient
+      drawRoundRect(ctx, progressX, barY + 4, progressW, progressH, progressH / 2)
+      ctx.fill()
+      ctx.restore()
+    }
     
     // 时间文字
     ctx.font = `14px ${FONT_FAMILY}`
@@ -3589,6 +3717,67 @@ export class UIManager {
     this.animationFrame = (this.animationFrame + 1) % 600000
   }
 
+  /**
+   * 当前界面是否需要每帧重绘（静态弹窗/菜单可跳过中间帧）
+   */
+  needsContinuousRender(gameState) {
+    if (this.transition.active) return true
+    if (this.toast) return true
+
+    switch (this.currentScreen) {
+      case 'game':
+        return true
+      case 'menu': {
+        const hasShareGift = gameState.canShareGift()
+          && gameState.getTodayShareCount() < config.game.maxShareCountPerDay
+        if (hasShareGift) return true
+        if (this.menuNeedsUpdate) return true
+
+        const endTime = gameState.seasonInfo && gameState.seasonInfo.seasonEndTime
+        if (endTime > 0) {
+          const remaining = Math.max(0, endTime - Date.now())
+          const minuteKey = Math.floor(remaining / 60000)
+          if (minuteKey !== this._lastSeasonMinuteKey) {
+            this._lastSeasonMinuteKey = minuteKey
+            this.menuNeedsUpdate = true
+            return true
+          }
+        }
+        return false
+      }
+      case 'friend_leaderboard':
+        return false
+      case 'leaderboard':
+        return !!this.leaderboardLoading
+      case 'season_leaderboard':
+        return !!this.seasonLeaderboardLoading
+      default:
+        return false
+    }
+  }
+
+  /** 用于检测界面状态变化，触发单帧重绘 */
+  getRenderStateKey(gameState) {
+    const timerBucket = this.currentScreen === 'game'
+      ? Math.floor((gameState.timerRemaining || 0) / 100)
+      : 0
+    const toastKey = this.toast ? `${this.toast.text}_${Math.floor(this.toastTimer / 100)}` : ''
+    return [
+      this.currentScreen,
+      gameState.phase,
+      gameState.isPaused ? '1' : '0',
+      this.menuNeedsUpdate ? '1' : '0',
+      this.transition.active ? '1' : '0',
+      timerBucket,
+      toastKey,
+      this.friendLeaderboardLoading ? '1' : '0',
+      this.leaderboardLoading ? '1' : '0',
+      this.seasonLeaderboardLoading ? '1' : '0',
+      this._avatarRenderVersion,
+      gameState.countdownRemaining ? Math.ceil(gameState.countdownRemaining / 200) : 0
+    ].join('|')
+  }
+
   // 启动屏幕过渡动画
   startTransition(onMidpoint) {
     this.transition.active = true
@@ -3846,6 +4035,7 @@ export class UIManager {
       const img = wx.createImage()
       img.onload = () => {
         this.avatarCache[avatarUrl] = { loading: false, loaded: true, image: img }
+        this._avatarRenderVersion++
       }
       img.onerror = () => {
         this.avatarCache[avatarUrl] = { loading: false, loaded: false, image: null }
@@ -3901,21 +4091,9 @@ export class UIManager {
     ctx.save()
     ctx.translate(x, y)
     
-    // 绘制文字头像背景
+    // 绘制文字头像背景（渐变缓存，避免每帧重复计算色相）
     try {
-      const gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
-      if (isTop1) {
-        gradient.addColorStop(0, '#fde68a')
-        gradient.addColorStop(1, '#d97706')
-      } else {
-        const hue = this.getHueFromText(avatarUrl || 'default')
-        const safeHue = (typeof hue === 'number' && !isNaN(hue)) ? hue : 240
-        const color1 = this.hslToHex(safeHue, 70, 65)
-        const color2 = this.hslToHex(safeHue, 70, 45)
-        gradient.addColorStop(0, color1)
-        gradient.addColorStop(1, color2)
-      }
-      ctx.fillStyle = gradient
+      ctx.fillStyle = this._getTextAvatarGradient(radius, avatarUrl, isTop1)
     } catch (e) {
       console.warn('drawAvatar gradient failed, using fallback:', e)
       ctx.fillStyle = isTop1 ? '#d97706' : '#6366f1'
@@ -3974,6 +4152,31 @@ export class UIManager {
   }
 
   // 根据文字生成固定色相值
+  _getTextAvatarGradient(radius, avatarUrl, isTop1) {
+    const key = `${isTop1 ? 'top1' : 'text'}_${avatarUrl || 'default'}_${radius}`
+    let gradient = this._avatarGradientCache.get(key)
+    if (gradient) return gradient
+
+    const ctx = this.ctx
+    gradient = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 0, 0, 0, radius)
+    if (isTop1) {
+      gradient.addColorStop(0, '#fde68a')
+      gradient.addColorStop(1, '#d97706')
+    } else {
+      const hue = this.getHueFromText(avatarUrl || 'default')
+      const safeHue = (typeof hue === 'number' && !isNaN(hue)) ? hue : 240
+      gradient.addColorStop(0, this.hslToHex(safeHue, 70, 65))
+      gradient.addColorStop(1, this.hslToHex(safeHue, 70, 45))
+    }
+
+    if (this._avatarGradientCache.size >= 60) {
+      const oldest = this._avatarGradientCache.keys().next().value
+      this._avatarGradientCache.delete(oldest)
+    }
+    this._avatarGradientCache.set(key, gradient)
+    return gradient
+  }
+
   getHueFromText(text) {
     let hash = 0
     for (let i = 0; i < text.length; i++) {

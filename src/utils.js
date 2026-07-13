@@ -207,6 +207,30 @@ export function getStorage(key, defaultValue = null) {
   }
 }
 
+export const LOCAL_BUNDLE_KEY = 'localDataBundle'
+export const LOCAL_BUNDLE_VERSION = 1
+
+/** 读取聚合本地数据包（启动时 1 次 IO） */
+export function readLocalDataBundle() {
+  const bundle = getStorage(LOCAL_BUNDLE_KEY, null)
+  if (bundle && bundle.v === LOCAL_BUNDLE_VERSION && bundle.data && typeof bundle.data === 'object') {
+    return bundle.data
+  }
+  return null
+}
+
+/** 写入完整本地数据包 */
+export function writeLocalDataBundle(data) {
+  setStorage(LOCAL_BUNDLE_KEY, { v: LOCAL_BUNDLE_VERSION, data })
+}
+
+/** 增量更新本地数据包 */
+export function patchLocalDataBundle(patch) {
+  if (!patch || typeof patch !== 'object') return
+  const existing = readLocalDataBundle() || {}
+  writeLocalDataBundle({ ...existing, ...patch })
+}
+
 // 获取当前日期字符串（YYYY-MM-DD，中国时区 UTC+8，与云函数一致）
 export function getTodayString() {
   const chinaNow = new Date(Date.now() + 8 * 60 * 60 * 1000)

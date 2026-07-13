@@ -1,5 +1,13 @@
-import { getStorage, setStorage } from './utils.js'
-import { getTodayString, getYesterdayString, safeCancelAnimationFrame } from './utils.js'
+import {
+  getStorage,
+  setStorage,
+  getTodayString,
+  getYesterdayString,
+  safeCancelAnimationFrame,
+  readLocalDataBundle,
+  writeLocalDataBundle,
+  patchLocalDataBundle
+} from './utils.js'
 import { config } from './config.js'
 import { getSeasonCycle, getSeasonTimeRemaining, formatSeasonCountdown } from './seasonUtils.js'
 import { wechatAPI } from './WechatAPI.js'
@@ -33,6 +41,7 @@ export class GameState {
     this.playDuration = 4000     // 游戏阶段时长（毫秒）
     this.timerInterval = null
     this.timerType = null        // 'raf' | 'interval' | null
+    this.countdownTask = null    // 主循环驱动的倒计时任务
     this.timerRemaining = 0
     this.countdownRemaining = 0  // 复活倒计时剩余时间（毫秒）
     this.activeWaveCompleted = false
@@ -118,7 +127,9 @@ export class GameState {
     
     // 初始化赛季信息，并恢复本赛季本地缓存
     this.initSeasonInfo()
-    this._loadSeasonDataFromStorage()
+    if (saved.seasonData) {
+      this._applySeasonDataFromStorage(saved.seasonData)
+    }
     
     // 赛季数据初始化后，记录本局开始时的赛季最高分
     this.sessionStartSeasonScore = this.seasonData.seasonScore
@@ -126,6 +137,7 @@ export class GameState {
     // 云端保存防抖
     this._saveCloudTimer = null
     this._cloudDataLoaded = false
+    this._loadCloudDataPromise = null
     
     // 好友排行榜
     this.friendLeaderboard = new FriendLeaderboard(this)
@@ -135,8 +147,7 @@ export class GameState {
   /**
    * 从本地恢复当前赛季进度（杀进程未回首页时不丢分）
    */
-  _loadSeasonDataFromStorage() {
-    const saved = getStorage('seasonData', null)
+  _applySeasonDataFromStorage(saved) {
     if (!saved || typeof saved !== 'object') return
 
     const currentId = this.seasonInfo.currentSeasonId
@@ -179,14 +190,27 @@ export class GameState {
     }, delayMs)
   }
 
-  // 批量从 Storage 读取所有数据（减少阻塞 IO 次数）
+  /** 取消待执行的云端保存（导航/立即保存前调用，避免重复触发限流） */
+  cancelScheduledCloudSave() {
+    if (this._saveCloudTimer) {
+      clearTimeout(this._saveCloudTimer)
+      this._saveCloudTimer = null
+    }
+  }
+
+  // 批量从 Storage 读取所有数据（优先读聚合包，仅 1 次 sync IO）
   _loadAllFromStorage() {
-    return {
-      highScore: Number(getStorage('highScore', 0)) || 0,
-      bestWave: Number(getStorage('bestWave', 0)) || 0,
-      coins: Number(getStorage('coins', config.game.initialCoins)) || config.game.initialCoins,
+    const bundle = readLocalDataBundle()
+    if (bundle) {
+      return this._normalizeStorageData(bundle)
+    }
+
+    const legacy = {
+      highScore: getStorage('highScore', 0),
+      bestWave: getStorage('bestWave', 0),
+      coins: getStorage('coins', config.game.initialCoins),
       lastCheckinDate: getStorage('lastCheckinDate', ''),
-      checkinStreak: Number(getStorage('checkinStreak', 0)) || 0,
+      checkinStreak: getStorage('checkinStreak', 0),
       lastCheckinType: getStorage('lastCheckinType', ''),
       lastShareGiftDate: getStorage('lastShareGiftDate', ''),
       lastShareDate: getStorage('lastShareDate', ''),
@@ -194,8 +218,29 @@ export class GameState {
       nickname: getStorage('nickname', ''),
       avatarUrl: getStorage('avatarUrl', ''),
       authorized: getStorage('userInfoAuthorized', false),
-      // 首次游玩标记
-      hasPlayedBefore: getStorage('hasPlayedBefore', false)
+      hasPlayedBefore: getStorage('hasPlayedBefore', false),
+      seasonData: getStorage('seasonData', null)
+    }
+    writeLocalDataBundle(legacy)
+    return this._normalizeStorageData(legacy)
+  }
+
+  _normalizeStorageData(saved) {
+    return {
+      highScore: Number(saved.highScore) || 0,
+      bestWave: Number(saved.bestWave) || 0,
+      coins: Number(saved.coins) || config.game.initialCoins,
+      lastCheckinDate: saved.lastCheckinDate || '',
+      checkinStreak: Number(saved.checkinStreak) || 0,
+      lastCheckinType: saved.lastCheckinType || '',
+      lastShareGiftDate: saved.lastShareGiftDate || '',
+      lastShareDate: saved.lastShareDate || '',
+      todayShareCount: Number(saved.todayShareCount) || 0,
+      nickname: saved.nickname || '',
+      avatarUrl: saved.avatarUrl || '',
+      authorized: !!saved.authorized,
+      hasPlayedBefore: !!saved.hasPlayedBefore,
+      seasonData: saved.seasonData || null
     }
   }
 
@@ -217,9 +262,12 @@ export class GameState {
       this._storageFlushTimer = null
     }
     if (this._pendingWrites && this._pendingWrites.size > 0) {
+      const patch = {}
       this._pendingWrites.forEach((value, key) => {
         setStorage(key, value)
+        patch[key] = value
       })
+      patchLocalDataBundle(patch)
       this._pendingWrites.clear()
     }
   }
@@ -278,11 +326,15 @@ export class GameState {
   // 清除计时器
   clearTimer() {
     if (this.timerInterval) {
-      safeCancelAnimationFrame(this.timerInterval)
+      if (this.timerType === 'interval') {
+        clearInterval(this.timerInterval)
+      } else {
+        safeCancelAnimationFrame(this.timerInterval)
+      }
       this.timerInterval = null
       this.timerType = null
     }
-    // 先 flush 待执行的 Storage 写入，再清理定时器（防止数据丢失）
+    this.countdownTask = null
     this._flushStorageWrites()
   }
 
@@ -369,6 +421,11 @@ export class GameState {
     setStorage('lastCheckinDate', this.lastCheckinDate)
     setStorage('checkinStreak', this.checkinStreak)
     setStorage('lastCheckinType', this.lastCheckinType)
+    patchLocalDataBundle({
+      lastCheckinDate: this.lastCheckinDate,
+      checkinStreak: this.checkinStreak,
+      lastCheckinType: this.lastCheckinType
+    })
   }
 
   /**
@@ -420,16 +477,10 @@ export class GameState {
   async ensureCheckinStateReady() {
     this.updateCheckinStatus()
     if (!wechatAPI.isCloudAvailable()) return
+    if (this._cloudDataLoaded) return
 
-    try {
-      const result = await wechatAPI.loadGameData()
-      if (result.success && result.data) {
-        this._mergeCheckinFromCloud(result.data)
-        this.updateCheckinStatus()
-      }
-    } catch (err) {
-      console.warn('同步签到状态失败:', err.message || err)
-    }
+    await this.loadCloudData()
+    this.updateCheckinStatus()
   }
 
   // 更新今日是否已签到状态
@@ -487,8 +538,8 @@ export class GameState {
     // 发放奖励金币
     this.addCoins(config.rewards.share)
     
-    // 保存到云端
-    this.saveToCloud().catch(() => {})
+    // 保存到云端（防抖，避免与通关/回首页保存冲突）
+    this.scheduleSaveToCloud(1500)
   }
   
   // 检查是否可以领取分享礼包
@@ -506,8 +557,8 @@ export class GameState {
     // 奖励金币
     this.addCoins(config.rewards.shareGift)
     
-    // 保存到云端
-    this.saveToCloud().catch(() => {})
+    // 保存到云端（防抖）
+    this.scheduleSaveToCloud(1500)
     
     return { type: 'coin', amount: config.rewards.shareGift }
   }
@@ -1052,7 +1103,7 @@ export class GameState {
     this.seasonData.lastSeasonWaveRank = 0
     this.seasonData.lastSeasonRewardDetail = null
     // 同步到云端，标记已显示
-    this.saveToCloud().catch(() => {})
+    this.scheduleSaveToCloud(1500)
   }
 
   /**
@@ -1075,7 +1126,15 @@ export class GameState {
    * 从云端加载数据并与本地合并（游戏启动时调用）
    * 策略：高分/高关卡取较大值，金币取较大值，签到以云端为准
    */
-  async loadCloudData() {
+  loadCloudData() {
+    if (this._loadCloudDataPromise) {
+      return this._loadCloudDataPromise
+    }
+    this._loadCloudDataPromise = this._doLoadCloudData()
+    return this._loadCloudDataPromise
+  }
+
+  async _doLoadCloudData() {
     if (!wechatAPI.isCloudAvailable()) {
       console.log('云开发不可用，使用本地数据')
       return
@@ -1086,9 +1145,7 @@ export class GameState {
       if (!result.success || !result.data) {
         console.log('云端无数据，尝试主动初始化')
         // 方案 3：前端主动初始化兜底
-        this.saveToCloud().catch(err => {
-          console.warn('前端主动初始化云端数据失败:', err.message || err)
-        })
+        this.scheduleSaveToCloud(2000)
         return
       }
 
@@ -1202,6 +1259,7 @@ export class GameState {
       this._cloudDataLoaded = true
     } catch (err) {
       console.log('加载云端数据失败（不影响游戏）:', err.message || err)
+      this._loadCloudDataPromise = null
     }
   }
 

@@ -41,6 +41,8 @@ export class Main {
     // 游戏循环
     this.lastTime = 0
     this.isRunning = false
+    this._loopRafId = null
+    this._lastRenderStateKey = ''
     
     // 观察阶段计时
     this.observeStartTime = 0
@@ -59,6 +61,7 @@ export class Main {
     this.friendListTouchStartY = 0
     this.friendListLastY = 0
     this.friendListIsScrolling = false
+    this._friendListScrollFlushUntil = 0
     
     // 头像昵称填写组件引用
     this.showingAvatarPicker = false
@@ -130,22 +133,24 @@ export class Main {
   
   // 延迟创建缓存（在空闲时执行）
   createDeferredCaches() {
-    // 使用 requestIdleCallback（如果可用）或 setTimeout
     const scheduleTask = typeof requestIdleCallback === 'function'
       ? requestIdleCallback
       : (cb) => setTimeout(cb, 100)
-    
+
     scheduleTask(() => {
-      // 创建玻璃框网格缓存
       this.bubbleGrid.createGlassGridCache()
       console.log('玻璃框网格缓存创建完成')
     })
-    
-    scheduleTask(() => {
-      // 创建 UI 缓存
+
+    setTimeout(() => {
       this.uiManager.createMenuCache()
       console.log('UI 缓存创建完成')
-    }, 50)
+    }, 150)
+
+    setTimeout(() => {
+      this.uiManager.createGameHudCache()
+      console.log('游戏 HUD 缓存创建完成')
+    }, 200)
   }
   
   /**
@@ -216,6 +221,7 @@ export class Main {
     wx.onHide(() => {
       console.log('游戏隐藏')
       this.gameState._flushStorageWrites()
+      this.stopGameLoop()
 
       // 对局中切后台自动暂停，避免回来后倒计时瞬间超时
       if (!this.gameState.isPaused
@@ -229,6 +235,7 @@ export class Main {
     // 游戏显示（回到前台）
     wx.onShow(() => {
       console.log('游戏显示')
+      this.resumeGameLoop()
 
       // 刷新赛季信息（防止挂机跨周）
       if (this.gameState && typeof this.gameState.initSeasonInfo === 'function') {
@@ -315,6 +322,7 @@ export class Main {
     wx.onTouchEnd((e) => {
       if (this.uiManager.currentScreen === 'friend_leaderboard') {
         this.friendListIsScrolling = false
+        this._friendListScrollFlushUntil = Date.now() + 64
       }
     })
   }
@@ -682,6 +690,7 @@ export class Main {
     this.friendListLastY = 0
     if (this.gameState.friendLeaderboard) {
       this.gameState.friendLeaderboard.resetScroll()
+      this.gameState.friendLeaderboard.setRenderActive(false)
     }
 
     // 恢复打开前的界面（例如失败页），避免丢失复活入口
@@ -936,36 +945,41 @@ export class Main {
     this.startObservePhase()
   }
 
-  // 通用倒计时方法（减少代码重复）
+  // 通用倒计时方法（由主循环 update 驱动，避免双 RAF）
   _startCountdown(duration, remaining, onExpire, options = {}) {
-    const { enableTick = false } = options
-    const startTime = Date.now() - (duration - remaining)
+    const { enableTick = false, field = 'timerRemaining' } = options
     this.gameState.clearTimer()
-    
-    let lastSecond = -1  // 追踪上一秒，避免重复播放
-    
-    const checkTimer = () => {
-      const elapsed = Date.now() - startTime
-      this.gameState.timerRemaining = Math.max(0, duration - elapsed)
-      
-      if (elapsed >= duration) {
-        this.gameState.clearTimer()
-        onExpire()
-      } else {
-        // 检测秒数变化，触发 tick 音效
-        if (enableTick) {
-          const currentSecond = Math.ceil(this.gameState.timerRemaining / 1000)
-          if (currentSecond !== lastSecond && currentSecond <= 3 && currentSecond > 0) {
-            lastSecond = currentSecond
-            this.audioManager.play('tick', currentSecond)
-          }
-        }
-        this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-        this.gameState.timerType = 'raf'
+    this.gameState.countdownTask = {
+      duration,
+      startTime: Date.now() - (duration - remaining),
+      field,
+      onExpire,
+      enableTick,
+      lastSecond: -1
+    }
+  }
+
+  _updateCountdown() {
+    const task = this.gameState.countdownTask
+    if (!task) return
+
+    const elapsed = Date.now() - task.startTime
+    const remaining = Math.max(0, task.duration - elapsed)
+    this.gameState[task.field] = remaining
+
+    if (elapsed >= task.duration) {
+      this.gameState.countdownTask = null
+      task.onExpire()
+      return
+    }
+
+    if (task.enableTick) {
+      const currentSecond = Math.ceil(remaining / 1000)
+      if (currentSecond !== task.lastSecond && currentSecond <= 3 && currentSecond > 0) {
+        task.lastSecond = currentSecond
+        this.audioManager.play('tick', currentSecond)
       }
     }
-    this.gameState.timerInterval = safeRequestAnimationFrame(checkTimer)
-    this.gameState.timerType = 'raf'
   }
 
   // 开始观察阶段
@@ -1275,8 +1289,12 @@ export class Main {
     }
     
     try {
-      // 监听关闭回调（一次性）
+      if (this._adReviveCloseHandler && this._rewardedVideoAd) {
+        this._rewardedVideoAd.offClose(this._adReviveCloseHandler)
+      }
+
       const onCloseHandler = (res) => {
+        this._adReviveCloseHandler = null
         this._rewardedVideoAd.offClose(onCloseHandler)
         
         if (res && res.isEnded) {
@@ -1299,6 +1317,7 @@ export class Main {
         }
       }
       
+      this._adReviveCloseHandler = onCloseHandler
       this._rewardedVideoAd.onClose(onCloseHandler)
       
       // 尝试展示广告
@@ -1348,34 +1367,12 @@ export class Main {
 
   // 复活后倒计时（3秒），倒计时结束后进入观察阶段
   startCountdownBeforeObserve() {
-    const duration = 3000  // 3 秒倒计时
+    const duration = 3000
     this.gameState.countdownRemaining = duration
-
-    const startTime = Date.now()
-    this.gameState.clearTimer()
-    
-    let lastSecond = -1  // 追踪上一秒，避免重复播放
-
-    const tick = () => {
-      const elapsed = Date.now() - startTime
-      this.gameState.countdownRemaining = Math.max(0, duration - elapsed)
-
-      if (elapsed >= duration) {
-        this.gameState.clearTimer()
-        this.startObservePhase()
-      } else {
-        // 检测秒数变化，触发 tick 音效
-        const currentSecond = Math.ceil(this.gameState.countdownRemaining / 1000)
-        if (currentSecond !== lastSecond && currentSecond <= 3 && currentSecond > 0) {
-          lastSecond = currentSecond
-          this.audioManager.play('tick', currentSecond)
-        }
-        this.gameState.timerInterval = safeRequestAnimationFrame(tick)
-        this.gameState.timerType = 'raf'
-      }
-    }
-    this.gameState.timerInterval = safeRequestAnimationFrame(tick)
-    this.gameState.timerType = 'raf'
+    this._startCountdown(duration, duration, () => this.startObservePhase(), {
+      enableTick: true,
+      field: 'countdownRemaining'
+    })
   }
 
   // 清除待执行的定时器
@@ -1408,11 +1405,11 @@ export class Main {
     
     this.uiManager.startTransition(() => {
       this.uiManager.currentScreen = 'menu'
+      this.uiManager.menuNeedsUpdate = true
     })
     
-    this.gameState.saveToCloud().catch(err => {
-      console.warn('保存到云端失败（不影响游戏）:', err.message || err)
-    })
+    this.gameState.cancelScheduledCloudSave()
+    this.gameState.scheduleSaveToCloud(500)
   }
 
   // 暂停游戏
@@ -1474,6 +1471,7 @@ export class Main {
     this.friendListLastY = 0
     if (this.gameState.friendLeaderboard) {
       this.gameState.friendLeaderboard.resetScroll()
+      this.gameState.friendLeaderboard.setRenderActive(true)
     }
     
     this.uiManager.currentScreen = 'friend_leaderboard'
@@ -1749,8 +1747,12 @@ export class Main {
     }
 
     try {
-      // 监听关闭回调（一次性）
+      if (this._checkinAdCloseHandler && this._checkinRewardedVideoAd) {
+        this._checkinRewardedVideoAd.offClose(this._checkinAdCloseHandler)
+      }
+
       const onCloseHandler = async (res) => {
+        this._checkinAdCloseHandler = null
         this._checkinRewardedVideoAd.offClose(onCloseHandler)
 
         if (res && res.isEnded) {
@@ -1774,6 +1776,7 @@ export class Main {
         }
       }
 
+      this._checkinAdCloseHandler = onCloseHandler
       this._checkinRewardedVideoAd.onClose(onCloseHandler)
 
       // 尝试展示广告
@@ -2056,7 +2059,52 @@ export class Main {
   start() {
     this.isRunning = true
     this.lastTime = Date.now()
-    this.gameLoop()
+    this._scheduleGameLoop()
+  }
+
+  stopGameLoop() {
+    this.isRunning = false
+    if (this._loopRafId) {
+      safeCancelAnimationFrame(this._loopRafId)
+      this._loopRafId = null
+    }
+  }
+
+  resumeGameLoop() {
+    if (this.isRunning) return
+    this.isRunning = true
+    this.lastTime = Date.now()
+    this._scheduleGameLoop()
+  }
+
+  _scheduleGameLoop() {
+    if (!this.isRunning) return
+    this._loopRafId = safeRequestAnimationFrame(() => {
+      this._loopRafId = null
+      this.gameLoop()
+    })
+  }
+
+  _needsRender() {
+    if (this.uiManager.currentScreen === 'friend_leaderboard') {
+      if (this.friendListIsScrolling
+          || this.uiManager.friendLeaderboardLoading
+          || Date.now() < this._friendListScrollFlushUntil) {
+        return true
+      }
+    }
+
+    const stateKey = this.uiManager.getRenderStateKey(this.gameState)
+    if (stateKey !== this._lastRenderStateKey) {
+      this._lastRenderStateKey = stateKey
+      return true
+    }
+    return this.uiManager.needsContinuousRender(this.gameState)
+  }
+
+  _shouldAnimateStars() {
+    const screen = this.uiManager.currentScreen
+    return screen === 'menu' || screen === 'game'
   }
 
   // 游戏循环
@@ -2073,16 +2121,21 @@ export class Main {
     // 更新
     this.update(cappedDelta)
     
-    // 渲染
-    this.render()
+    // 按需渲染（静态弹窗/菜单静止时跳过重绘）
+    if (this._needsRender()) {
+      this.render()
+    }
     
     // 继续循环
-    safeRequestAnimationFrame(() => this.gameLoop())
+    this._scheduleGameLoop()
   }
 
   // 更新
   update(deltaTime) {
-    this.bubbleGrid.update(deltaTime)
+    this._updateCountdown()
+    if (this.uiManager.currentScreen === 'game' && !this.gameState.isPaused) {
+      this.bubbleGrid.update(deltaTime)
+    }
     this.uiManager.update(deltaTime)
   }
 
@@ -2092,10 +2145,13 @@ export class Main {
     this.ctx.clearRect(0, 0, this.width, this.height)
     
     // 始终渲染背景（无论哪个界面）
+    this.bubbleGrid.starsAnimate = this._shouldAnimateStars()
     this.bubbleGrid.drawBackground()
     
-    // 只在游戏界面渲染泡泡网格
-    if (this.gameState.phase === 'COUNTDOWN' || this.gameState.phase === 'OBSERVE' || this.gameState.phase === 'PLAY') {
+    // 仅游戏界面且未暂停时渲染泡泡网格
+    const inGameScreen = this.uiManager.currentScreen === 'game'
+    if (inGameScreen && !this.gameState.isPaused
+        && (this.gameState.phase === 'COUNTDOWN' || this.gameState.phase === 'OBSERVE' || this.gameState.phase === 'PLAY')) {
       this.bubbleGrid.drawBubbles()
     }
     

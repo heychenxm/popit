@@ -34,6 +34,10 @@ let scrollY = 0
 let renderNeeded = true
 
 const avatarCache = new Map()
+const loadingAvatars = new Set()
+const MAX_AVATAR_CACHE = 50
+let renderActive = true
+let rafId = null
 
 function loadAvatar(url, callback) {
   if (!url) {
@@ -46,13 +50,25 @@ function loadAvatar(url, callback) {
     return
   }
 
+  if (loadingAvatars.has(url)) {
+    return
+  }
+
+  loadingAvatars.add(url)
   const img = wx.createImage()
   img.onload = function() {
+    loadingAvatars.delete(url)
+    if (avatarCache.size >= MAX_AVATAR_CACHE) {
+      const oldest = avatarCache.keys().next().value
+      avatarCache.delete(oldest)
+    }
     avatarCache.set(url, img)
+    renderNeeded = true
+    scheduleRender()
     callback(img)
   }
   img.onerror = function() {
-    console.warn('头像加载失败:', url)
+    loadingAvatars.delete(url)
     callback(null)
   }
   img.src = url
@@ -80,6 +96,7 @@ wx.onMessage(function(data) {
     scoreKey = data.scoreKey || (data.keyList && data.keyList[0]) || 'score'
     scrollY = 0
     renderNeeded = true
+    scheduleRender()
 
     wx.getFriendCloudStorage({
       keyList: data.keyList || [scoreKey],
@@ -91,6 +108,7 @@ wx.onMessage(function(data) {
           .sort(function(a, b) { return getScore(b) - getScore(a) })
         scrollY = clampScroll(scrollY)
         renderNeeded = true
+        scheduleRender()
         console.log('开放数据域: 获取好友数据成功, 上榜数量:', cachedData.length, 'key:', scoreKey)
       },
       fail: function(err) {
@@ -98,6 +116,7 @@ wx.onMessage(function(data) {
         cachedData = []
         scrollY = 0
         renderNeeded = true
+        scheduleRender()
       }
     })
     return
@@ -110,20 +129,38 @@ wx.onMessage(function(data) {
       scrollY = clampScroll(data.scrollY)
     }
     renderNeeded = true
+    scheduleRender()
     return
   }
 
   if (data.command === 'friendLeaderboardResetScroll') {
     scrollY = 0
     renderNeeded = true
+    scheduleRender()
+  }
+
+  if (data.command === 'setRenderActive') {
+    renderActive = data.active !== false
+    if (renderActive) {
+      renderNeeded = true
+      scheduleRender()
+    } else if (rafId) {
+      cancelAnimationFrame(rafId)
+      rafId = null
+    }
   }
 })
 
-function render() {
-  if (renderNeeded) {
-    drawLeaderboard(cachedData)
-  }
-  requestAnimationFrame(render)
+function scheduleRender() {
+  if (!renderActive || rafId) return
+  rafId = requestAnimationFrame(function loop() {
+    rafId = null
+    if (!renderActive) return
+    if (renderNeeded) {
+      drawLeaderboard(cachedData)
+    }
+    scheduleRender()
+  })
 }
 
 function drawLeaderboard(data) {
@@ -268,6 +305,7 @@ function drawRankItem(ctx, user, rank, y, itemHeight, padding, w, avatarSize, av
     loadAvatar(user.avatarUrl, function(img) {
       if (img) {
         renderNeeded = true
+        scheduleRender()
       }
     })
 
@@ -332,4 +370,4 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
-render()
+scheduleRender()

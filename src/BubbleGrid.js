@@ -60,6 +60,7 @@ export class BubbleGrid {
     // 动画状态
     this.animationFrame = 0
     this.glowPhase = 0
+    this.starsAnimate = true
     
     // 预创建背景渐变（优化：避免每帧创建）
     this.bgGradient = null
@@ -478,14 +479,14 @@ export class BubbleGrid {
       // 直接复制缓存
       ctx.drawImage(this.bgCanvas, 0, 0)
       
-      // 星星闪烁效果（动态层）
-      this.drawStars(ctx, true)
+      // 星星闪烁效果（动态层；弹窗界面可关闭动画以省 CPU）
+      this.drawStars(ctx, this.starsAnimate)
     } else {
       // 降级方案：直接绘制
       ctx.fillStyle = this.bgGradient
       ctx.fillRect(0, 0, this.width, this.height)
       this.drawNeonGrid(ctx)
-      this.drawStars(ctx, true)
+      this.drawStars(ctx, this.starsAnimate)
     }
   }
 
@@ -673,10 +674,9 @@ export class BubbleGrid {
     
     ctx.save()
     
-    // 发光效果（观察阶段动态，点击后固定值减少计算）
-    // 优化：点击后的泡泡不再动态计算 shadowBlur
+    // 发光效果（固定强度，避免每帧 shadowBlur 动画带来的 GPU 开销）
     ctx.shadowColor = colors.glow
-    ctx.shadowBlur = isObserving ? (20 + Math.sin(this.glowPhase) * 10) : 25
+    ctx.shadowBlur = 25
     
     // 使用延迟创建的渐变（节省内存）
     const gradient = this._getActiveGradient(bubble, activeColor)

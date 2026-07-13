@@ -106,13 +106,18 @@ export class AudioManager {
     this._gainNodePool.length = 0
   }
 
+  // Oscillator 为一次性节点（start 后不可复用），每次播放都新建
+  _createOscillator() {
+    return this.ctx.createOscillator()
+  }
+
   // ==================== 音效合成方法（与 index.html 保持一致）====================
 
   // 泡泡爆破音 - 正弦波，频率从 400Hz 快速上升到 1200Hz
   _playPop() {
     if (!this._ensureContext()) return
     
-    const osc = this.ctx.createOscillator()
+    const osc = this._createOscillator()
     const gain = this._getGainNode()
     
     osc.type = 'sine'
@@ -127,7 +132,6 @@ export class AudioManager {
     osc.start()
     osc.stop(this.ctx.currentTime + 0.15)
     
-    // 播放结束后归还 GainNode
     osc.onended = () => this._releaseGainNode(gain)
   }
 
@@ -135,7 +139,7 @@ export class AudioManager {
   _playWrong() {
     if (!this._ensureContext()) return
     
-    const osc = this.ctx.createOscillator()
+    const osc = this._createOscillator()
     const gain = this._getGainNode()
     
     osc.type = 'sawtooth'
@@ -161,7 +165,7 @@ export class AudioManager {
     const now = this.ctx.currentTime
     
     notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator()
+      const osc = this._createOscillator()
       const gain = this._getGainNode()
       
       osc.type = 'triangle'
@@ -183,7 +187,7 @@ export class AudioManager {
   _playClick() {
     if (!this._ensureContext()) return
     
-    const osc = this.ctx.createOscillator()
+    const osc = this._createOscillator()
     const gain = this._getGainNode()
     
     osc.type = 'sine'
@@ -215,7 +219,7 @@ export class AudioManager {
     const vol = volMap[second] || 0.15
     const dur = durMap[second] || 0.05
     
-    const osc = this.ctx.createOscillator()
+    const osc = this._createOscillator()
     const gain = this._getGainNode()
     
     osc.type = 'sine'
