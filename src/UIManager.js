@@ -43,8 +43,10 @@ export class UIManager {
     this.transition = { active: false, phase: 0, startTime: 0, onMidpoint: null }
     
     // 排行榜加载状态
-  this.leaderboardLoading = false
-  this.leaderboardLoadTime = 0
+    this.leaderboardLoading = false
+    this.leaderboardLoadTime = 0
+    this.leaderboardData = null
+    this.leaderboardType = 'score'  // 'score' | 'wave'
 
     // 赛季排行榜相关状态
     this.seasonLeaderboardLoading = false
@@ -3756,6 +3758,15 @@ export class UIManager {
     }
   }
 
+  /** 排行榜数据指纹：切换 score/wave 或缓存瞬时返回时也能触发重绘 */
+  _leaderboardDataKey(data) {
+    if (!data) return 'null'
+    const list = data.leaderboard
+    const len = Array.isArray(list) ? list.length : 0
+    const top = len > 0 ? (list[0].value || 0) : 0
+    return `${data.type || ''}_${data.seasonId || ''}_${len}_${top}_${data.userRank || 0}_${data.userValue || 0}`
+  }
+
   /** 用于检测界面状态变化，触发单帧重绘 */
   getRenderStateKey(gameState) {
     const timerBucket = this.currentScreen === 'game'
@@ -3773,6 +3784,11 @@ export class UIManager {
       this.friendLeaderboardLoading ? '1' : '0',
       this.leaderboardLoading ? '1' : '0',
       this.seasonLeaderboardLoading ? '1' : '0',
+      this.leaderboardType || 'score',
+      this.seasonLeaderboardType || 'score',
+      this.viewingSeasonArchive ? (this.archiveSeasonId || 'archive') : 'current',
+      this._leaderboardDataKey(this.leaderboardData),
+      this._leaderboardDataKey(this.seasonLeaderboardData),
       this._avatarRenderVersion,
       gameState.countdownRemaining ? Math.ceil(gameState.countdownRemaining / 200) : 0
     ].join('|')
